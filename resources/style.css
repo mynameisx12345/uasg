@@ -551,17 +551,142 @@ div.dt-container .dt-search textarea:focus{
   min-height: 80px;
 }
 
+/* MINIMALIST COMPACT FORM STYLES */
+.compact-form {
+  background: #fafbfc;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 1px solid #e1e5e9;
+  max-width: 100%;
+}
+
+.compact-form h3 {
+  margin: 0 0 12px 0;
+  color: var(--fb-blue);
+  font-size: 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--fb-blue);
+  padding-bottom: 3px;
+}
+
+.form-section {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.8rem;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 3px;
+}
+
+/* TWO COLUMN LAYOUT - 50% each */
+.form-columns {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.form-column {
+  flex: 1;
+  min-width: 0; /* Prevents flex items from overflowing */
+}
+
+.compact-form .form-row {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.compact-form .form-group {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.compact-form .form-group label {
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.compact-form .form-group input,
+.compact-form .form-group select,
+.compact-form .form-group textarea {
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+.compact-form .form-group input:focus,
+.compact-form .form-group select:focus,
+.compact-form .form-group textarea:focus {
+  border-color: var(--fb-blue);
+  box-shadow: 0 0 0 1px rgba(24, 119, 242, 0.25);
+  outline: none;
+}
+
+.form-group-small {
+  flex: 0 0 100px !important;
+  min-width: 100px;
+}
+
+.form-group-medium {
+  flex: 0 0 150px !important;
+  min-width: 150px;
+}
+
+.compact-form .form-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.compact-form .form-actions .btn-primary,
+.compact-form .form-actions .btn-secondary {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+
 /* Update modal to be wider for user forms */
 .modal-content {
   background: var(--card-bg);
   padding: 20px;
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
-  width: 600px;
+  width: 700px;
   max-width: 90%;
   animation: slideDown 0.3s ease;
   text-align: left;
   position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content-small {
+  width: 450px !important;
 }
 
 .modal h2 {
@@ -570,14 +695,44 @@ div.dt-container .dt-search textarea:focus{
   color: var(--fb-dark);
 }
 
+/* Table container improvements */
+.table-container {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 /* Responsive design for form rows */
 @media (max-width: 768px) {
   .form-row {
     flex-direction: column;
   }
   
+  .form-group-small {
+    flex: 1 !important;
+  }
+  
+  .form-columns {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .form-column {
+    width: 100%;
+  }
+  
   .modal-content {
     width: 95%;
     padding: 15px;
+  }
+  
+  .compact-form {
+    padding: 10px;
+  }
+  
+  .form-section {
+    padding: 8px;
   }
 }

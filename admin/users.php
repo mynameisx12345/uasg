@@ -41,69 +41,88 @@
           <div class="compact-form">
             <h3>Add New Administrator</h3>
             
-            <!-- Account Information -->
-            <div class="form-section">
-              <h4>Account Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adminUsername">Username</label>
-                  <input type="text" id="adminUsername" placeholder="Username" required>
+            <div class="form-columns">
+              <!-- Left Column -->
+              <div class="form-column">
+                <!-- Account Information -->
+                <div class="form-section">
+                  <h4>Account Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminUsername">Username</label>
+                      <input type="text" id="adminUsername" placeholder="Username" required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminPassword">Password</label>
+                      <input type="password" id="adminPassword" placeholder="Password" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="adminPassword">Password</label>
-                  <input type="password" id="adminPassword" placeholder="Password" required>
-                </div>
-              </div>
-            </div>
 
-            <!-- Personal Information -->
-            <div class="form-section">
-              <h4>Personal Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adminFname">First Name</label>
-                  <input type="text" id="adminFname" placeholder="First Name" required>
-                </div>
-                <div class="form-group">
-                  <label for="adminMname">Middle Name</label>
-                  <input type="text" id="adminMname" placeholder="Middle Name">
-                </div>
-                <div class="form-group">
-                  <label for="adminLname">Last Name</label>
-                  <input type="text" id="adminLname" placeholder="Last Name" required>
-                </div>
-                <div class="form-group form-group-small">
-                  <label for="adminAuxname">Suffix</label>
-                  <input type="text" id="adminAuxname" placeholder="Jr., Sr.">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group form-group-small">
-                  <label for="adminGender">Gender</label>
-                  <select id="adminGender" required>
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="adminBirthdate">Birthdate</label>
-                  <input type="date" id="adminBirthdate" required>
+                <!-- Personal Information -->
+                <div class="form-section">
+                  <h4>Personal Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminFname">First Name</label>
+                      <input type="text" id="adminFname" placeholder="First Name" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="adminMname">Middle Name</label>
+                      <input type="text" id="adminMname" placeholder="Middle Name">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminLname">Last Name</label>
+                      <input type="text" id="adminLname" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-group form-group-small">
+                      <label for="adminAuxname">Suffix</label>
+                      <input type="text" id="adminAuxname" placeholder="Jr., Sr.">
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Contact Information -->
-            <div class="form-section">
-              <h4>Contact Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adminContact">Contact Number</label>
-                  <input type="text" id="adminContact" placeholder="Contact Number">
+              <!-- Right Column -->
+              <div class="form-column">
+                <!-- Personal Details -->
+                <div class="form-section">
+                  <h4>Personal Details</h4>
+                  <div class="form-row">
+                    <div class="form-group form-group-small">
+                      <label for="adminGender">Gender</label>
+                      <select id="adminGender" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="adminBirthdate">Birthdate</label>
+                      <input type="date" id="adminBirthdate" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="adminEmail">Email</label>
-                  <input type="email" id="adminEmail" placeholder="Email Address" required>
+
+                <!-- Contact Information -->
+                <div class="form-section">
+                  <h4>Contact Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminContact">Contact Number</label>
+                      <input type="text" id="adminContact" placeholder="Contact Number">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adminEmail">Email</label>
+                      <input type="email" id="adminEmail" placeholder="Email Address" required>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -136,69 +155,88 @@
           <div class="compact-form">
             <h3>Add New UASG Adviser</h3>
             
-            <!-- Account Information -->
-            <div class="form-section">
-              <h4>Account Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adviserUsername">Username</label>
-                  <input type="text" id="adviserUsername" placeholder="Username" required>
+            <div class="form-columns">
+              <!-- Left Column -->
+              <div class="form-column">
+                <!-- Account Information -->
+                <div class="form-section">
+                  <h4>Account Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserUsername">Username</label>
+                      <input type="text" id="adviserUsername" placeholder="Username" required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserPassword">Password</label>
+                      <input type="password" id="adviserPassword" placeholder="Password" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="adviserPassword">Password</label>
-                  <input type="password" id="adviserPassword" placeholder="Password" required>
-                </div>
-              </div>
-            </div>
 
-            <!-- Personal Information -->
-            <div class="form-section">
-              <h4>Personal Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adviserFname">First Name</label>
-                  <input type="text" id="adviserFname" placeholder="First Name" required>
-                </div>
-                <div class="form-group">
-                  <label for="adviserMname">Middle Name</label>
-                  <input type="text" id="adviserMname" placeholder="Middle Name">
-                </div>
-                <div class="form-group">
-                  <label for="adviserLname">Last Name</label>
-                  <input type="text" id="adviserLname" placeholder="Last Name" required>
-                </div>
-                <div class="form-group form-group-small">
-                  <label for="adviserAuxname">Suffix</label>
-                  <input type="text" id="adviserAuxname" placeholder="Jr., Sr.">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group form-group-small">
-                  <label for="adviserGender">Gender</label>
-                  <select id="adviserGender" required>
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="adviserBirthdate">Birthdate</label>
-                  <input type="date" id="adviserBirthdate" required>
+                <!-- Personal Information -->
+                <div class="form-section">
+                  <h4>Personal Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserFname">First Name</label>
+                      <input type="text" id="adviserFname" placeholder="First Name" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="adviserMname">Middle Name</label>
+                      <input type="text" id="adviserMname" placeholder="Middle Name">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserLname">Last Name</label>
+                      <input type="text" id="adviserLname" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-group form-group-small">
+                      <label for="adviserAuxname">Suffix</label>
+                      <input type="text" id="adviserAuxname" placeholder="Jr., Sr.">
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Contact Information -->
-            <div class="form-section">
-              <h4>Contact Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="adviserContact">Contact Number</label>
-                  <input type="text" id="adviserContact" placeholder="Contact Number">
+              <!-- Right Column -->
+              <div class="form-column">
+                <!-- Personal Details -->
+                <div class="form-section">
+                  <h4>Personal Details</h4>
+                  <div class="form-row">
+                    <div class="form-group form-group-small">
+                      <label for="adviserGender">Gender</label>
+                      <select id="adviserGender" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="adviserBirthdate">Birthdate</label>
+                      <input type="date" id="adviserBirthdate" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="adviserEmail">Email</label>
-                  <input type="email" id="adviserEmail" placeholder="Email Address" required>
+
+                <!-- Contact Information -->
+                <div class="form-section">
+                  <h4>Contact Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserContact">Contact Number</label>
+                      <input type="text" id="adviserContact" placeholder="Contact Number">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adviserEmail">Email</label>
+                      <input type="email" id="adviserEmail" placeholder="Email Address" required>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -231,69 +269,88 @@
           <div class="compact-form">
             <h3>Add New Student Member</h3>
             
-            <!-- Account Information -->
-            <div class="form-section">
-              <h4>Account Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="studentUsername">Username</label>
-                  <input type="text" id="studentUsername" placeholder="Username" required>
+            <div class="form-columns">
+              <!-- Left Column -->
+              <div class="form-column">
+                <!-- Account Information -->
+                <div class="form-section">
+                  <h4>Account Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentUsername">Username</label>
+                      <input type="text" id="studentUsername" placeholder="Username" required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentPassword">Password</label>
+                      <input type="password" id="studentPassword" placeholder="Password" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="studentPassword">Password</label>
-                  <input type="password" id="studentPassword" placeholder="Password" required>
-                </div>
-              </div>
-            </div>
 
-            <!-- Personal Information -->
-            <div class="form-section">
-              <h4>Personal Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="studentFname">First Name</label>
-                  <input type="text" id="studentFname" placeholder="First Name" required>
-                </div>
-                <div class="form-group">
-                  <label for="studentMname">Middle Name</label>
-                  <input type="text" id="studentMname" placeholder="Middle Name">
-                </div>
-                <div class="form-group">
-                  <label for="studentLname">Last Name</label>
-                  <input type="text" id="studentLname" placeholder="Last Name" required>
-                </div>
-                <div class="form-group form-group-small">
-                  <label for="studentAuxname">Suffix</label>
-                  <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group form-group-small">
-                  <label for="studentGender">Gender</label>
-                  <select id="studentGender" required>
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="studentBirthdate">Birthdate</label>
-                  <input type="date" id="studentBirthdate" required>
+                <!-- Personal Information -->
+                <div class="form-section">
+                  <h4>Personal Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentFname">First Name</label>
+                      <input type="text" id="studentFname" placeholder="First Name" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="studentMname">Middle Name</label>
+                      <input type="text" id="studentMname" placeholder="Middle Name">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentLname">Last Name</label>
+                      <input type="text" id="studentLname" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-group form-group-small">
+                      <label for="studentAuxname">Suffix</label>
+                      <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Contact Information -->
-            <div class="form-section">
-              <h4>Contact Information</h4>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="studentContact">Contact Number</label>
-                  <input type="text" id="studentContact" placeholder="Contact Number">
+              <!-- Right Column -->
+              <div class="form-column">
+                <!-- Personal Details -->
+                <div class="form-section">
+                  <h4>Personal Details</h4>
+                  <div class="form-row">
+                    <div class="form-group form-group-small">
+                      <label for="studentGender">Gender</label>
+                      <select id="studentGender" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="studentBirthdate">Birthdate</label>
+                      <input type="date" id="studentBirthdate" required>
+                    </div>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="studentEmail">Email</label>
-                  <input type="email" id="studentEmail" placeholder="Email Address" required>
+
+                <!-- Contact Information -->
+                <div class="form-section">
+                  <h4>Contact Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentContact">Contact Number</label>
+                      <input type="text" id="studentContact" placeholder="Contact Number">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="studentEmail">Email</label>
+                      <input type="email" id="studentEmail" placeholder="Email Address" required>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -329,63 +386,93 @@
         <span class="modal-close" onclick="closeUpdateModal()">&times;</span>
         <h2>Update User Information</h2>
         
-        <div class="entry-form">
+        <div class="compact-form">
           <input type="hidden" id="updateUserId">
           <input type="hidden" id="updateUserType">
           
-          <div class="form-row">
-            <div class="form-group">
-              <label for="updateUsername">Username</label>
-              <input type="text" id="updateUsername" required>
+          <div class="form-columns">
+            <!-- Left Column -->
+            <div class="form-column">
+              <!-- Account Information -->
+              <div class="form-section">
+                <h4>Account Information</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updateUsername">Username</label>
+                    <input type="text" id="updateUsername" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updatePassword">Password</label>
+                    <input type="password" id="updatePassword" placeholder="Leave empty to keep current">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Personal Information -->
+              <div class="form-section">
+                <h4>Personal Information</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updateFname">First Name</label>
+                    <input type="text" id="updateFname" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="updateMname">Middle Name</label>
+                    <input type="text" id="updateMname">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updateLname">Last Name</label>
+                    <input type="text" id="updateLname" required>
+                  </div>
+                  <div class="form-group form-group-small">
+                    <label for="updateAuxname">Suffix</label>
+                    <input type="text" id="updateAuxname">
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="updatePassword">Password (leave empty to keep current)</label>
-              <input type="password" id="updatePassword" placeholder="Enter new password">
-            </div>
-          </div>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label for="updateFname">First Name</label>
-              <input type="text" id="updateFname" required>
-            </div>
-            <div class="form-group">
-              <label for="updateMname">Middle Name</label>
-              <input type="text" id="updateMname">
-            </div>
-            <div class="form-group">
-              <label for="updateLname">Last Name</label>
-              <input type="text" id="updateLname" required>
-            </div>
-          </div>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label for="updateAuxname">Suffix</label>
-              <input type="text" id="updateAuxname">
-            </div>
-            <div class="form-group">
-              <label for="updateGender">Gender</label>
-              <select id="updateGender" required>
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="updateBirthdate">Birthdate</label>
-              <input type="date" id="updateBirthdate" required>
-            </div>
-          </div>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label for="updateContact">Contact Number</label>
-              <input type="text" id="updateContact">
-            </div>
-            <div class="form-group">
-              <label for="updateEmail">Email</label>
-              <input type="email" id="updateEmail" required>
+            
+            <!-- Right Column -->
+            <div class="form-column">
+              <!-- Personal Details -->
+              <div class="form-section">
+                <h4>Personal Details</h4>
+                <div class="form-row">
+                  <div class="form-group form-group-small">
+                    <label for="updateGender">Gender</label>
+                    <select id="updateGender" required>
+                      <option value="">Select</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="updateBirthdate">Birthdate</label>
+                    <input type="date" id="updateBirthdate" required>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Contact Information -->
+              <div class="form-section">
+                <h4>Contact Information</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updateContact">Contact Number</label>
+                    <input type="text" id="updateContact">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="updateEmail">Email</label>
+                    <input type="email" id="updateEmail" required>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -399,11 +486,11 @@
 
     <!-- DELETE MODAL -->
     <div id="deleteUserModal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content modal-content-small">
         <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
         <h2>Delete User Confirmation</h2>
         
-        <div class="entry-form">
+        <div class="compact-form">
           <input type="hidden" id="deleteUserId">
           <input type="hidden" id="deleteUserType">
           
@@ -414,7 +501,7 @@
           
           <div class="form-group">
             <label for="deleteReason">Reason for Deletion</label>
-            <textarea id='deleteReason' name='deleteReason' rows='5' placeholder="Enter reason for deletion..." required></textarea>
+            <textarea id='deleteReason' name='deleteReason' rows='4' placeholder="Enter reason for deletion..." required></textarea>
           </div>
           
           <div class="form-actions">
@@ -488,6 +575,11 @@
               CALL: 7 // Get admin users
             },
             dataType:'json',
+            error: function(xhr, error, thrown) {
+              console.log('DataTable AJAX Error:', error);
+              console.log('Response:', xhr.responseText);
+              openModal("ERROR", "Failed to load admin users: " + error);
+            }
           },
           responsive: true,
           scroll: '50vh',
@@ -529,6 +621,11 @@
               CALL: 8 // Get adviser users
             },
             dataType:'json',
+            error: function(xhr, error, thrown) {
+              console.log('Adviser DataTable AJAX Error:', error);
+              console.log('Response:', xhr.responseText);
+              openModal("ERROR", "Failed to load adviser users: " + error);
+            }
           },
           responsive: true,
           scroll: '50vh',
@@ -570,6 +667,11 @@
               CALL: 9 // Get student users
             },
             dataType:'json',
+            error: function(xhr, error, thrown) {
+              console.log('Student DataTable AJAX Error:', error);
+              console.log('Response:', xhr.responseText);
+              openModal("ERROR", "Failed to load student users: " + error);
+            }
           },
           responsive: true,
           scroll: '50vh',

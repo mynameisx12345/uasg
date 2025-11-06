@@ -783,6 +783,280 @@
 			$tc = new TaskCategory();
 			return $tc->getAllRecords();
 		}
+	class FileManager {
+		private $db;
+
+		public function __construct() {
+			$this->db = Database::getInstance();
+		}
+
+		public function uploadFile($data) {
+			// Validate required fields
+			$required = ['file_category_id', 'mime_type', 'file_name', 'drive_id', 'uploaded_by'];
+			foreach($required as $field) {
+				if(empty($data[$field])) {
+					throw new Exception("Missing required field: $field");
+				}
+			}
+
+			// Check if user has permission to upload to this category
+			if(!$this->checkUploadPermission($data['uploaded_by'], $data['file_category_id'])) {
+				throw new Exception("You do not have permission to upload to this file category");
+			}
+
+			$connection = $this->db->getConnection();
+			$connection->beginTransaction();
+
+			try {
+				$fileUpload = new FileUpload([
+					'file_category_id' => $data['file_category_id'],
+					'mime_type' => $data['mime_type'],
+					'file_name' => $data['file_name'],
+					'drive_id' => $data['drive_id'],
+					'datetime_uploaded' => date('Y-m-d H:i:s'),
+					'uploaded_by' => $data['uploaded_by']
+				]);
+
+				if(!$fileUpload->insert()) {
+					throw new Exception("Failed to save file record");
+				}
+
+				$connection->commit();
+				return ['status' => 'SUCCESS', 'message' => 'File uploaded successfully'];
+
+			} catch(Exception $e) {
+				$connection->rollback();
+				throw $e;
+			}
+		}
+
+		public function getFilesByCategory($categoryId, $userId = null) {
+			try {
+				$query = "SELECT fu.*, fc.file_category, u.user_name, p.fname, p.lname
+						  FROM file_upload_tbl fu
+						  JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+						  JOIN user_tbl u ON fu.uploaded_by = u.user_id
+						  JOIN profile_tbl p ON u.profile_id = p.profile_id";
+				
+				$params = [];
+				
+				if($categoryId) {
+					$query .= " WHERE fu.file_category_id = :category_id";
+					$params[':category_id'] = $categoryId;
+				}
+
+				// If userId provided, check permissions
+				if($userId && $categoryId) {
+					if(!$this->checkViewPermission($userId, $categoryId)) {
+						return [];
+					}
+				}
+
+				$query .= " ORDER BY fu.datetime_uploaded DESC";
+				
+				return $this->db->select($query, $params);
+			} catch(Exception $e) {
+				throw new Exception("Failed to retrieve files: " . $e->getMessage());
+			}
+		}
+
+		public function getAllFiles($userId = null) {
+			try {
+				$query = "SELECT fu.*, fc.file_category, u.user_name, p.fname, p.lname
+						  FROM file_upload_tbl fu
+						  JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+						  JOIN user_tbl u ON fu.uploaded_by = u.user_id
+						  JOIN profile_tbl p ON u.profile_id = p.profile_id";
+				
+				// If userId provided, filter by permissions
+				if($userId) {
+					$query .= " WHERE fu.file_category_id IN (
+						SELECT DISTINCT fp.file_category_id 
+						FROM file_permission_tbl fp
+						JOIN user_tbl ut ON fp.position_id = ut.position_id
+						WHERE ut.user_id = :user_id
+					)";
+					$params = [':user_id' => $userId];
+				} else {
+					$params = [];
+				}
+
+				$query .= " ORDER BY fu.datetime_uploaded DESC";
+				
+				return $this->db->select($query, $params);
+			} catch(Exception $e) {
+				throw new Exception("Failed to retrieve files: " . $e->getMessage());
+			}
+		}
+
+		public function deleteFile($fileId, $userId, $reason) {
+			if(empty($fileId) || empty($userId) || empty(trim($reason))) {
+				throw new Exception("Missing required parameters for file deletion");
+			}
+
+			$connection = $this->db->getConnection();
+			$connection->beginTransaction();
+
+			try {
+				// Get file details before deletion
+				$query = "SELECT * FROM file_upload_tbl WHERE file_upload_id = :file_id";
+				$fileData = $this->db->select($query, [':file_id' => $fileId]);
+				
+				if(empty($fileData)) {
+					throw new Exception("File not found");
+				}
+
+				$file = $fileData[0];
+
+				// Check if user has permission to delete (must be uploader or admin)
+				if($file['uploaded_by'] != $userId && !$this->isAdmin($userId)) {
+					throw new Exception("You do not have permission to delete this file");
+				}
+
+				// Record deletion
+				$deleteRecord = new Delete([
+					'data_deleted' => json_encode($file),
+					'reason_for_deletion' => $reason,
+					'table_origin' => 'file_upload_tbl',
+					'datetime' => date('Y-m-d H:i:s')
+				]);
+
+				if(!$deleteRecord->insert()) {
+					throw new Exception("Failed to record deletion");
+				}
+
+				// Delete the file
+				$fileUpload = new FileUpload();
+				if(!$fileUpload->delete('file_upload_id', $fileId)) {
+					throw new Exception("Failed to delete file");
+				}
+
+				$connection->commit();
+				return ['status' => 'SUCCESS', 'message' => 'File deleted successfully'];
+
+			} catch(Exception $e) {
+				$connection->rollback();
+				throw $e;
+			}
+		}
+
+		public function checkViewPermission($userId, $categoryId) {
+			try {
+				$query = "SELECT COUNT(*) as has_permission
+						  FROM file_permission_tbl fp
+						  JOIN user_tbl u ON fp.position_id = u.position_id
+						  WHERE u.user_id = :user_id AND fp.file_category_id = :category_id";
+				
+				$result = $this->db->select($query, [
+					':user_id' => $userId,
+					':category_id' => $categoryId
+				]);
+
+				return $result[0]['has_permission'] > 0;
+			} catch(Exception $e) {
+				return false;
+			}
+		}
+
+		public function checkUploadPermission($userId, $categoryId) {
+			// For now, same as view permission - can be extended for different permission levels
+			return $this->checkViewPermission($userId, $categoryId);
+		}
+
+		private function isAdmin($userId) {
+			try {
+				$query = "SELECT u.user_type 
+						  FROM user_tbl u 
+						  WHERE u.user_id = :user_id";
+				
+				$result = $this->db->select($query, [':user_id' => $userId]);
+				
+				return !empty($result) && $result[0]['user_type'] === 'admin';
+			} catch(Exception $e) {
+				return false;
+			}
+		}
+
+		public function setFilePermission($positionId, $categoryId) {
+			try {
+				// Check if permission already exists
+				$query = "SELECT COUNT(*) as count FROM file_permission_tbl 
+						  WHERE position_id = :pos_id AND file_category_id = :cat_id";
+				
+				$existing = $this->db->select($query, [
+					':pos_id' => $positionId,
+					':cat_id' => $categoryId
+				]);
+
+				if($existing[0]['count'] > 0) {
+					throw new Exception("Permission already exists for this position and category");
+				}
+
+				$permission = new FilePermission([
+					'position_id' => $positionId,
+					'file_category_id' => $categoryId
+				]);
+
+				if(!$permission->insert()) {
+					throw new Exception("Failed to set file permission");
+				}
+
+				return ['status' => 'SUCCESS', 'message' => 'Permission set successfully'];
+
+			} catch(Exception $e) {
+				throw $e;
+			}
+		}
+
+		public function removeFilePermission($positionId, $categoryId) {
+			try {
+				$permission = new FilePermission();
+				
+				$query = "DELETE FROM file_permission_tbl 
+						  WHERE position_id = :pos_id AND file_category_id = :cat_id";
+				
+				$connection = $this->db->getConnection();
+				$stmt = $connection->prepare($query);
+				
+				if(!$stmt->execute([':pos_id' => $positionId, ':cat_id' => $categoryId])) {
+					throw new Exception("Failed to remove file permission");
+				}
+
+				return ['status' => 'SUCCESS', 'message' => 'Permission removed successfully'];
+
+			} catch(Exception $e) {
+				throw $e;
+			}
+		}
+
+		public function getFilePermissions() {
+			try {
+				$query = "SELECT fp.*, p.position, fc.file_category
+						  FROM file_permission_tbl fp
+						  JOIN position_tbl p ON fp.position_id = p.position_id
+						  JOIN file_category_tbl fc ON fp.file_category_id = fc.file_category_id
+						  ORDER BY p.position, fc.file_category";
+				
+				return $this->db->select($query);
+			} catch(Exception $e) {
+				throw new Exception("Failed to retrieve file permissions: " . $e->getMessage());
+			}
+		}
+
+		public function getUserAccessibleCategories($userId) {
+			try {
+				$query = "SELECT DISTINCT fc.*
+						  FROM file_category_tbl fc
+						  JOIN file_permission_tbl fp ON fc.file_category_id = fp.file_category_id
+						  JOIN user_tbl u ON fp.position_id = u.position_id
+						  WHERE u.user_id = :user_id
+						  ORDER BY fc.file_category";
+				
+				return $this->db->select($query, [':user_id' => $userId]);
+			} catch(Exception $e) {
+				throw new Exception("Failed to retrieve accessible categories: " . $e->getMessage());
+			}
+		}
 	}
 
 	

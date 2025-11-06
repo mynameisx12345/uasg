@@ -39,14 +39,29 @@
 
         <!-- TAB CONTENT: POSITIONS -->
         <div class="tab-content active" id="positions">
-          <div class="entry-form">
-            <div class="form-group">
-              <label for="positionName">Position Name</label>
-              <input type="text" id="positionName" name="positionName" placeholder="Enter position..." required>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn-primary" id='saveposition'>Save</button>
-              <button type="reset" class="btn-secondary">Clear</button>
+          <div class="compact-form">
+            <h3>Add New Position</h3>
+            <div class="form-columns">
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Position Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="positionName">Position Name</label>
+                      <input type="text" id="positionName" name="positionName" placeholder="Enter position..." required>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Actions</h4>
+                  <div class="form-actions">
+                    <button type="submit" class="btn-primary" id='saveposition'>Save Position</button>
+                    <button type="reset" class="btn-secondary">Clear</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <br/>
@@ -71,14 +86,29 @@
         -->
         <!-- TAB CONTENT: CATEGORIES -->
         <div class="tab-content" id="categories">
-          <div class="entry-form">
-            <div class="form-group">
-              <label for="categoryName">File Category Name</label>
-              <input type="text" id="categoryName" name="categoryName" placeholder="Enter file category..." required>
-            </div>
-            <div class="form-actions">
-              <button type="submit" id='saveFileCategory' class="btn-primary">Save</button>
-              <button type="reset" class="btn-secondary">Clear</button>
+          <div class="compact-form">
+            <h3>Add New File Category</h3>
+            <div class="form-columns">
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Category Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="categoryName">File Category Name</label>
+                      <input type="text" id="categoryName" name="categoryName" placeholder="Enter file category..." required>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Actions</h4>
+                  <div class="form-actions">
+                    <button type="submit" id='saveFileCategory' class="btn-primary">Save Category</button>
+                    <button type="reset" class="btn-secondary">Clear</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <br/>
@@ -100,14 +130,29 @@
 
         <!-- TAB CONTENT: OFFICES -->
         <div class="tab-content" id="offices">
-          <div class="entry-form">
-            <div class="form-group">
-              <label for="taskCategoryName">Task Category</label>
-              <input type="text" id="taskCategoryName" name="taskCategoryName" placeholder="Enter task category..." required>
-            </div>
-            <div class="form-actions">
-              <button type="submit" id='saveTaskCategory' class="btn-primary">Save</button>
-              <button type="reset" class="btn-secondary">Clear</button>
+          <div class="compact-form">
+            <h3>Add New Task Category</h3>
+            <div class="form-columns">
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Task Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="taskCategoryName">Task Category</label>
+                      <input type="text" id="taskCategoryName" name="taskCategoryName" placeholder="Enter task category..." required>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Actions</h4>
+                  <div class="form-actions">
+                    <button type="submit" id='saveTaskCategory' class="btn-primary">Save Category</button>
+                    <button type="reset" class="btn-secondary">Clear</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <br/>
@@ -129,29 +174,29 @@
       </div>
     </section>
     <div id="updateModal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content modal-content-small">
         <span class="modal-close" onclick="closeFormModal()">&times;</span>
         <h2>Data Update Form</h2>
         
-        <div class="entry-form">
-          <div class="form-group">
-            <label for="recordCategory">Data to Update</label>
-            <input type='text' id='option' readonly>
+        <div class="compact-form">
+          <div class="form-section">
+            <h4>Update Information</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="recordCategory">Data to Update</label>
+                <input type='text' id='option' readonly>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="recordName">Updated Information</label>
+                <input type="text" id="updateName" placeholder="Enter updated data" required>
+              </div>
+            </div>
           </div>
-
-          <div class="form-group">
-            <label for="recordName">Updated Information</label>
-            <input type="text" id="updateName" placeholder="Enter updated data" required>
-          </div>
-          
-          
-          <!--div class="form-group">
-            <label for="recordDesc">Description</label>
-            <textarea id="recordDesc" rows="3" placeholder="Enter details..."></textarea>
-          </div-->
           
           <div class="form-actions">
-            <button type="submit" class="btn-primary">Save</button>
+            <button type="submit" class="btn-primary">Save Changes</button>
             <button type="button" class="btn-secondary" onclick="closeFormModal()">Cancel</button>
           </div>
         </div>
@@ -159,26 +204,27 @@
     </div>
 
     <div id="deleteModal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content modal-content-small">
         <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
         <h2>Data Delete Confirmation</h2>
         
-        <div class="entry-form">
-          <div class="form-group">
-            <label for="recordCategory">Data to Delete</label>
-            <input type='text' id='deletevalue' readonly>
+        <div class="compact-form">
+          <div class="form-section">
+            <h4>Deletion Details</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="recordCategory">Data to Delete</label>
+                <input type='text' id='deletevalue' readonly>
+              </div>
+            </div>
+            <input type='hidden' id='deleteid'>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="reason">Reason for Deletion</label>
+                <textarea id='reason' name='reason' rows='4' placeholder="Enter reason for deletion..."></textarea>
+              </div>
+            </div>
           </div>
-          <input type='hidden' id='deleteid'>
-          <div class="form-group">
-            <label for="reason">Reason for Deletion</label>
-            <textarea id='reason' name='reason' rows='5'></textarea>
-          </div>
-          
-          
-          <!--div class="form-group">
-            <label for="recordDesc">Description</label>
-            <textarea id="recordDesc" rows="3" placeholder="Enter details..."></textarea>
-          </div-->
           
           <div class="form-actions">
             <button type="submit" class="btn-primary">Confirm Delete</button>
