@@ -26,7 +26,13 @@
                     
                     <div class="form-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                        <div style="position: relative;">
+                            <input type="password" id="password" name="password" required autocomplete="current-password">
+                            <button type="button" id="togglePassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 14px; color: #8b949e; width: auto; padding: 0;">👁️</button>
+                        </div>
+                        <label style="font-weight: normal; margin-top: 8px; font-size: 12px; color: #7d8590;">
+                            <input type="checkbox" id="showPassword" style="width: auto; margin-right: 5px;"> Show password
+                        </label>
                     </div>
                     
                     <div id="loginError" class="github-error-message" style="display: none;"></div>
@@ -43,6 +49,24 @@
 
     <script>
         $(document).ready(function() {
+            // Password visibility toggle
+            $('#showPassword, #togglePassword').on('change click', function() {
+                const passwordField = $('#password');
+                const showPassword = $('#showPassword').is(':checked');
+                
+                if (showPassword || $(this).attr('id') === 'togglePassword') {
+                    if (passwordField.attr('type') === 'password') {
+                        passwordField.attr('type', 'text');
+                        $('#togglePassword').text('🙈');
+                        $('#showPassword').prop('checked', true);
+                    } else {
+                        passwordField.attr('type', 'password');
+                        $('#togglePassword').text('👁️');
+                        $('#showPassword').prop('checked', false);
+                    }
+                }
+            });
+            
             $('#loginForm').on('submit', function(e) {
                 e.preventDefault();
                 
@@ -57,6 +81,9 @@
                 // Show loading state
                 $('.github-btn-primary').text('Signing in...').prop('disabled', true);
                 
+                // Debug: Show what we're sending
+                console.log('Login attempt:', {username: username, password: password});
+                
                 $.ajax({
                     url: 'auth.php',
                     type: 'POST',
@@ -67,6 +94,7 @@
                     },
                     dataType: 'json',
                     success: function(response) {
+                        console.log('Login response:', response);
                         if (response.success) {
                             window.location.href = response.redirect_url;
                         } else {
@@ -74,8 +102,9 @@
                             $('.github-btn-primary').text('Sign in').prop('disabled', false);
                         }
                     },
-                    error: function() {
-                        showError('Unable to sign in. Please try again.');
+                    error: function(xhr, status, error) {
+                        console.log('AJAX Error:', xhr.responseText);
+                        showError('Unable to sign in. Please try again. Check console for details.');
                         $('.github-btn-primary').text('Sign in').prop('disabled', false);
                     }
                 });

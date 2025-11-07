@@ -783,6 +783,8 @@
 			$tc = new TaskCategory();
 			return $tc->getAllRecords();
 		}
+	}
+
 	class TaskManager {
 		private $db;
 
@@ -1160,6 +1162,7 @@
 			$this->db = Database::getInstance();
 		}
 
+		// Base file upload functionality
 		public function uploadFile($data) {
 			// Validate required fields
 			$required = ['file_category_id', 'mime_type', 'file_name', 'drive_id', 'uploaded_by'];
@@ -1200,6 +1203,332 @@
 			}
 		}
 
+		// Member-specific file operations
+		public function uploadMemberFile($data) {
+			// Handle file upload with intelligent categorization
+			if (!isset($_FILES['file'])) {
+				return ['status' => 'ERROR', 'msg' => 'No file provided'];
+			}
+
+			$file = $_FILES['file'];
+			$description = $data['description'] ?? '';
+			$categoryId = $data['category_id'] ?? null;
+			$memberId = $data['uploaded_by'];
+
+			// Validate file
+			$maxSize = 50 * 1024 * 1024; // 50MB
+			if ($file['size'] > $maxSize) {
+				return ['status' => 'ERROR', 'msg' => 'File size exceeds 50MB limit'];
+			}
+
+			// Create upload directory
+			$uploadDir = '../uploads/member_files/';
+			if (!file_exists($uploadDir)) {
+				mkdir($uploadDir, 0777, true);
+			}
+
+			// Generate unique filename
+			$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+			$uniqueFileName = uniqid() . '_' . time() . '.' . $extension;
+			$uploadPath = $uploadDir . $uniqueFileName;
+
+			// Move uploaded file
+			if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+				// If no category provided, analyze content
+				if (!$categoryId) {
+					$analyzer = new FileAnalyzer();
+					$analysis = $analyzer->analyzeFileContent($file['name'], $file['type'], $extension);
+					$categoryId = $analysis['categoryId'];
+				}
+
+				// Insert file record
+				$stmt = $this->db->getConnection()->prepare("
+					INSERT INTO file_upload_tbl (file_name, original_name, file_path, file_size, mime_type, file_category_id, description, uploaded_by, datetime_uploaded) 
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+				");
+				
+				$result = $stmt->execute([
+					$uniqueFileName,
+					$file['name'],
+					$uploadPath,
+					$file['size'],
+					$file['type'],
+					$categoryId,
+					$description,
+					$memberId
+				]);
+
+				if ($result) {
+					return ['status' => 'SUCCESS', 'msg' => 'File uploaded successfully'];
+				} else {
+					unlink($uploadPath);
+					return ['status' => 'ERROR', 'msg' => 'Failed to save file information'];
+				}
+			} else {
+				return ['status' => 'ERROR', 'msg' => 'Failed to upload file'];
+			}
+		}
+
+		public function uploadMultipleMemberFiles($data) {
+			$results = [];
+			$successCount = 0;
+			$errorCount = 0;
+
+			if (!isset($_FILES['files'])) {
+				return ['status' => 'ERROR', 'msg' => 'No files provided'];
+			}
+
+			$files = $_FILES['files'];
+			$fileCount = count($files['name']);
+
+			for ($i = 0; $i < $fileCount; $i++) {
+				$fileData = [
+					'uploaded_by' => $data['uploaded_by'],
+					'category_id' => $data['category'] ?? null,
+					'description' => $data['description'] ?? ''
+				];
+
+				// Mock single file structure
+				$_FILES['file'] = [
+					'name' => $files['name'][$i],
+					'type' => $files['type'][$i],
+					'tmp_name' => $files['tmp_name'][$i],
+					'error' => $files['error'][$i],
+					'size' => $files['size'][$i]
+				];
+
+				$result = $this->uploadMemberFile($fileData);
+				$results[] = $result;
+
+				if ($result['status'] === 'SUCCESS') {
+					$successCount++;
+				} else {
+					$errorCount++;
+				}
+			}
+
+			return [
+				'status' => $successCount > 0 ? 'SUCCESS' : 'ERROR',
+				'msg' => "Upload completed: $successCount successful, $errorCount failed",
+				'details' => $results
+			];
+		}
+
+		public function getMemberFiles($memberId, $filters = []) {
+			$whereConditions = ["fu.uploaded_by = ?"];
+			$params = [$memberId];
+
+			if (!empty($filters['category'])) {
+				$whereConditions[] = "fu.file_category_id = ?";
+				$params[] = $filters['category'];
+			}
+
+			if (!empty($filters['type'])) {
+				$whereConditions[] = "fu.mime_type LIKE ?";
+				$params[] = '%' . $filters['type'] . '%';
+			}
+
+			$whereClause = implode(' AND ', $whereConditions);
+
+			$files = $this->db->select("
+				SELECT fu.*, fc.file_category, fc.file_category as category_description
+				FROM file_upload_tbl fu
+				LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+				WHERE $whereClause
+				ORDER BY fu.datetime_uploaded DESC
+			", $params);
+
+			return ['status' => 'SUCCESS', 'data' => $files];
+		}
+
+		public function getMemberFileDetails($memberId, $fileId) {
+			$file = $this->db->select("
+				SELECT fu.*, fc.file_category, fc.file_category as category_description
+				FROM file_upload_tbl fu
+				LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+				WHERE fu.file_upload_id = ? AND fu.uploaded_by = ?
+			", [$fileId, $memberId]);
+
+			if (empty($file)) {
+				return ['status' => 'ERROR', 'msg' => 'File not found'];
+			}
+
+			return ['status' => 'SUCCESS', 'data' => $file[0]];
+		}
+
+		public function updateMemberFileInfo($data) {
+			$required = ['file_id', 'category', 'description', 'updated_by'];
+			foreach($required as $field) {
+				if(!isset($data[$field])) {
+					return ['status' => 'ERROR', 'msg' => "Missing required field: $field"];
+				}
+			}
+
+			// Verify file ownership
+			$file = $this->db->select("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", 
+				[$data['file_id'], $data['updated_by']]);
+
+			if (empty($file)) {
+				return ['status' => 'ERROR', 'msg' => 'File not found or access denied'];
+			}
+
+			$stmt = $this->db->getConnection()->prepare("
+				UPDATE file_upload_tbl 
+				SET file_category_id = ?, description = ?, tags = ?
+				WHERE file_upload_id = ? AND uploaded_by = ?
+			");
+
+			$result = $stmt->execute([
+				$data['category'],
+				$data['description'],
+				$data['tags'] ?? '',
+				$data['file_id'],
+				$data['updated_by']
+			]);
+
+			return [
+				'status' => $result ? 'SUCCESS' : 'ERROR',
+				'msg' => $result ? 'File information updated successfully' : 'Failed to update file information'
+			];
+		}
+
+		public function deleteMemberFile($memberId, $fileId) {
+			// Get file info and verify ownership
+			$file = $this->db->select("
+				SELECT * FROM file_upload_tbl 
+				WHERE file_upload_id = ? AND uploaded_by = ?
+			", [$fileId, $memberId]);
+
+			if (empty($file)) {
+				return ['status' => 'ERROR', 'msg' => 'File not found or access denied'];
+			}
+
+			$file = $file[0];
+
+			// Check if file is associated with task submissions
+			$submissions = $this->db->select("
+				SELECT COUNT(*) as count FROM task_submission_tbl WHERE file_upload_id = ?
+			", [$fileId]);
+
+			if ($submissions[0]['count'] > 0) {
+				return ['status' => 'ERROR', 'msg' => 'Cannot delete file that is associated with task submissions'];
+			}
+
+			// Delete file from database
+			$stmt = $this->db->getConnection()->prepare("DELETE FROM file_upload_tbl WHERE file_upload_id = ?");
+			$result = $stmt->execute([$fileId]);
+
+			if ($result) {
+				// Delete physical file
+				if (file_exists($file['file_path'])) {
+					unlink($file['file_path']);
+				}
+				return ['status' => 'SUCCESS', 'msg' => 'File deleted successfully'];
+			} else {
+				return ['status' => 'ERROR', 'msg' => 'Failed to delete file'];
+			}
+		}
+
+		public function downloadMemberFile($memberId, $fileId) {
+			// Get file info and verify ownership
+			$file = $this->db->select("
+				SELECT * FROM file_upload_tbl 
+				WHERE file_upload_id = ? AND uploaded_by = ?
+			", [$fileId, $memberId]);
+
+			if (empty($file) || !file_exists($file[0]['file_path'])) {
+				return ['status' => 'ERROR', 'msg' => 'File not found'];
+			}
+
+			$file = $file[0];
+
+			// Set headers for download
+			header('Content-Type: application/octet-stream');
+			header('Content-Disposition: attachment; filename="' . $file['original_name'] . '"');
+			header('Content-Length: ' . filesize($file['file_path']));
+
+			// Output file
+			readfile($file['file_path']);
+			return ['status' => 'SUCCESS'];
+		}
+
+		// Adviser-specific file operations
+		public function getAdviserAccessibleFiles($adviserId, $filters = []) {
+			$whereConditions = [];
+			$params = [];
+
+			// Advisers can access all files or filter by category
+			if (!empty($filters['category_id'])) {
+				$whereConditions[] = "fu.file_category_id = ?";
+				$params[] = $filters['category_id'];
+			}
+
+			if (!empty($filters['file_type'])) {
+				$whereConditions[] = "fu.mime_type LIKE ?";
+				$params[] = '%' . $filters['file_type'] . '%';
+			}
+
+			$whereClause = count($whereConditions) > 0 ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+
+			$files = $this->db->select("
+				SELECT fu.*, fc.file_category, 
+					   CONCAT(p.fname, ' ', p.lname) as uploader_name
+				FROM file_upload_tbl fu
+				LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+				LEFT JOIN profile_tbl p ON fu.uploaded_by = p.user_id
+				$whereClause
+				ORDER BY fu.datetime_uploaded DESC
+			", $params);
+
+			return ['status' => 'SUCCESS', 'data' => $files];
+		}
+
+		public function deleteAdviserFile($adviserId, $data) {
+			$required = ['file_id', 'reason'];
+			foreach($required as $field) {
+				if(empty($data[$field])) {
+					return ['status' => 'ERROR', 'msg' => "Missing required field: $field"];
+				}
+			}
+
+			// Get file info
+			$file = $this->db->select("SELECT * FROM file_upload_tbl WHERE file_upload_id = ?", [$data['file_id']]);
+
+			if (empty($file)) {
+				return ['status' => 'ERROR', 'msg' => 'File not found'];
+			}
+
+			$file = $file[0];
+
+			$connection = $this->db->getConnection();
+			$connection->beginTransaction();
+
+			try {
+				// Log deletion
+				$stmt = $connection->prepare("
+					INSERT INTO deleted_record_tbl (table_name, record_id, reason, deleted_by, datetime_deleted) 
+					VALUES (?, ?, ?, ?, NOW())
+				");
+				$stmt->execute(['file_upload_tbl', $data['file_id'], $data['reason'], $adviserId]);
+
+				// Delete file record
+				$stmt = $connection->prepare("DELETE FROM file_upload_tbl WHERE file_upload_id = ?");
+				$stmt->execute([$data['file_id']]);
+
+				// Delete physical file
+				if (file_exists($file['file_path'])) {
+					unlink($file['file_path']);
+				}
+
+				$connection->commit();
+				return ['status' => 'SUCCESS', 'msg' => 'File deleted successfully'];
+			} catch(Exception $e) {
+				$connection->rollback();
+				throw new Exception("Failed to delete file: " . $e->getMessage());
+			}
+		}
+
+		// Common file operations
 		public function getFilesByCategory($categoryId, $userId = null) {
 			try {
 				$query = "SELECT fu.*, fc.file_category, u.user_name, p.fname, p.lname
@@ -1426,6 +1755,322 @@
 			} catch(Exception $e) {
 				throw new Exception("Failed to retrieve accessible categories: " . $e->getMessage());
 			}
+		}
+	}
+
+	// Dashboard Manager Class
+	class DashboardManager {
+		private $db;
+
+		public function __construct() {
+			$this->db = Database::getInstance();
+		}
+
+		public function getAdviserDashboardStats($adviserId) {
+			try {
+				// Get total tasks created by adviser
+				$totalTasks = $this->db->select("
+					SELECT COUNT(*) as count FROM task_tbl WHERE created_by = ?
+				", [$adviserId])[0]['count'];
+
+				// Get pending reviews
+				$pendingReviews = $this->db->select("
+					SELECT COUNT(*) as count FROM task_submission_tbl ts
+					JOIN task_tbl t ON ts.task_id = t.task_id
+					WHERE t.created_by = ? AND ts.check_status = 'pending'
+				", [$adviserId])[0]['count'];
+
+				// Get completed tasks
+				$completedTasks = $this->db->select("
+					SELECT COUNT(*) as count FROM task_submission_tbl ts
+					JOIN task_tbl t ON ts.task_id = t.task_id
+					WHERE t.created_by = ? AND ts.check_status = 'approved'
+				", [$adviserId])[0]['count'];
+
+				// Get active members count
+				$activeMembers = $this->db->select("
+					SELECT COUNT(DISTINCT ts.uploaded_by) as count FROM task_submission_tbl ts
+					JOIN task_tbl t ON ts.task_id = t.task_id
+					WHERE t.created_by = ? AND DATE(ts.datetime_uploaded) >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+				", [$adviserId])[0]['count'];
+
+				// Get unread notifications
+				$notificationManager = new NotificationManager();
+				$unreadNotifications = $notificationManager->getUnreadCount($adviserId);
+
+				return [
+					"status" => "SUCCESS",
+					"data" => [
+						"total_tasks" => $totalTasks,
+						"pending_reviews" => $pendingReviews,
+						"completed_tasks" => $completedTasks,
+						"active_members" => $activeMembers,
+						"unread_notifications" => $unreadNotifications
+					]
+				];
+			} catch(Exception $e) {
+				throw new Exception("Failed to get adviser dashboard stats: " . $e->getMessage());
+			}
+		}
+
+		public function getAdviserRecentActivity($adviserId) {
+			try {
+				$activities = $this->db->select("
+					SELECT 
+						ts.datetime_uploaded as date,
+						CONCAT(p.fname, ' ', p.lname) as student_name,
+						'Submitted' as action,
+						t.task_title,
+						ts.check_status as status
+					FROM task_submission_tbl ts
+					JOIN task_tbl t ON ts.task_id = t.task_id
+					JOIN profile_tbl p ON ts.uploaded_by = p.user_id
+					WHERE t.created_by = ?
+					ORDER BY ts.datetime_uploaded DESC
+					LIMIT 10
+				", [$adviserId]);
+
+				return [
+					"status" => "SUCCESS",
+					"data" => $activities
+				];
+			} catch(Exception $e) {
+				throw new Exception("Failed to get adviser recent activity: " . $e->getMessage());
+			}
+		}
+
+		public function getMemberDashboardStats($memberId) {
+			try {
+				// Get total files uploaded
+				$totalFiles = $this->db->select("
+					SELECT COUNT(*) as count FROM file_upload_tbl WHERE uploaded_by = ?
+				", [$memberId])[0]['count'];
+
+				// Get active tasks
+				$activeTasks = $this->db->select("
+					SELECT COUNT(*) as count FROM task_tbl t
+					LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id AND ts.uploaded_by = ?
+					WHERE (t.assigned_to = ? OR t.assigned_to IS NULL) 
+					AND t.task_status = 'active' 
+					AND t.task_deadline >= NOW()
+					AND ts.task_submission_id IS NULL
+				", [$memberId, $memberId])[0]['count'];
+
+				// Get completed tasks
+				$completedTasks = $this->db->select("
+					SELECT COUNT(*) as count FROM task_submission_tbl ts
+					WHERE ts.uploaded_by = ? AND ts.check_status = 'approved'
+				", [$memberId])[0]['count'];
+
+				// Get file categories used
+				$categoriesUsed = $this->db->select("
+					SELECT COUNT(DISTINCT file_category_id) as count FROM file_upload_tbl WHERE uploaded_by = ?
+				", [$memberId])[0]['count'];
+
+				return [
+					"status" => "SUCCESS",
+					"data" => [
+						"total_files" => $totalFiles,
+						"active_tasks" => $activeTasks,
+						"completed_tasks" => $completedTasks,
+						"categories_used" => $categoriesUsed
+					]
+				];
+			} catch(Exception $e) {
+				throw new Exception("Failed to get member dashboard stats: " . $e->getMessage());
+			}
+		}
+
+		public function getMemberRecentActivity($memberId) {
+			try {
+				$activities = $this->db->select("
+					SELECT 
+						fu.datetime_uploaded as date,
+						'File Upload' as activity_type,
+						fu.file_name as item_name,
+						fc.file_category as category,
+						'completed' as status
+					FROM file_upload_tbl fu
+					LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+					WHERE fu.uploaded_by = ?
+					
+					UNION ALL
+					
+					SELECT 
+						ts.datetime_uploaded as date,
+						'Task Submission' as activity_type,
+						t.task_title as item_name,
+						tc.task_category as category,
+						ts.check_status as status
+					FROM task_submission_tbl ts
+					JOIN task_tbl t ON ts.task_id = t.task_id
+					LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
+					WHERE ts.uploaded_by = ?
+					
+					ORDER BY date DESC
+					LIMIT 10
+				", [$memberId, $memberId]);
+
+				return [
+					"status" => "SUCCESS",
+					"data" => $activities
+				];
+			} catch(Exception $e) {
+				throw new Exception("Failed to get member recent activity: " . $e->getMessage());
+			}
+		}
+	}
+
+	// File Analyzer Class for intelligent file categorization
+	class FileAnalyzer {
+		private $db;
+
+		public function __construct() {
+			$this->db = Database::getInstance();
+		}
+
+		public function analyzeFileContent($fileName, $fileType, $extension) {
+			$fileName = strtolower($fileName);
+			$analysis = [
+				'suggested_category' => 'Other',
+				'confidence_level' => 'Low',
+				'file_type' => ucfirst($extension),
+				'keywords_found' => [],
+				'categoryId' => 8 // Default to 'Other' category
+			];
+
+			// Get categories from database
+			$categories = $this->db->select("SELECT * FROM file_category_tbl ORDER BY file_category");
+
+			// Define keyword patterns for different categories
+			$categoryPatterns = [
+				'Academic Records' => [
+					'keywords' => ['transcript', 'grade', 'academic', 'certificate', 'diploma', 'record', 'enrollment', 'tor'],
+					'extensions' => ['pdf', 'doc', 'docx'],
+					'confidence' => 'High',
+					'id' => 1
+				],
+				'Financial Documents' => [
+					'keywords' => ['budget', 'financial', 'expense', 'receipt', 'invoice', 'payment', 'fund', 'money', 'cash'],
+					'extensions' => ['pdf', 'xls', 'xlsx', 'doc', 'docx'],
+					'confidence' => 'High',
+					'id' => 2
+				],
+				'Meeting Minutes' => [
+					'keywords' => ['meeting', 'minutes', 'agenda', 'discussion', 'attendees', 'action', 'items'],
+					'extensions' => ['pdf', 'doc', 'docx'],
+					'confidence' => 'High',
+					'id' => 3
+				],
+				'Reports' => [
+					'keywords' => ['report', 'analysis', 'summary', 'findings', 'evaluation', 'assessment', 'review'],
+					'extensions' => ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
+					'confidence' => 'Medium',
+					'id' => 4
+				],
+				'Event Documentation' => [
+					'keywords' => ['event', 'activity', 'program', 'seminar', 'workshop', 'conference', 'documentation'],
+					'extensions' => ['pdf', 'doc', 'docx', 'jpg', 'png'],
+					'confidence' => 'Medium',
+					'id' => 5
+				],
+				'Legal Documents' => [
+					'keywords' => ['legal', 'contract', 'agreement', 'policy', 'regulation', 'compliance', 'law'],
+					'extensions' => ['pdf', 'doc', 'docx'],
+					'confidence' => 'High',
+					'id' => 6
+				],
+				'Proposals' => [
+					'keywords' => ['proposal', 'project', 'plan', 'initiative', 'recommendation', 'suggestion'],
+					'extensions' => ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
+					'confidence' => 'Medium',
+					'id' => 7
+				]
+			];
+
+			// Analyze file name against patterns
+			$bestMatch = null;
+			$highestScore = 0;
+
+			foreach ($categoryPatterns as $categoryName => $pattern) {
+				$score = 0;
+				$foundKeywords = [];
+
+				// Check keywords in filename
+				foreach ($pattern['keywords'] as $keyword) {
+					if (strpos($fileName, $keyword) !== false) {
+						$score += 2;
+						$foundKeywords[] = $keyword;
+					}
+				}
+
+				// Check file extension
+				if (in_array($extension, $pattern['extensions'])) {
+					$score += 1;
+				}
+
+				// Update best match if this category has higher score
+				if ($score > $highestScore) {
+					$highestScore = $score;
+					$bestMatch = [
+						'name' => $categoryName,
+						'confidence' => $pattern['confidence'],
+						'keywords' => $foundKeywords,
+						'id' => $pattern['id']
+					];
+				}
+			}
+
+			// Update analysis with best match
+			if ($bestMatch && $highestScore > 0) {
+				$analysis['suggested_category'] = $bestMatch['name'];
+				$analysis['confidence_level'] = $bestMatch['confidence'];
+				$analysis['keywords_found'] = $bestMatch['keywords'];
+				$analysis['categoryId'] = $bestMatch['id'];
+			}
+
+			// Determine file type description
+			$typeDescriptions = [
+				'pdf' => 'PDF Document',
+				'doc' => 'Word Document',
+				'docx' => 'Word Document',
+				'xls' => 'Excel Spreadsheet',
+				'xlsx' => 'Excel Spreadsheet',
+				'ppt' => 'PowerPoint Presentation',
+				'pptx' => 'PowerPoint Presentation',
+				'jpg' => 'JPEG Image',
+				'jpeg' => 'JPEG Image',
+				'png' => 'PNG Image',
+				'gif' => 'GIF Image',
+				'zip' => 'ZIP Archive',
+				'rar' => 'RAR Archive'
+			];
+
+			$analysis['file_type'] = $typeDescriptions[$extension] ?? ucfirst($extension) . ' File';
+
+			return $analysis;
+		}
+
+		public function analyzeMultipleFiles($filesData) {
+			$results = [];
+
+			foreach ($filesData as $fileData) {
+				$fileName = $fileData['name'];
+				$fileType = $fileData['type'];
+				$fileSize = $fileData['size'];
+				$extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+				$analysis = $this->analyzeFileContent($fileName, $fileType, $extension);
+				$analysis['file_name'] = $fileName;
+				$analysis['file_size'] = $fileSize;
+
+				$results[] = $analysis;
+			}
+
+			return [
+				'status' => 'SUCCESS',
+				'data' => $results
+			];
 		}
 	}
 

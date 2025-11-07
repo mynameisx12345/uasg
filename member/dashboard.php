@@ -20,33 +20,29 @@ $currentUser = $session->getUserData();
   <script src='../js/datatable.js'></script>
 </head>
 <body>
-  <!-- HEADER -->
-  <?php require_once("header.php");?>
-  <header class="topbar">
-    <h1>Member Dashboard</h1>
-    <div class="user-info">
-      <span>Welcome, <?= htmlspecialchars($currentUser['full_name']) ?></span>
-    </div>
-  </header>
-  
-  <!-- MAIN -->
-  <main class="main">
+  <!-- MAIN LAYOUT -->
+  <div class="dashboard-container">
     <!-- SIDEBAR -->
     <?php require_once("sidebar.php");?>
 
-    <!-- CONTENT -->
-    <section class="content">
-      <!-- TABS -->
-      <div class="tabs">
-        <button class="tab-link active" data-tab="dashboard">Dashboard</button>
-        <button class="tab-link" data-tab="file-upload">File Upload</button>
-        <button class="tab-link" data-tab="my-files">My Files</button>
-        <button class="tab-link" data-tab="task-submissions">Task Submissions</button>
-        <button class="tab-link" data-tab="account-management">Account Management</button>
-      </div>
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      <!-- HEADER -->
+      <?php require_once("header.php");?>
+      
+      <!-- CONTENT -->
+      <div class="dashboard-content">
+        <!-- NAVIGATION TABS -->
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+          <button class="tab-btn" data-tab="file-upload">File Upload</button>
+          <button class="tab-btn" data-tab="my-files">My Files</button>
+          <button class="tab-btn" data-tab="task-submissions">Task Submissions</button>
+          <button class="tab-btn" data-tab="account-management">Account Management</button>
+        </div>
 
-      <!-- TAB CONTENT: DASHBOARD -->
-      <div class="tab-content active" id="dashboard">
+        <!-- TAB CONTENT: DASHBOARD -->
+        <div class="tab-pane active" id="dashboard">
         <!-- Overview Cards -->
         <div class="card-grid">
           <div class="card stat-card">
@@ -354,24 +350,24 @@ $currentUser = $session->getUserData();
           </div>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <!-- MODALS -->
   <?php include('modals.php'); ?>
 
   <script>
-    // Simple tab switcher
-    const tabLinks = document.querySelectorAll(".tab-link");
-    const tabContents = document.querySelectorAll(".tab-content");
+    // GitHub-style tab switcher
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    const tabPanes = document.querySelectorAll(".tab-pane");
 
-    tabLinks.forEach(link => {
-      link.addEventListener("click", () => {
-        tabLinks.forEach(l => l.classList.remove("active"));
-        tabContents.forEach(c => c.classList.remove("active"));
+    tabBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabBtns.forEach(b => b.classList.remove("active"));
+        tabPanes.forEach(p => p.classList.remove("active"));
 
-        link.classList.add("active");
-        document.getElementById(link.dataset.tab).classList.add("active");
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
       });
     });
   </script>
@@ -381,23 +377,15 @@ $currentUser = $session->getUserData();
     // Initialize current user data
     window.currentUser = <?= json_encode($currentUser) ?>;
     
-    function logout() {
-      if (confirm('Are you sure you want to logout?')) {
-        $.ajax({
-          url: '../auth.php',
-          type: 'POST',
-          data: { action: 'logout' },
-          dataType: 'json',
-          success: function(response) {
-            window.location.href = '../login.php';
-          },
-          error: function() {
-            // Redirect to login even if logout fails
-            window.location.href = '../login.php';
-          }
-        });
+    // Initialize dashboard on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof refreshDashboard === 'function') {
+        refreshDashboard();
       }
-    }
+      if (typeof initializeDashboardTables === 'function') {
+        initializeDashboardTables();
+      }
+    });
   </script>
 </body>
 </html>

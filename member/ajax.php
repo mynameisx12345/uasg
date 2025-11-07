@@ -1,68 +1,299 @@
 <?php
-require_once("../resources/session.php");
-require_once("../resources/objects/main_class.php");
+// Prevent any output before JSON
+ob_start();
 
-// Initialize session
-$session = SessionManager::getInstance();
-$session->requireRole(['Member', 'member', 'Student Government Member']);
+session_start();
+require_once("../resources/class.php");
 
-$currentUser = $session->getUserData();
-$mainClass = new main_class();
+// Clear any previous output and set headers
+ob_clean();
+header("Content-Type: application/json"); // always return JSON
 
-// Get action from request
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
-
-try {
-    switch ($action) {
-        case 'getDashboardStats':
-            getDashboardStats();
-            break;
-        case 'getRecentActivity':
-            getRecentActivity();
-            break;
-        case 'uploadFile':
-            uploadFile();
-            break;
-        case 'analyzeFileContent':
-            analyzeFileContent();
-            break;
-        case 'getFileCategories':
-            getFileCategories();
-            break;
-        case 'getMyFiles':
-            getMyFiles();
-            break;
-        case 'deleteFile':
-            deleteFile();
-            break;
-        case 'downloadFile':
-            downloadFile();
-            break;
-        case 'getActiveTasks':
-            getActiveTasks();
-            break;
-        case 'getTaskSubmissions':
-            getTaskSubmissions();
-            break;
-        case 'submitTaskFile':
-            submitTaskFile();
-            break;
-        case 'getNotifications':
-            getNotifications();
-            break;
-        case 'markNotificationRead':
-            markNotificationRead();
-            break;
-        case 'changePassword':
-            changePassword();
-            break;
-        default:
-            echo json_encode(['success' => false, 'message' => 'Invalid action']);
-            break;
-    }
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+if(!(isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
+    http_response_code(403);
+    echo json_encode(["status"=>"error","message"=>"Forbidden"]);
+    exit;
 }
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(["error" => "Invalid request method."]);
+    exit;
+}
+
+function is_ajax_request() {
+    return !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+           strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
+// Usage
+if (!is_ajax_request()) {
+    echo json_encode(["error" => "Unauthorized request."]);
+    exit;
+}	
+
+if(empty($_POST["CALL"])){
+    echo json_encode(["error" => "Request invalid"]);
+    exit;
+}
+
+$call = $_POST["CALL"];
+$result = [];
+
+// Member AJAX Calls
+if($call == 1){
+    // Get dashboard stats
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $dashboardManager = new DashboardManager();
+        $result = $dashboardManager->getMemberDashboardStats($memberId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 2){
+    // Get recent activity
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $dashboardManager = new DashboardManager();
+        $result = $dashboardManager->getMemberRecentActivity($memberId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 3){
+    // Upload file with content analysis
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $data = $_POST['DATA'] ?? [];
+        $data['uploaded_by'] = $memberId;
+        $fileManager = new FileManager();
+        $result = $fileManager->uploadMemberFile($data);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 4){
+    // Analyze file content
+    try {
+        $fileAnalyzer = new FileAnalyzer();
+        $files = $_POST['files'] ?? '[]';
+        $filesData = json_decode($files, true);
+        $result = $fileAnalyzer->analyzeMultipleFiles($filesData);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 5){
+    // Get file categories
+    try {
+        $entityManager = new EntityManager();
+        $result = ["data" => $entityManager::getAllFileCategories() ?: []];
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 6){
+    // Get my files
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $filters = [
+            'category' => $_POST['category'] ?? '',
+            'type' => $_POST['type'] ?? ''
+        ];
+        $fileManager = new FileManager();
+        $managerResult = $fileManager->getMemberFiles($memberId, $filters);
+        
+        // Extract data array for DataTables format
+        if (isset($managerResult['data'])) {
+            $result = ["data" => $managerResult['data']];
+        } else {
+            $result = ["data" => []];
+        }
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 7){
+    // Delete file
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $fileId = $_POST['file_id'] ?? 0;
+        $fileManager = new FileManager();
+        $result = $fileManager->deleteMemberFile($memberId, $fileId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 8){
+    // Download file
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $fileId = $_POST['file_id'] ?? 0;
+        $fileManager = new FileManager();
+        $result = $fileManager->downloadMemberFile($memberId, $fileId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 9){
+    // Get active tasks
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $taskManager = new TaskManager();
+        $managerResult = $taskManager->getMemberActiveTasks($memberId);
+        
+        // Extract data array for DataTables format
+        if (isset($managerResult['data'])) {
+            $result = ["data" => $managerResult['data']];
+        } else if (is_array($managerResult)) {
+            $result = ["data" => $managerResult];
+        } else {
+            $result = ["data" => []];
+        }
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 10){
+    // Get task submissions
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $taskManager = new TaskManager();
+        $managerResult = $taskManager->getMemberTaskSubmissions($memberId);
+        
+        // Extract data array for DataTables format
+        if (isset($managerResult['data'])) {
+            $result = ["data" => $managerResult['data']];
+        } else if (is_array($managerResult)) {
+            $result = ["data" => $managerResult];
+        } else {
+            $result = ["data" => []];
+        }
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 11){
+    // Submit task file
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $data = [
+            'task_id' => $_POST['task_id'] ?? 0,
+            'file_id' => $_POST['file_id'] ?? 0,
+            'notes' => $_POST['notes'] ?? '',
+            'submitted_by' => $memberId
+        ];
+        $taskManager = new TaskManager();
+        $result = $taskManager->submitMemberTaskFile($data);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 12){
+    // Get notifications
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $unreadOnly = $_POST['unread_only'] ?? false;
+        $notificationManager = new NotificationManager();
+        $result = ["data" => $notificationManager->getNotifications($memberId, $unreadOnly) ?: []];
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 13){
+    // Mark notification as read
+    try {
+        $notificationId = $_POST['notification_id'] ?? 0;
+        $notificationManager = new NotificationManager();
+        $success = $notificationManager->markAsRead($notificationId);
+        $result = ["status" => $success ? "SUCCESS" : "ERROR"];
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 14){
+    // Change password
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $data = [
+            'current_password' => $_POST['current_password'] ?? '',
+            'new_password' => $_POST['new_password'] ?? '',
+            'confirm_password' => $_POST['confirm_password'] ?? ''
+        ];
+        $userManager = new UserManager();
+        $result = $userManager->changeMemberPassword($memberId, $data);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 15){
+    // Get file details
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $fileId = $_POST['file_id'] ?? 0;
+        $fileManager = new FileManager();
+        $result = $fileManager->getMemberFileDetails($memberId, $fileId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 16){
+    // Update file info
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $data = $_POST['DATA'] ?? [];
+        $data['updated_by'] = $memberId;
+        $fileManager = new FileManager();
+        $result = $fileManager->updateMemberFileInfo($data);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 17){
+    // Upload multiple files
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $data = $_POST['DATA'] ?? [];
+        $data['uploaded_by'] = $memberId;
+        $fileManager = new FileManager();
+        $result = $fileManager->uploadMultipleMemberFiles($data);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 18){
+    // Get task details
+    try {
+        $memberId = $_SESSION['user_id'] ?? 0;
+        $taskId = $_POST['task_id'] ?? 0;
+        $taskManager = new TaskManager();
+        $result = $taskManager->getMemberTaskDetails($memberId, $taskId);
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else{
+    echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
+}
+?>
 
 function getDashboardStats() {
     global $mainClass, $currentUser;

@@ -1,20 +1,55 @@
-<aside class="sidebar">
-  <h3>Navigation</h3>
-  <ul>
-    <li><a href="#" class="tab-link active" data-tab="dashboard">📊 Dashboard</a></li>
-    
-    <li class="has-sub">
-      <a href="#" class="tab-link" data-tab="task-management">📝 Task Management</a>
-      <ul class="submenu">
-        <li><a href="#" class="tab-link" data-tab="task-management">📋 Create Tasks</a></li>
-        <li><a href="#" class="tab-link" data-tab="task-management">👁️ View Tasks</a></li>
-      </ul>
-    </li>
+<aside class="github-sidebar">
+  <div class="sidebar-header">
+    <h3 class="sidebar-title">Navigation</h3>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <ul class="nav-list">
+      <li class="nav-item">
+        <a href="#" class="nav-link active" data-tab="dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+      
+      <li class="nav-item has-submenu">
+        <a href="#" class="nav-link" data-tab="task-management">
+          <span class="nav-icon">📝</span>
+          <span class="nav-text">Task Management</span>
+          <span class="nav-arrow">▶</span>
+        </a>
+        <ul class="submenu">
+          <li><a href="#" class="nav-link" data-tab="task-management">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">Create Tasks</span>
+          </a></li>
+          <li><a href="#" class="nav-link" data-tab="task-management">
+            <span class="nav-icon">👁️</span>
+            <span class="nav-text">View Tasks</span>
+          </a></li>
+        </ul>
+      </li>
 
-    <li><a href="#" class="tab-link" data-tab="reports">📊 Reports</a></li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-tab="reports">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Reports</span>
+        </a>
+      </li>
+      
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-tab="account-management">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Account Management</span>
+        </a>
+      </li>
+    </ul>
     
-    <li><a href="#" class="tab-link" data-tab="account-management">⚙️ Account Management</a></li>
-    
-    <li><a href="#" onclick="logout()">🚪 Logout</a></li>
-  </ul>
+    <div class="sidebar-footer">
+      <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?')">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-text">Logout</span>
+      </a>
+    </div>
+  </nav>
 </aside>

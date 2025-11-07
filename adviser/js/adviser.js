@@ -26,7 +26,7 @@ $(document).ready(function(){
                 url: 'ajax.php',
                 type: 'post',
                 data: {
-                    CALL: 'get_recent_activity'
+                    CALL: 2 // Get recent activity
                 },
                 dataSrc: 'data'
             },
@@ -35,9 +35,9 @@ $(document).ready(function(){
             pageLength: 10,
             columns: [
                 { data: "date" },
-                { data: "student" },
+                { data: "student_name" },
                 { data: "action" },
-                { data: "task" },
+                { data: "task_title" },
                 { data: "status" }
             ],
             order: [[0, 'desc']],
@@ -98,7 +98,7 @@ $(document).ready(function(){
             url: 'ajax.php',
             type: 'post',
             data: {
-                CALL: 'get_dashboard_stats'
+                CALL: 1 // Get dashboard stats
             },
             dataType: 'json',
             success: function(response) {
@@ -107,6 +107,7 @@ $(document).ready(function(){
                     $('#pendingReviews').text(response.data.pending_reviews);
                     $('#completedTasks').text(response.data.completed_tasks);
                     $('#activeMembers').text(response.data.active_members);
+                    $('#unreadNotifications').text(response.data.unread_notifications);
                 }
             },
             error: function() {
@@ -123,7 +124,7 @@ $(document).ready(function(){
                     type: 'post',
                     data: function(d) {
                         return {
-                            CALL: 'get_all_tasks',
+                            CALL: 8, // Get all tasks
                             category: $('#taskCategory').val(),
                             status: $('#taskStatusFilter').val(),
                             date_from: $('#taskDateFrom').val(),
@@ -142,7 +143,8 @@ $(document).ready(function(){
                     { data: "task_description" },
                     { data: "task_deadline" },
                     { data: "submission_count", defaultContent: "0" },
-                    { data: "status", defaultContent: "Active" },
+                    { data: "approved_count", defaultContent: "0" },
+                    { data: "pending_count", defaultContent: "0" },
                     {
                         data: 'task_id',
                         render: function(id) {
@@ -168,7 +170,7 @@ $(document).ready(function(){
                     type: 'post',
                     data: function(d) {
                         return {
-                            CALL: 'get_all_submissions',
+                            CALL: 11, // Get all submissions
                             task_id: $('#reportTaskFilter').val(),
                             status: $('#reportStatusFilter').val()
                         };
@@ -179,14 +181,14 @@ $(document).ready(function(){
                 paging: true,
                 pageLength: 10,
                 columns: [
-                    { data: "submission_id", visible: false },
+                    { data: "task_submission_id", visible: false },
                     { data: "task_title" },
                     { data: function(row) { return row.fname + ' ' + row.lname; } },
                     { data: "file_name" },
-                    { data: "submission_date" },
+                    { data: "datetime_uploaded" },
                     { data: "check_status" },
                     {
-                        data: 'submission_id',
+                        data: 'task_submission_id',
                         render: function(id, type, row) {
                             let buttons = '<button class="btn-primary viewSubmissionBtn" data-id="'+id+'" title="View Submission">View</button> ';
                             if(row.check_status === 'pending') {
@@ -220,13 +222,13 @@ $(document).ready(function(){
             }
             
             const taskData = {
-                title: taskTitle,
-                category: taskCategory,
-                description: taskDescription,
-                deadline: taskDeadline
+                task_title: taskTitle,
+                task_category_id: taskCategory,
+                task_description: taskDescription,
+                task_deadline: taskDeadline
             };
             
-            saveData('create_task', taskData);
+            saveData(7, taskData); // Create task
         });
         
         // Password Change Form
@@ -256,7 +258,7 @@ $(document).ready(function(){
                 confirm_password: confirmPassword
             };
             
-            saveData('change_password', passwordData);
+            saveData(18, passwordData); // Change password
         });
         
         // Task Action Handlers
@@ -307,6 +309,23 @@ $(document).ready(function(){
                 reportsTable.ajax.reload();
             }
         });
+        
+        // Task Filters
+        $('#applyTaskFilters').click(function() {
+            if(tasksTable) {
+                tasksTable.ajax.reload();
+            }
+        });
+        
+        $('#clearTaskFilters').click(function() {
+            $('#taskCategory').val('');
+            $('#taskStatusFilter').val('');
+            $('#taskDateFrom').val('');
+            $('#taskDateTo').val('');
+            if(tasksTable) {
+                tasksTable.ajax.reload();
+            }
+        });
     }
     
     function loadDropdownData() {
@@ -314,7 +333,7 @@ $(document).ready(function(){
             url: 'ajax.php',
             type: 'post',
             data: {
-                CALL: 'get_dropdowns'
+                CALL: 5 // Get dropdowns
             },
             dataType: 'json',
             success: function(response) {
@@ -335,7 +354,7 @@ $(document).ready(function(){
             url: 'ajax.php',
             type: 'post',
             data: {
-                CALL: 'get_dropdowns'
+                CALL: 6 // Get tasks for filter
             },
             dataType: 'json',
             success: function(response) {
@@ -343,7 +362,7 @@ $(document).ready(function(){
                     // Populate task filter
                     const taskFilterSelect = $('#reportTaskFilter');
                     taskFilterSelect.empty().append('<option value="">All Tasks</option>');
-                    response.data.tasks.forEach(function(task) {
+                    response.data.forEach(function(task) {
                         taskFilterSelect.append('<option value="'+task.task_id+'">'+task.task_title+'</option>');
                     });
                 }
@@ -357,7 +376,7 @@ $(document).ready(function(){
             type: 'post',
             data: {
                 CALL: call,
-                DATA: dataArr
+                ...dataArr
             },
             dataType: 'json',
             success: function(result) {
@@ -383,11 +402,9 @@ $(document).ready(function(){
                 url: 'ajax.php',
                 type: 'post',
                 data: {
-                    CALL: 'delete_task',
-                    DATA: {
-                        task_id: taskId,
-                        reason: reason
-                    }
+                    CALL: 9, // Delete task
+                    task_id: taskId,
+                    reason: reason
                 },
                 dataType: 'json',
                 success: function(result) {
@@ -408,12 +425,10 @@ $(document).ready(function(){
             url: 'ajax.php',
             type: 'post',
             data: {
-                CALL: 'review_submission',
-                DATA: {
-                    submission_id: submissionId,
-                    status: status,
-                    reason: reason
-                }
+                CALL: 12, // Review submission
+                task_submission_id: submissionId,
+                check_status: status,
+                reason: reason
             },
             dataType: 'json',
             success: function(result) {
@@ -438,15 +453,108 @@ $(document).ready(function(){
     }
     
     function openEditTaskModal(taskId) {
-        // Implementation for opening edit task modal
-        console.log('Opening edit modal for task:', taskId);
-        openModal("INFO", "Edit task functionality - to be implemented with modals");
+        // Get task details first
+        $.ajax({
+            url: 'ajax.php',
+            type: 'post',
+            data: {
+                CALL: 10, // Get task details
+                task_id: taskId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.status === 'SUCCESS') {
+                    const task = response.data;
+                    $('#editTaskTitle').val(task.task_title);
+                    $('#editTaskCategory').val(task.task_category_id);
+                    $('#editTaskDescription').val(task.task_description);
+                    $('#editTaskDeadline').val(task.task_deadline);
+                    $('#editTaskId').val(task.task_id);
+                    
+                    // Show edit modal (assuming modal exists)
+                    $('#editTaskModal').show();
+                }
+            }
+        });
     }
     
     function openViewSubmissionModal(submissionId) {
-        // Implementation for opening view submission modal
-        console.log('Opening view modal for submission:', submissionId);
-        openModal("INFO", "View submission functionality - to be implemented with modals");
+        // Get submission details
+        $.ajax({
+            url: 'ajax.php',
+            type: 'post',
+            data: {
+                CALL: 13, // Get submission details
+                submission_id: submissionId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.status === 'SUCCESS') {
+                    const submission = response.data;
+                    // Populate modal with submission details
+                    console.log('Opening view modal for submission:', submission);
+                    // TODO: Implement modal display logic
+                    openModal("INFO", "View submission functionality - to be implemented with modals");
+                }
+            }
+        });
+    }
+    
+    // Notification handlers
+    function loadNotifications() {
+        $.ajax({
+            url: 'ajax.php',
+            type: 'post',
+            data: {
+                CALL: 16 // Get notifications
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.status === 'SUCCESS') {
+                    displayNotifications(response.data);
+                }
+            }
+        });
+    }
+    
+    function markNotificationAsRead(notificationId) {
+        $.ajax({
+            url: 'ajax.php',
+            type: 'post',
+            data: {
+                CALL: 17, // Mark notification as read
+                notification_id: notificationId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.status === 'SUCCESS') {
+                    loadDashboardStats(); // Refresh unread count
+                }
+            }
+        });
+    }
+    
+    function displayNotifications(notifications) {
+        const container = $('#notificationsContainer');
+        container.empty();
+        
+        notifications.forEach(function(notification) {
+            const notificationHtml = `
+                <div class="notification ${notification.is_read ? '' : 'unread'}" data-id="${notification.notification_id}">
+                    <h4>${notification.title}</h4>
+                    <p>${notification.message}</p>
+                    <small>${formatDate(notification.datetime_created)}</small>
+                    ${!notification.is_read ? '<button onclick="markNotificationAsRead('+notification.notification_id+')">Mark as Read</button>' : ''}
+                </div>
+            `;
+            container.append(notificationHtml);
+        });
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
     
     // Modal function (assuming it exists in the global scope)
@@ -457,4 +565,7 @@ $(document).ready(function(){
             alert(status + ': ' + message);
         }
     }
+    
+    // Initialize notifications on page load
+    loadNotifications();
 });

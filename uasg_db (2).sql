@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 07, 2025 at 12:18 AM
+-- Generation Time: Nov 07, 2025 at 05:29 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -97,6 +97,38 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `login_attempts_tbl`
+--
+
+DROP TABLE IF EXISTS `login_attempts_tbl`;
+CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
+  `attempt_id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `success` tinyint(1) DEFAULT '0',
+  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `attempt_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`attempt_id`),
+  KEY `idx_username_time` (`username`,`attempt_time`),
+  KEY `idx_success_time` (`success`,`attempt_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `login_attempts_tbl`
+--
+
+INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_agent`, `success`, `details`, `attempt_time`) VALUES
+(3, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-07 03:22:56'),
+(6, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'Invalid password', '2025-11-07 03:30:45'),
+(7, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-07 03:30:45'),
+(8, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'Invalid password', '2025-11-07 03:34:09'),
+(9, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-07 03:34:09'),
+(12, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-07 03:40:30');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `notifications_tbl`
 --
 
@@ -128,7 +160,7 @@ CREATE TABLE IF NOT EXISTS `position_tbl` (
   `position` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `access_restriction` int DEFAULT '1',
   PRIMARY KEY (`position_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `position_tbl`
@@ -137,7 +169,8 @@ CREATE TABLE IF NOT EXISTS `position_tbl` (
 INSERT INTO `position_tbl` (`position_id`, `position`, `access_restriction`) VALUES
 (1, 'Adviser', 2),
 (2, 'Student Government Member', 1),
-(3, 'System Administrator', 3);
+(3, 'System Administrator', 3),
+(4, 'Guest User', 0);
 
 -- --------------------------------------------------------
 
@@ -157,7 +190,14 @@ CREATE TABLE IF NOT EXISTS `profile_tbl` (
   `contact_number` varchar(13) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `email` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`profile_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `profile_tbl`
+--
+
+INSERT INTO `profile_tbl` (`profile_id`, `fname`, `mname`, `lname`, `auxname`, `gender`, `birthdate`, `contact_number`, `email`) VALUES
+(4, 'System', '', 'Administrator', '', 'Not specified', '1990-01-01', '', 'admin@system.local');
 
 -- --------------------------------------------------------
 
@@ -232,7 +272,14 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
   PRIMARY KEY (`user_id`),
   KEY `position_id` (`position_id`),
   KEY `profile_id` (`profile_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `user_tbl`
+--
+
+INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`) VALUES
+(4, 'admin', '$2y$10$oDB5bY0WJheUhZFZO9jo/uACNilbIOv3C6jxl9fbRvd8BXAbZI/Qi', 3, 4, 'admin', '7a27c2d2b5c2d491e9cd225fbca92c1de1347befb6cb4fc2334c98fb9e8f0c78');
 
 --
 -- Constraints for dumped tables

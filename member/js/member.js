@@ -26,14 +26,14 @@ function loadDashboardStats() {
     $.ajax({
         url: 'ajax.php',
         type: 'POST',
-        data: { action: 'getDashboardStats' },
+        data: { CALL: 1 }, // Get dashboard stats
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
-                $('#totalFiles').text(response.data.totalFiles);
-                $('#activeTasks').text(response.data.activeTasks);
-                $('#completedTasks').text(response.data.completedTasks);
-                $('#categoryCount').text(response.data.categoryCount);
+            if (response.status === 'SUCCESS') {
+                $('#totalFiles').text(response.data.total_files);
+                $('#activeTasks').text(response.data.active_tasks);
+                $('#completedTasks').text(response.data.completed_tasks);
+                $('#categoryCount').text(response.data.categories_used);
             }
         },
         error: function() {
@@ -46,10 +46,10 @@ function loadRecentActivity() {
     $.ajax({
         url: 'ajax.php',
         type: 'POST',
-        data: { action: 'getRecentActivity' },
+        data: { CALL: 2 }, // Get recent activity
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
+            if (response.status === 'SUCCESS') {
                 populateRecentActivityTable(response.data);
             }
         },
@@ -67,8 +67,8 @@ function populateRecentActivityTable(activities) {
         const row = `
             <tr>
                 <td>${formatDate(activity.date)}</td>
-                <td>${activity.action}</td>
-                <td>${activity.item}</td>
+                <td>${activity.activity_type}</td>
+                <td>${activity.item_name}</td>
                 <td>${activity.category || 'N/A'}</td>
                 <td><span class="status-badge status-${activity.status}">${activity.status}</span></td>
             </tr>
@@ -91,10 +91,10 @@ function loadFileCategories() {
     $.ajax({
         url: 'ajax.php',
         type: 'POST',
-        data: { action: 'getFileCategories' },
+        data: { CALL: 6 }, // Get file categories
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
+            if (response.status === 'SUCCESS') {
                 populateCategoryDropdowns(response.data);
             }
         },
@@ -120,7 +120,7 @@ function populateCategoryDropdowns(categories) {
         
         // Add category options
         categories.forEach(function(category) {
-            dropdown.append(`<option value="${category.id}">${category.category_name}</option>`);
+            dropdown.append(`<option value="${category.file_category_id}">${category.file_category}</option>`);
         });
         
         // Restore selected value
@@ -134,10 +134,10 @@ function loadActiveTasks() {
     $.ajax({
         url: 'ajax.php',
         type: 'POST',
-        data: { action: 'getActiveTasks' },
+        data: { CALL: 10 }, // Get active tasks
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
+            if (response.status === 'SUCCESS') {
                 populateTaskDropdown(response.data);
             }
         },
@@ -155,7 +155,7 @@ function populateTaskDropdown(tasks) {
     
     // Add task options
     tasks.forEach(function(task) {
-        dropdown.append(`<option value="${task.id}">${task.title}</option>`);
+        dropdown.append(`<option value="${task.task_id}">${task.task_title}</option>`);
     });
 }
 
@@ -176,6 +176,12 @@ function initializeFileUpload() {
         uploadFile();
     });
     
+    // Multiple file upload
+    $('#uploadMultipleBtn').on('click', function(e) {
+        e.preventDefault();
+        uploadMultipleFiles();
+    });
+    
     // File drag and drop (optional enhancement)
     setupFileDragDrop();
 }
@@ -187,7 +193,7 @@ function analyzeFileContent(file) {
     // Create FormData for file analysis
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('action', 'analyzeFileContent');
+    formData.append('CALL', 4); // Analyze file content
     
     $.ajax({
         url: 'ajax.php',
@@ -197,13 +203,13 @@ function analyzeFileContent(file) {
         contentType: false,
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
+            if (response.status === 'SUCCESS') {
                 const data = response.data;
                 updateCategoryPreview(
-                    data.detectedCategory,
-                    data.confidence,
-                    data.fileType,
-                    data.keywords
+                    data.suggested_category,
+                    data.confidence_level,
+                    data.file_type,
+                    data.keywords_found
                 );
                 
                 // Set the detected category as default
@@ -273,7 +279,7 @@ function uploadFile() {
     // Create FormData
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('action', 'uploadFile');
+    formData.append('CALL', 3); // Upload file
     formData.append('description', description);
     formData.append('category_id', categoryId);
     if (taskAssociation) {
@@ -300,19 +306,72 @@ function uploadFile() {
         success: function(response) {
             hideUploadProgress();
             
-            if (response.success) {
-                showAlert(response.message, 'success');
+            if (response.status === 'SUCCESS') {
+                showAlert(response.msg, 'success');
                 resetUploadForm();
                 loadDashboardStats();
                 loadRecentActivity();
                 refreshMyFilesTable();
             } else {
-                showAlert(response.message, 'error');
+                showAlert(response.msg, 'error');
             }
         },
         error: function() {
             hideUploadProgress();
             showAlert('Upload failed. Please try again.', 'error');
+        }
+    });
+}
+
+function uploadMultipleFiles() {
+    const fileInput = $('#multipleFiles')[0];
+    const files = fileInput.files;
+    
+    if (!files || files.length === 0) {
+        showAlert('Please select files to upload', 'error');
+        return;
+    }
+    
+    const description = $('#multipleDescription').val();
+    const categoryId = $('#multipleCategory').val();
+    
+    // Show upload progress
+    showUploadProgress();
+    
+    // Create FormData
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files[]', files[i]);
+    }
+    formData.append('CALL', 15); // Upload multiple files
+    formData.append('description', description);
+    formData.append('category', categoryId);
+    
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(response) {
+            hideUploadProgress();
+            
+            if (response.status === 'SUCCESS') {
+                showAlert(response.msg, 'success');
+                $('#multipleFiles').val('');
+                $('#multipleDescription').val('');
+                $('#multipleCategory').val('');
+                loadDashboardStats();
+                loadRecentActivity();
+                refreshMyFilesTable();
+            } else {
+                showAlert(response.msg, 'error');
+            }
+        },
+        error: function() {
+            hideUploadProgress();
+            showAlert('Multiple file upload failed. Please try again.', 'error');
         }
     });
 }
@@ -381,25 +440,25 @@ function initializeDataTables() {
                 type: 'POST',
                 data: function(d) {
                     return {
-                        action: 'getMyFiles',
+                        CALL: 7, // Get my files
                         category: $('#filesCategoryFilter').val(),
                         type: $('#filesTypeFilter').val()
                     };
                 },
                 dataSrc: function(json) {
-                    return json.success ? json.data : [];
+                    return json.status === 'SUCCESS' ? json.data : [];
                 }
             },
             columns: [
                 {
                     data: 'original_name',
                     render: function(data, type, row) {
-                        return `<span class="file-name" title="${data}">${data}</span>`;
+                        return `<span class="file-name" title="${data}">${row.file_name}</span>`;
                     }
                 },
-                { data: 'category_name' },
+                { data: 'file_category' },
                 {
-                    data: 'file_type',
+                    data: 'mime_type',
                     render: function(data) {
                         return getFileTypeIcon(data) + ' ' + getReadableFileType(data);
                     }
@@ -411,25 +470,28 @@ function initializeDataTables() {
                     }
                 },
                 {
-                    data: 'upload_date',
+                    data: 'datetime_uploaded',
                     render: function(data) {
                         return formatDate(data);
                     }
                 },
                 {
-                    data: 'task_title',
+                    data: 'description',
                     render: function(data) {
-                        return data || 'None';
+                        return data || 'No description';
                     }
                 },
                 {
                     data: null,
                     render: function(data, type, row) {
                         return `
-                            <button class="btn-sm btn-primary" onclick="downloadFile(${row.id})" title="Download">
+                            <button class="btn-sm btn-primary" onclick="downloadFile(${row.file_upload_id})" title="Download">
                                 📥
                             </button>
-                            <button class="btn-sm btn-danger" onclick="deleteFile(${row.id})" title="Delete">
+                            <button class="btn-sm btn-secondary" onclick="editFileInfo(${row.file_upload_id})" title="Edit">
+                                ✏️
+                            </button>
+                            <button class="btn-sm btn-danger" onclick="deleteFile(${row.file_upload_id})" title="Delete">
                                 🗑️
                             </button>
                         `;
@@ -450,28 +512,28 @@ function initializeDataTables() {
                 type: 'POST',
                 data: function(d) {
                     return {
-                        action: 'getTaskSubmissions',
+                        CALL: 12, // Get task submissions
                         status: $('#taskStatusFilter').val(),
                         category: $('#taskCategoryFilter').val()
                     };
                 },
                 dataSrc: function(json) {
-                    return json.success ? json.data : [];
+                    return json.status === 'SUCCESS' ? json.data : [];
                 }
             },
             columns: [
                 { data: 'task_title' },
-                { data: 'category_name' },
+                { data: 'task_category' },
                 {
-                    data: 'deadline',
+                    data: 'task_deadline',
                     render: function(data) {
                         return formatDate(data);
                     }
                 },
                 {
-                    data: 'status',
+                    data: 'check_status',
                     render: function(data) {
-                        return `<span class="status-badge status-${data}">${data}</span>`;
+                        return `<span class="status-badge status-${data}">${data || 'Not submitted'}</span>`;
                     }
                 },
                 {
@@ -483,22 +545,14 @@ function initializeDataTables() {
                 {
                     data: null,
                     render: function(data, type, row) {
-                        let feedback = row.feedback || 'No feedback';
-                        let grade = row.grade || 'Not graded';
-                        return `${feedback}<br><strong>Grade:</strong> ${grade}`;
-                    }
-                },
-                {
-                    data: null,
-                    render: function(data, type, row) {
                         let actions = '';
-                        if (row.status === 'pending' || row.status === 'rejected') {
+                        if (!row.task_submission_id || row.check_status === 'rejected') {
                             actions += `<button class="btn-sm btn-primary" onclick="openSubmitTaskModal(${row.task_id})">Submit/Resubmit</button>`;
                         }
-                        if (row.file_path) {
-                            actions += ` <button class="btn-sm btn-secondary" onclick="downloadSubmission('${row.file_path}')">Download</button>`;
+                        if (row.file_upload_id) {
+                            actions += ` <button class="btn-sm btn-secondary" onclick="downloadFile(${row.file_upload_id})">Download</button>`;
                         }
-                        return actions || 'No actions';
+                        return actions || 'No actions available';
                     },
                     orderable: false
                 }
@@ -554,7 +608,89 @@ function refreshMyFilesTable() {
 }
 
 function downloadFile(fileId) {
-    window.open(`ajax.php?action=downloadFile&file_id=${fileId}`, '_blank');
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+            CALL: 9, // Download file
+            file_id: fileId
+        },
+        xhrFields: {
+            responseType: 'blob'
+        },
+        success: function(data, status, xhr) {
+            // Create blob URL and download
+            const blob = new Blob([data]);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = ''; // Filename will be set by server
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        },
+        error: function() {
+            showAlert('Failed to download file', 'error');
+        }
+    });
+}
+
+function editFileInfo(fileId) {
+    // Get file details first
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+            CALL: 8, // Get file details
+            file_id: fileId
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'SUCCESS') {
+                const file = response.data;
+                $('#editFileId').val(file.file_upload_id);
+                $('#editFileCategory').val(file.file_category_id);
+                $('#editFileDescription').val(file.description);
+                $('#editFileTags').val(file.tags);
+                
+                // Show edit modal (assuming modal exists)
+                $('#editFileModal').show();
+            }
+        }
+    });
+}
+
+function saveFileInfo() {
+    const fileId = $('#editFileId').val();
+    const category = $('#editFileCategory').val();
+    const description = $('#editFileDescription').val();
+    const tags = $('#editFileTags').val();
+    
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+            CALL: 14, // Update file info
+            file_id: fileId,
+            category: category,
+            description: description,
+            tags: tags
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'SUCCESS') {
+                showAlert(response.msg, 'success');
+                $('#editFileModal').hide();
+                refreshMyFilesTable();
+            } else {
+                showAlert(response.msg, 'error');
+            }
+        },
+        error: function() {
+            showAlert('Failed to update file information', 'error');
+        }
+    });
 }
 
 function deleteFile(fileId) {
@@ -563,17 +699,17 @@ function deleteFile(fileId) {
             url: 'ajax.php',
             type: 'POST',
             data: {
-                action: 'deleteFile',
+                CALL: 13, // Delete file
                 file_id: fileId
             },
             dataType: 'json',
             success: function(response) {
-                if (response.success) {
-                    showAlert(response.message, 'success');
+                if (response.status === 'SUCCESS') {
+                    showAlert(response.msg, 'success');
                     refreshMyFilesTable();
                     loadDashboardStats();
                 } else {
-                    showAlert(response.message, 'error');
+                    showAlert(response.msg, 'error');
                 }
             },
             error: function() {
@@ -581,6 +717,67 @@ function deleteFile(fileId) {
             }
         });
     }
+}
+
+function openSubmitTaskModal(taskId) {
+    // Load available files for submission
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+            CALL: 7, // Get my files
+            suitable_for_task: taskId
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'SUCCESS') {
+                const fileSelect = $('#submitFileSelect');
+                fileSelect.empty().append('<option value="">Select a file</option>');
+                
+                response.data.forEach(function(file) {
+                    fileSelect.append(`<option value="${file.file_upload_id}">${file.file_name}</option>`);
+                });
+                
+                $('#submitTaskId').val(taskId);
+                $('#submitTaskModal').show();
+            }
+        }
+    });
+}
+
+function submitTaskFile() {
+    const taskId = $('#submitTaskId').val();
+    const fileId = $('#submitFileSelect').val();
+    
+    if (!fileId) {
+        showAlert('Please select a file to submit', 'error');
+        return;
+    }
+    
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+            CALL: 11, // Submit task
+            task_id: taskId,
+            file_id: fileId
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'SUCCESS') {
+                showAlert(response.msg, 'success');
+                $('#submitTaskModal').hide();
+                if (window.taskSubmissionsTable) {
+                    window.taskSubmissionsTable.ajax.reload();
+                }
+            } else {
+                showAlert(response.msg, 'error');
+            }
+        },
+        error: function() {
+            showAlert('Failed to submit task', 'error');
+        }
+    });
 }
 
 function changePassword() {
@@ -607,18 +804,18 @@ function changePassword() {
         url: 'ajax.php',
         type: 'POST',
         data: {
-            action: 'changePassword',
+            CALL: 18, // Change password
             current_password: currentPassword,
             new_password: newPassword,
             confirm_password: confirmPassword
         },
         dataType: 'json',
         success: function(response) {
-            if (response.success) {
-                showAlert(response.message, 'success');
+            if (response.status === 'SUCCESS') {
+                showAlert(response.msg, 'success');
                 $('#currentPassword, #newPassword, #confirmPassword').val('');
             } else {
-                showAlert(response.message, 'error');
+                showAlert(response.msg, 'error');
             }
         },
         error: function() {

@@ -3,7 +3,8 @@
 	ob_start();
 	
 	session_start();
-	require_once("../resources/class.php");
+	require_once("../resources/objects/db_config.php");
+	require_once("../resources/objects/main_class.php");
 	
 	// Clear any previous output and set headers
 	ob_clean();
@@ -29,6 +30,12 @@
 	if (!is_ajax_request()) {
     	echo json_encode(["error" => "Unauthorized request."]);
     	exit;
+	}
+
+	// Check if user is logged in and is admin
+	if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
+		echo json_encode(["error" => "Authentication required. Please login as admin."]);
+		exit;
 	}	
 
 	if(empty($_POST["CALL"])){
@@ -74,13 +81,29 @@
 		}
 		echo json_encode($result);
 	}else if($call == 4){
-		$result["data"] = EntityManager::getAllPositions();
+		try {
+			$positions = EntityManager::getAllPositions() ?: [];
+			// For DataTables, return just the data array wrapped in data property
+			$result = ["data" => $positions];
+		} catch(Exception $e) {
+			$result = ["data" => [], "error" => $e->getMessage()];
+		}
 		echo json_encode($result);
 	}else if($call == 5){
-		$result["data"] = EntityManager::getAllFileCategories();
+		try {
+			$fileCategories = EntityManager::getAllFileCategories() ?: [];
+			$result = ["data" => $fileCategories];
+		} catch(Exception $e) {
+			$result = ["data" => [], "error" => $e->getMessage()];
+		}
 		echo json_encode($result);
 	}else if($call == 6){
-		$result["data"] = EntityManager::getAllTaskCategories();
+		try {
+			$taskCategories = EntityManager::getAllTaskCategories() ?: [];
+			$result = ["data" => $taskCategories];
+		} catch(Exception $e) {
+			$result = ["data" => [], "error" => $e->getMessage()];
+		}
 		echo json_encode($result);
 	}else if($call == 7){
 		// Get admin users

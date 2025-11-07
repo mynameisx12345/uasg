@@ -152,7 +152,7 @@
                     <div class="file-upload-area" id="fileUploadArea">
                         <input type="file" id="uploadFiles" name="files[]" multiple accept="*/*" style="display: none;">
                         <div class="upload-placeholder">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #007bff; margin-bottom: 10px;"></i>
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
                             <p>Drop files here or click to browse</p>
                             <p class="text-muted">Maximum file size: 50MB per file</p>
                         </div>
