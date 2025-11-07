@@ -370,6 +370,16 @@
 		}
 	}
 
+	class FileCategoryKey extends Main{
+		public function __construct($params = []){
+			parent::__construct('file_category_key_tbl',[
+				'file_category_key_id' => $params["id"] ?? null,
+				'file_category_id' => $params["file_category_id"] ?? null,
+				'keyword' => $params["keyword"] ?? null
+			]);
+		}
+	}
+
 	class FilePermission extends Main{
 		public function __construct($params = []){
 			parent::__construct('file_permission_tbl',[
@@ -782,6 +792,115 @@
 		public static function getAllTaskCategories() {
 			$tc = new TaskCategory();
 			return $tc->getAllRecords();
+		}
+
+		public static function createFileCategoryKeyword($categoryId, $keyword) {
+			try {
+				$keyword = trim($keyword);
+				if(empty($keyword)) {
+					throw new Exception("Keyword is required");
+				}
+
+				if(empty($categoryId)) {
+					throw new Exception("File category ID is required");
+				}
+
+				// Check if keyword already exists for this category
+				$fck = new FileCategoryKey([
+					'file_category_id' => $categoryId,
+					'keyword' => $keyword
+				]);
+				
+				if($fck->checkFromTable()) {
+					throw new Exception("Keyword already exists for this category");
+				}
+
+				$fck->insert();
+				return ['success' => true, 'message' => 'Successfully added keyword'];
+			} catch(Exception $e) {
+				throw new Exception("Failed! An error was detected: " . $e->getMessage());
+			}
+		}
+
+		public static function getFileCategoryKeywords($categoryId = null) {
+			try {
+				$db = Database::getInstance();
+				if($categoryId) {
+					$query = "SELECT fck.*, fc.file_category 
+							  FROM file_category_key_tbl fck
+							  JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
+							  WHERE fck.file_category_id = :category_id
+							  ORDER BY fck.keyword";
+					return $db->select($query, [':category_id' => $categoryId]);
+				} else {
+					$query = "SELECT fck.*, fc.file_category 
+							  FROM file_category_key_tbl fck
+							  JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
+							  ORDER BY fc.file_category, fck.keyword";
+					return $db->select($query);
+				}
+			} catch(Exception $e) {
+				throw new Exception("Failed to retrieve keywords: " . $e->getMessage());
+			}
+		}
+
+		public static function updateFileCategoryKeyword($keywordId, $keyword) {
+			try {
+				$keyword = trim($keyword);
+				if(empty($keyword)) {
+					throw new Exception("Keyword is required");
+				}
+
+				$fck = new FileCategoryKey();
+				$result = $fck->updateSingleValue('keyword', 'file_category_key_id', $keywordId, $keyword);
+				
+				if(!$result) {
+					throw new Exception("Failed to update keyword");
+				}
+
+				return ['success' => true, 'message' => 'Successfully updated keyword'];
+			} catch(Exception $e) {
+				throw new Exception("Failed! An error was detected: " . $e->getMessage());
+			}
+		}
+
+		public static function deleteFileCategoryKeyword($keywordId, $reason = "Admin deletion") {
+			try {
+				// Get keyword data before deletion for logging
+				$db = Database::getInstance();
+				$keywordData = $db->select(
+					"SELECT fck.*, fc.file_category 
+					 FROM file_category_key_tbl fck
+					 JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
+					 WHERE fck.file_category_key_id = :id", 
+					[':id' => $keywordId]
+				);
+
+				if(empty($keywordData)) {
+					throw new Exception("Keyword not found");
+				}
+
+				// Log deletion
+				$deleteLog = new Delete([
+					'data' => json_encode($keywordData[0]),
+					'reason' => $reason,
+					'table' => 'file_category_key_tbl',
+					'datetime' => date('Y-m-d H:i:s')
+				]);
+				$deleteLog->insert();
+
+				// Delete keyword
+				$fck = new FileCategoryKey();
+				$result = $fck->delete('file_category_key_id', $keywordId);
+				
+				if(!$result) {
+					throw new Exception("Failed to delete keyword");
+				}
+
+				return ['success' => true, 'message' => 'Successfully deleted keyword'];
+			} catch(Exception $e) {
+				throw new Exception("Failed! An error was detected: " . $e->getMessage());
+			}
 		}
 	}
 
@@ -1936,97 +2055,102 @@
 				'confidence_level' => 'Low',
 				'file_type' => ucfirst($extension),
 				'keywords_found' => [],
-				'categoryId' => 8 // Default to 'Other' category
+				'categoryId' => 1 // Default to first category
 			];
 
-			// Get categories from database
-			$categories = $this->db->select("SELECT * FROM file_category_tbl ORDER BY file_category");
+			try {
+				// Get all categories with their keywords from database
+				$categoriesWithKeywords = $this->db->select("
+					SELECT fc.file_category_id, fc.file_category, 
+						   GROUP_CONCAT(fck.keyword SEPARATOR ',') as keywords
+					FROM file_category_tbl fc
+					LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
+					GROUP BY fc.file_category_id, fc.file_category
+					ORDER BY fc.file_category
+				");
 
-			// Define keyword patterns for different categories
-			$categoryPatterns = [
-				'Academic Records' => [
-					'keywords' => ['transcript', 'grade', 'academic', 'certificate', 'diploma', 'record', 'enrollment', 'tor'],
-					'extensions' => ['pdf', 'doc', 'docx'],
-					'confidence' => 'High',
-					'id' => 1
-				],
-				'Financial Documents' => [
-					'keywords' => ['budget', 'financial', 'expense', 'receipt', 'invoice', 'payment', 'fund', 'money', 'cash'],
-					'extensions' => ['pdf', 'xls', 'xlsx', 'doc', 'docx'],
-					'confidence' => 'High',
-					'id' => 2
-				],
-				'Meeting Minutes' => [
-					'keywords' => ['meeting', 'minutes', 'agenda', 'discussion', 'attendees', 'action', 'items'],
-					'extensions' => ['pdf', 'doc', 'docx'],
-					'confidence' => 'High',
-					'id' => 3
-				],
-				'Reports' => [
-					'keywords' => ['report', 'analysis', 'summary', 'findings', 'evaluation', 'assessment', 'review'],
-					'extensions' => ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
-					'confidence' => 'Medium',
-					'id' => 4
-				],
-				'Event Documentation' => [
-					'keywords' => ['event', 'activity', 'program', 'seminar', 'workshop', 'conference', 'documentation'],
-					'extensions' => ['pdf', 'doc', 'docx', 'jpg', 'png'],
-					'confidence' => 'Medium',
-					'id' => 5
-				],
-				'Legal Documents' => [
-					'keywords' => ['legal', 'contract', 'agreement', 'policy', 'regulation', 'compliance', 'law'],
-					'extensions' => ['pdf', 'doc', 'docx'],
-					'confidence' => 'High',
-					'id' => 6
-				],
-				'Proposals' => [
-					'keywords' => ['proposal', 'project', 'plan', 'initiative', 'recommendation', 'suggestion'],
-					'extensions' => ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
-					'confidence' => 'Medium',
-					'id' => 7
-				]
-			];
+				if (empty($categoriesWithKeywords)) {
+					return $analysis;
+				}
 
-			// Analyze file name against patterns
-			$bestMatch = null;
-			$highestScore = 0;
+				// Set default to first available category
+				$analysis['categoryId'] = $categoriesWithKeywords[0]['file_category_id'];
+				$analysis['suggested_category'] = $categoriesWithKeywords[0]['file_category'];
 
-			foreach ($categoryPatterns as $categoryName => $pattern) {
-				$score = 0;
-				$foundKeywords = [];
+				// Analyze file name against database keywords
+				$bestMatch = null;
+				$highestScore = 0;
 
-				// Check keywords in filename
-				foreach ($pattern['keywords'] as $keyword) {
-					if (strpos($fileName, $keyword) !== false) {
-						$score += 2;
-						$foundKeywords[] = $keyword;
+				foreach ($categoriesWithKeywords as $category) {
+					$score = 0;
+					$foundKeywords = [];
+
+					if (!empty($category['keywords'])) {
+						$keywords = explode(',', $category['keywords']);
+						
+						// Check each keyword against filename
+						foreach ($keywords as $keyword) {
+							$keyword = trim(strtolower($keyword));
+							if (!empty($keyword) && strpos($fileName, $keyword) !== false) {
+								$score += 2;
+								$foundKeywords[] = $keyword;
+							}
+						}
+					}
+
+					// Bonus points for specific file extensions based on common document types
+					$extensionBonus = [
+						'pdf' => ['resolution', 'amendment', 'legal', 'policy', 'report'],
+						'doc' => ['report', 'minutes', 'proposal', 'memo'],
+						'docx' => ['report', 'minutes', 'proposal', 'memo'],
+						'xls' => ['budget', 'financial', 'expense', 'data'],
+						'xlsx' => ['budget', 'financial', 'expense', 'data'],
+						'jpg' => ['event', 'photo', 'documentation', 'certificate'],
+						'png' => ['event', 'photo', 'documentation', 'certificate'],
+						'ppt' => ['presentation', 'proposal', 'report'],
+						'pptx' => ['presentation', 'proposal', 'report']
+					];
+
+					if (isset($extensionBonus[$extension])) {
+						foreach ($extensionBonus[$extension] as $bonusKeyword) {
+							if (strpos($fileName, $bonusKeyword) !== false) {
+								$score += 1;
+							}
+						}
+					}
+
+					// Update best match if this category has higher score
+					if ($score > $highestScore) {
+						$highestScore = $score;
+						$bestMatch = [
+							'id' => $category['file_category_id'],
+							'name' => $category['file_category'],
+							'keywords' => $foundKeywords,
+							'score' => $score
+						];
 					}
 				}
 
-				// Check file extension
-				if (in_array($extension, $pattern['extensions'])) {
-					$score += 1;
+				// Update analysis with best match
+				if ($bestMatch && $highestScore > 0) {
+					$analysis['suggested_category'] = $bestMatch['name'];
+					$analysis['categoryId'] = $bestMatch['id'];
+					$analysis['keywords_found'] = $bestMatch['keywords'];
+					
+					// Determine confidence level based on score
+					if ($highestScore >= 4) {
+						$analysis['confidence_level'] = 'High';
+					} elseif ($highestScore >= 2) {
+						$analysis['confidence_level'] = 'Medium';
+					} else {
+						$analysis['confidence_level'] = 'Low';
+					}
 				}
 
-				// Update best match if this category has higher score
-				if ($score > $highestScore) {
-					$highestScore = $score;
-					$bestMatch = [
-						'name' => $categoryName,
-						'confidence' => $pattern['confidence'],
-						'keywords' => $foundKeywords,
-						'id' => $pattern['id']
-					];
-				}
-			}
-
-			// Update analysis with best match
-			if ($bestMatch && $highestScore > 0) {
-				$analysis['suggested_category'] = $bestMatch['name'];
-				$analysis['confidence_level'] = $bestMatch['confidence'];
-				$analysis['keywords_found'] = $bestMatch['keywords'];
-				$analysis['categoryId'] = $bestMatch['id'];
+			} catch (Exception $e) {
+				// If database query fails, use fallback logic
+				error_log("FileAnalyzer error: " . $e->getMessage());
+				return $this->analyzeFileContentFallback($fileName, $fileType, $extension);
 			}
 
 			// Determine file type description
@@ -2047,6 +2171,63 @@
 			];
 
 			$analysis['file_type'] = $typeDescriptions[$extension] ?? ucfirst($extension) . ' File';
+
+			return $analysis;
+		}
+
+		// Fallback method for when database keywords are not available
+		private function analyzeFileContentFallback($fileName, $fileType, $extension) {
+			$fileName = strtolower($fileName);
+			$analysis = [
+				'suggested_category' => 'Resolutions',
+				'confidence_level' => 'Low',
+				'file_type' => ucfirst($extension),
+				'keywords_found' => [],
+				'categoryId' => 1 // Default to Resolutions
+			];
+
+			// Basic fallback patterns for existing categories
+			$fallbackPatterns = [
+				'Resolutions' => [
+					'keywords' => ['resolution', 'motion', 'vote', 'decision', 'council', 'board'],
+					'id' => 1
+				],
+				'Amendments' => [
+					'keywords' => ['amendment', 'change', 'modify', 'update', 'revision', 'constitution', 'bylaw'],
+					'id' => 2
+				]
+			];
+
+			$bestMatch = null;
+			$highestScore = 0;
+
+			foreach ($fallbackPatterns as $categoryName => $pattern) {
+				$score = 0;
+				$foundKeywords = [];
+
+				foreach ($pattern['keywords'] as $keyword) {
+					if (strpos($fileName, $keyword) !== false) {
+						$score += 2;
+						$foundKeywords[] = $keyword;
+					}
+				}
+
+				if ($score > $highestScore) {
+					$highestScore = $score;
+					$bestMatch = [
+						'name' => $categoryName,
+						'keywords' => $foundKeywords,
+						'id' => $pattern['id']
+					];
+				}
+			}
+
+			if ($bestMatch && $highestScore > 0) {
+				$analysis['suggested_category'] = $bestMatch['name'];
+				$analysis['keywords_found'] = $bestMatch['keywords'];
+				$analysis['categoryId'] = $bestMatch['id'];
+				$analysis['confidence_level'] = $highestScore >= 2 ? 'Medium' : 'Low';
+			}
 
 			return $analysis;
 		}

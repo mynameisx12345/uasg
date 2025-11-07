@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 07, 2025 at 05:29 AM
+-- Generation Time: Nov 07, 2025 at 06:31 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -35,6 +35,21 @@ CREATE TABLE IF NOT EXISTS `deleted_record_tbl` (
   `table_origin` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `datetime_deleted` datetime NOT NULL,
   PRIMARY KEY (`delete_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `file_category_key_tbl`
+--
+
+DROP TABLE IF EXISTS `file_category_key_tbl`;
+CREATE TABLE IF NOT EXISTS `file_category_key_tbl` (
+  `file_category_key_id` int NOT NULL AUTO_INCREMENT,
+  `file_category_id` int NOT NULL,
+  `keyword` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
+  PRIMARY KEY (`file_category_key_id`),
+  KEY `file_category_id` (`file_category_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -284,6 +299,12 @@ INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `pro
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `file_category_key_tbl`
+--
+ALTER TABLE `file_category_key_tbl`
+  ADD CONSTRAINT `file_category_key_tbl_ibfk_1` FOREIGN KEY (`file_category_id`) REFERENCES `file_category_tbl` (`file_category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `file_permission_tbl`

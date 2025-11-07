@@ -91,7 +91,16 @@
 		echo json_encode($result);
 	}else if($call == 5){
 		try {
-			$fileCategories = EntityManager::getAllFileCategories() ?: [];
+			// Get file categories with their keywords
+			$db = Database::getInstance();
+			$fileCategories = $db->select("
+				SELECT fc.file_category_id, fc.file_category,
+					   GROUP_CONCAT(fck.keyword SEPARATOR ', ') as keywords
+				FROM file_category_tbl fc
+				LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
+				GROUP BY fc.file_category_id, fc.file_category
+				ORDER BY fc.file_category
+			") ?: [];
 			$result = ["data" => $fileCategories];
 		} catch(Exception $e) {
 			$result = ["data" => [], "error" => $e->getMessage()];
@@ -442,6 +451,81 @@
 		try {
 			$notificationManager = new NotificationManager();
 			$result["count"] = $notificationManager->getUnreadCount($user_id);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 32){
+		// Create file category keyword
+		$data = $_POST['DATA'] ?? [];
+		$categoryId = $data['category_id'] ?? 0;
+		$keyword = trim($data['keyword'] ?? "");
+		
+		try {
+			EntityManager::createFileCategoryKeyword($categoryId, $keyword);
+			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully added keyword</span>"];
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 33){
+		// Get file category keywords
+		$categoryId = $_POST['CATEGORY_ID'] ?? null;
+		
+		try {
+			$keywords = EntityManager::getFileCategoryKeywords($categoryId);
+			$result = ["data" => $keywords];
+		} catch(Exception $e) {
+			$result = ["data" => [], "error" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 34){
+		// Update file category keyword
+		$data = $_POST['DATA'] ?? [];
+		$keywordId = $data['keyword_id'] ?? 0;
+		$keyword = trim($data['keyword'] ?? "");
+		
+		try {
+			EntityManager::updateFileCategoryKeyword($keywordId, $keyword);
+			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully updated keyword</span>"];
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 35){
+		// Delete file category keyword
+		$data = $_POST['DATA'] ?? [];
+		$keywordId = $data['keyword_id'] ?? 0;
+		$reason = trim($data['reason'] ?? "Admin deletion");
+		
+		try {
+			EntityManager::deleteFileCategoryKeyword($keywordId, $reason);
+			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully deleted keyword</span>"];
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 36){
+		// Test file categorization
+		$filename = $_POST['FILENAME'] ?? '';
+		
+		if(empty($filename)) {
+			echo json_encode(["status" => "ERROR", "msg" => "Filename is required"]);
+			exit;
+		}
+		
+		try {
+			$fileAnalyzer = new FileAnalyzer();
+			$extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+			$mimeType = 'application/octet-stream'; // Default mime type for testing
+			
+			$analysis = $fileAnalyzer->analyzeFileContent($filename, $mimeType, $extension);
+			
+			$result = [
+				"status" => "SUCCESS",
+				"data" => $analysis,
+				"msg" => "File analyzed successfully"
+			];
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}

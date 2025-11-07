@@ -7,6 +7,27 @@
   <link rel="stylesheet" href="../resources/style.css">
   <!--link rel='stylesheet' href='../resources/datatable.css'-->
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+  <style>
+    .keyword-count {
+      background: #4CAF50;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .no-keywords {
+      background: #f44336;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .keywords-section {
+      border-top: 2px solid #ddd;
+      margin-top: 20px;
+      padding-top: 20px;
+    }
+  </style>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>
   <script src='../js/datatable.js'></script>
@@ -118,6 +139,60 @@
                 <tr>
                   <th>File Category ID</th>
                   <th>File Category</th>
+                  <th>Keywords</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Keywords Management Section -->
+          <div class="compact-form" style="margin-top: 30px;">
+            <h3>Manage Keywords for Auto-Categorization</h3>
+            <div class="form-columns">
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Add Keyword</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="keywordCategory">Select Category</label>
+                      <select id="keywordCategory" name="keywordCategory" required>
+                        <option value="">Select a category...</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="keywordText">Keyword</label>
+                      <input type="text" id="keywordText" name="keywordText" placeholder="Enter keyword for auto-detection..." required>
+                      <small>Keywords help automatically categorize uploaded files based on filename content</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-column">
+                <div class="form-section">
+                  <h4>Actions</h4>
+                  <div class="form-actions">
+                    <button type="submit" id='saveKeyword' class="btn-primary">Add Keyword</button>
+                    <button type="reset" class="btn-secondary">Clear</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <br/>
+          <div class="table-container">
+            <h3>Keywords by Category</h3>
+            <table class='data-table' id='keywordstable'>
+              <thead>
+                <tr>
+                  <th>Keyword ID</th>
+                  <th>Category</th>
+                  <th>Keyword</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -273,6 +348,7 @@
       let positiontable;
       let filecategorytable;
       let taskcategory;
+      let keywordstable;
 
       $(document).on("click",".deleteBtn",function(){
         $("#deleteid").val($(this).data('id'));
@@ -336,23 +412,23 @@
           columns: [
             { data: "file_category_id" },
             { data: "file_category" },
+            { data: "keywords", 
+              render: function(data) {
+                  return data ? '<span class="keyword-count">' + data.split(',').length + ' keywords</span>' : '<span class="no-keywords">No keywords</span>';
+              }
+            },
             { data: 'file_category_id',
               render: function(id) {
                   return '<button class="btn-primary updateBtn" data-id="'+id+'" data-table="file_category_tbl" data-title="File Category" title="Update"><i class="fas fa-edit"></i> Update</button> <button class="btn-secondary deleteBtn" data-id="'+id+'" data-table="file_category_tbl" data-title="File Category" title="Delete File Category"><i class="far fa-trash-alt"></i> Delete</button>';
               }
-            },
-            /*{ data: 'id',
-                render: function(id){
-                    return '<button class="btn-secondary deletePosBtn" data-id="'+id+'" title="Delete Position"><i class="far fa-trash-alt"></i></button>';
-                }
-              },*/
+            }
           ],
           columnDefs: [
             { targets: 0, visible: false, searchable: false } 
           ],
           initComplete: function(settings, json) {
-            // remove default DT classes if needed
-            //$('#positiontable').removeClass('dataTable');
+            // Populate category dropdown for keywords
+            populateCategoryDropdown();
           }
         });
       }
@@ -391,11 +467,60 @@
       getAllPositions();
       getAllFileCategory();
       getAllTaskCategory();
+      getAllKeywords();
+
+      function populateCategoryDropdown(){
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{CALL:5},
+          dataType:'json',
+          success:function(result){
+            var options = '<option value="">Select a category...</option>';
+            if(result.data){
+              result.data.forEach(function(category){
+                options += '<option value="'+category.file_category_id+'">'+category.file_category+'</option>';
+              });
+            }
+            $("#keywordCategory").html(options);
+          }
+        });
+      }
+
+      function getAllKeywords(){
+        keywordstable = $("#keywordstable").DataTable({
+          ajax:{
+            url:'ajax.php',
+            type:'post',
+            data:{
+              CALL:33
+            },dataType:'json',
+          },
+          scroll:'50vh',
+          scrollCollapse:true,
+          paging:true,
+          columns:[
+            { data: "file_category_key_id" },
+            { data: "file_category" },
+            { data: "keyword" },
+            { data: 'file_category_key_id',
+              render: function(id) {
+                  return '<button class="btn-primary updateKeywordBtn" data-id="'+id+'" title="Update Keyword"><i class="fas fa-edit"></i> Update</button> <button class="btn-secondary deleteKeywordBtn" data-id="'+id+'" title="Delete Keyword"><i class="far fa-trash-alt"></i> Delete</button>';
+              }
+            },
+          ],
+          columnDefs: [
+            { targets: 0, visible: false, searchable: false } 
+          ]
+        });
+      }
 
       function reloadAllAjaxTables(){
         positiontable.ajax.reload(null, false);
         filecategorytable.ajax.reload(null, false);
         taskcategory.ajax.reload(null, false);
+        keywordstable.ajax.reload(null, false);
+        populateCategoryDropdown(); // Refresh dropdown
       }
 
       function saveData(call,dataArr = []){
@@ -443,6 +568,89 @@
           saveData(3,{NAME:taskcategory});
         }
       });
+
+      // Keywords management
+      $("#saveKeyword").click(function(){
+        var categoryId = $("#keywordCategory").val();
+        var keyword = $("#keywordText").val();
+        if(categoryId === ""){
+          openModal("ERROR","Please select a category");
+        }else if(keyword.trim() === ""){
+          openModal("ERROR","Please enter a keyword");
+        }else{
+          saveKeyword(categoryId, keyword.trim());
+        }
+      });
+
+      $(document).on("click",".updateKeywordBtn",function(){
+        var keywordId = $(this).data('id');
+        var currentKeyword = $(this).closest("tr").find("td").eq(2).text();
+        var newKeyword = prompt("Enter new keyword:", currentKeyword);
+        if(newKeyword && newKeyword.trim() !== "" && newKeyword !== currentKeyword){
+          updateKeyword(keywordId, newKeyword.trim());
+        }
+      });
+
+      $(document).on("click",".deleteKeywordBtn",function(){
+        var keywordId = $(this).data('id');
+        var keyword = $(this).closest("tr").find("td").eq(2).text();
+        var reason = prompt("Enter reason for deleting keyword '" + keyword + "':");
+        if(reason && reason.trim() !== ""){
+          deleteKeyword(keywordId, reason.trim());
+        }
+      });
+
+      function saveKeyword(categoryId, keyword){
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{
+            CALL:32,
+            DATA:{category_id:categoryId, keyword:keyword}
+          },dataType:'json',
+          success:function(result){
+            openModal(result.status, result.msg);
+            if(result.status == "SUCCESS"){
+              $("#keywordText").val('');
+              $("#keywordCategory").val('');
+            }
+          },complete:function(){
+            reloadAllAjaxTables();
+          }
+        });
+      }
+
+      function updateKeyword(keywordId, keyword){
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{
+            CALL:34,
+            DATA:{keyword_id:keywordId, keyword:keyword}
+          },dataType:'json',
+          success:function(result){
+            openModal(result.status, result.msg);
+          },complete:function(){
+            reloadAllAjaxTables();
+          }
+        });
+      }
+
+      function deleteKeyword(keywordId, reason){
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{
+            CALL:35,
+            DATA:{keyword_id:keywordId, reason:reason}
+          },dataType:'json',
+          success:function(result){
+            openModal(result.status, result.msg);
+          },complete:function(){
+            reloadAllAjaxTables();
+          }
+        });
+      }
     });
   </script>
 </body>
