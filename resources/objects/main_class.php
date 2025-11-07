@@ -783,6 +783,376 @@
 			$tc = new TaskCategory();
 			return $tc->getAllRecords();
 		}
+	class TaskManager {
+		private $db;
+
+		public function __construct() {
+			$this->db = Database::getInstance();
+		}
+
+		public function createTask($data) {
+			try {
+				// Validate required fields
+				if (empty($data['task_title']) || empty($data['task_description']) || 
+					empty($data['task_deadline']) || empty($data['task_category_id'])) {
+					throw new Exception("All task fields are required");
+				}
+
+				// Create task
+				$task = new Task([
+					'task_category_id' => $data['task_category_id'],
+					'task_title' => $data['task_title'],
+					'task_description' => $data['task_description'],
+					'task_deadline' => $data['task_deadline']
+				]);
+
+				$taskId = $task->insertAndGetId();
+				if (!$taskId) {
+					throw new Exception("Failed to create task");
+				}
+
+				// Create notifications for all UASG members
+				$this->notifyMembersNewTask($taskId, $data['task_title']);
+
+				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
+			} catch (Exception $e) {
+				return ["status" => "ERROR", "msg" => $e->getMessage()];
+			}
+		}
+
+		public function getTasks($userId = null) {
+			try {
+				$query = "SELECT t.*, tc.task_category, 
+						 COUNT(ts.task_submission_id) as submission_count,
+						 COUNT(CASE WHEN ts.check_status = 'approved' THEN 1 END) as approved_count,
+						 COUNT(CASE WHEN ts.check_status = 'pending' THEN 1 END) as pending_count
+						 FROM task_tbl t 
+						 LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
+						 LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id
+						 GROUP BY t.task_id
+						 ORDER BY t.task_deadline ASC";
+				
+				return $this->db->select($query);
+			} catch (Exception $e) {
+				return [];
+			}
+		}
+
+		public function getTasksForMember($userId) {
+			try {
+				// Get user's position to check permissions
+				$userQuery = "SELECT u.position_id FROM user_tbl u WHERE u.user_id = :user_id";
+				$userData = $this->db->select($userQuery, [':user_id' => $userId]);
+				
+				if (empty($userData)) {
+					return [];
+				}
+				
+				$positionId = $userData[0]['position_id'];
+
+				// Get tasks with permission check
+				$query = "SELECT t.*, tc.task_category,
+						 ts.task_submission_id, ts.check_status, ts.file_upload_id,
+						 fu.file_name, fu.datetime_uploaded as submission_date
+						 FROM task_tbl t 
+						 LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
+						 LEFT JOIN file_category_tbl fc ON tc.task_category = fc.file_category
+						 LEFT JOIN file_permission_tbl fp ON fc.file_category_id = fp.file_category_id 
+						 	AND fp.position_id = :position_id
+						 LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id
+						 LEFT JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id 
+						 	AND fu.uploaded_by = :user_id
+						 WHERE fp.file_permission_id IS NOT NULL
+						 ORDER BY t.task_deadline ASC";
+				
+				return $this->db->select($query, [':position_id' => $positionId, ':user_id' => $userId]);
+			} catch (Exception $e) {
+				return [];
+			}
+		}
+
+		public function submitTask($data) {
+			try {
+				// Validate required fields
+				if (empty($data['task_id']) || empty($data['file_upload_id'])) {
+					throw new Exception("Task ID and file are required");
+				}
+
+				// Check if submission already exists
+				$existing = $this->db->select(
+					"SELECT * FROM task_submission_tbl WHERE task_id = :task_id AND file_upload_id IN 
+					(SELECT file_upload_id FROM file_upload_tbl WHERE uploaded_by = :user_id)",
+					[':task_id' => $data['task_id'], ':user_id' => $data['uploaded_by']]
+				);
+
+				if (!empty($existing)) {
+					// Update existing submission
+					$submission = new TaskSubmission([
+						'task_id' => $data['task_id'],
+						'file_upload_id' => $data['file_upload_id'],
+						'check_status' => 'pending'
+					]);
+					$result = $submission->update('task_submission_id', $existing[0]['task_submission_id']);
+				} else {
+					// Create new submission
+					$submission = new TaskSubmission([
+						'task_id' => $data['task_id'],
+						'file_upload_id' => $data['file_upload_id'],
+						'check_status' => 'pending'
+					]);
+					$result = $submission->insert();
+				}
+
+				if (!$result) {
+					throw new Exception("Failed to submit task");
+				}
+
+				// Notify advisers about new submission
+				$this->notifyAdvisersNewSubmission($data['task_id'], $data['uploaded_by']);
+
+				return ["status" => "SUCCESS", "msg" => "Task submitted successfully"];
+			} catch (Exception $e) {
+				return ["status" => "ERROR", "msg" => $e->getMessage()];
+			}
+		}
+
+		public function reviewSubmission($data) {
+			try {
+				// Validate required fields
+				if (empty($data['task_submission_id']) || empty($data['check_status'])) {
+					throw new Exception("Submission ID and status are required");
+				}
+
+				// Update submission status
+				$submission = new TaskSubmission();
+				$result = $submission->updateSingleValue(
+					'check_status', 
+					'task_submission_id', 
+					$data['task_submission_id'], 
+					$data['check_status']
+				);
+
+				if (!$result) {
+					throw new Exception("Failed to update submission status");
+				}
+
+				// Get submission details for notification
+				$submissionData = $this->db->select(
+					"SELECT ts.*, fu.uploaded_by, t.task_title 
+					 FROM task_submission_tbl ts
+					 JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
+					 JOIN task_tbl t ON ts.task_id = t.task_id
+					 WHERE ts.task_submission_id = :id",
+					[':id' => $data['task_submission_id']]
+				);
+
+				if (!empty($submissionData)) {
+					$this->notifyMemberSubmissionReview(
+						$submissionData[0]['uploaded_by'],
+						$submissionData[0]['task_title'],
+						$data['check_status']
+					);
+				}
+
+				return ["status" => "SUCCESS", "msg" => "Submission reviewed successfully"];
+			} catch (Exception $e) {
+				return ["status" => "ERROR", "msg" => $e->getMessage()];
+			}
+		}
+
+		public function getSubmissions($taskId = null) {
+			try {
+				$query = "SELECT ts.*, t.task_title, t.task_deadline,
+						 fu.file_name, fu.datetime_uploaded,
+						 p.fname, p.lname, u.user_name
+						 FROM task_submission_tbl ts
+						 JOIN task_tbl t ON ts.task_id = t.task_id
+						 JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
+						 JOIN user_tbl u ON fu.uploaded_by = u.user_id
+						 JOIN profile_tbl p ON u.profile_id = p.profile_id";
+				
+				$params = [];
+				if ($taskId) {
+					$query .= " WHERE ts.task_id = :task_id";
+					$params[':task_id'] = $taskId;
+				}
+				
+				$query .= " ORDER BY fu.datetime_uploaded DESC";
+				
+				return $this->db->select($query, $params);
+			} catch (Exception $e) {
+				return [];
+			}
+		}
+
+		public function deleteTask($taskId, $reason) {
+			try {
+				// Get task data for deletion record
+				$taskData = $this->db->select(
+					"SELECT * FROM task_tbl WHERE task_id = :id", 
+					[':id' => $taskId]
+				);
+
+				if (empty($taskData)) {
+					throw new Exception("Task not found");
+				}
+
+				// Save deletion record
+				$deleteRecord = new Delete([
+					'data_deleted' => json_encode($taskData[0]),
+					'reason_for_deletion' => $reason,
+					'table_origin' => 'task_tbl',
+					'datetime' => date('Y-m-d H:i:s')
+				]);
+				$deleteRecord->insert();
+
+				// Delete task (cascades to submissions)
+				$task = new Task();
+				$result = $task->delete('task_id', $taskId);
+
+				if (!$result) {
+					throw new Exception("Failed to delete task");
+				}
+
+				return ["status" => "SUCCESS", "msg" => "Task deleted successfully"];
+			} catch (Exception $e) {
+				return ["status" => "ERROR", "msg" => $e->getMessage()];
+			}
+		}
+
+		private function notifyMembersNewTask($taskId, $taskTitle) {
+			// Get all UASG members
+			$members = $this->db->select(
+				"SELECT u.user_id FROM user_tbl u 
+				 JOIN position_tbl p ON u.position_id = p.position_id 
+				 WHERE p.position = 'Student Government Member'"
+			);
+
+			$notificationManager = new NotificationManager();
+			foreach ($members as $member) {
+				$notificationManager->createNotification([
+					'user_id' => $member['user_id'],
+					'type' => 'new_task',
+					'title' => 'New Task Assigned',
+					'message' => "New task '{$taskTitle}' has been assigned to you",
+					'related_id' => $taskId
+				]);
+			}
+		}
+
+		private function notifyAdvisersNewSubmission($taskId, $submitterId) {
+			// Get task title and submitter name
+			$data = $this->db->select(
+				"SELECT t.task_title, p.fname, p.lname 
+				 FROM task_tbl t, user_tbl u, profile_tbl p 
+				 WHERE t.task_id = :task_id AND u.user_id = :user_id AND u.profile_id = p.profile_id",
+				[':task_id' => $taskId, ':user_id' => $submitterId]
+			);
+
+			if (!empty($data)) {
+				$taskTitle = $data[0]['task_title'];
+				$submitterName = $data[0]['fname'] . ' ' . $data[0]['lname'];
+
+				// Get all advisers
+				$advisers = $this->db->select(
+					"SELECT u.user_id FROM user_tbl u 
+					 JOIN position_tbl p ON u.position_id = p.position_id 
+					 WHERE p.position = 'Adviser'"
+				);
+
+				$notificationManager = new NotificationManager();
+				foreach ($advisers as $adviser) {
+					$notificationManager->createNotification([
+						'user_id' => $adviser['user_id'],
+						'type' => 'new_submission',
+						'title' => 'New Task Submission',
+						'message' => "{$submitterName} submitted '{$taskTitle}'",
+						'related_id' => $taskId
+					]);
+				}
+			}
+		}
+
+		private function notifyMemberSubmissionReview($userId, $taskTitle, $status) {
+			$notificationManager = new NotificationManager();
+			$statusText = ucfirst($status);
+			$message = "Your submission for '{$taskTitle}' has been {$statusText}";
+			
+			$notificationManager->createNotification([
+				'user_id' => $userId,
+				'type' => 'submission_reviewed',
+				'title' => 'Submission Reviewed',
+				'message' => $message,
+				'related_id' => null
+			]);
+		}
+	}
+
+	class NotificationManager {
+		private $db;
+
+		public function __construct() {
+			$this->db = Database::getInstance();
+		}
+
+		public function createNotification($data) {
+			try {
+				// Insert notification (we need a notifications table, let's create it in the notification)
+				$query = "INSERT INTO notifications_tbl (user_id, type, title, message, related_id, is_read, datetime_created) 
+						  VALUES (:user_id, :type, :title, :message, :related_id, 0, NOW())";
+				
+				$conn = $this->db->getConnection();
+				$stmt = $conn->prepare($query);
+				
+				return $stmt->execute([
+					':user_id' => $data['user_id'],
+					':type' => $data['type'],
+					':title' => $data['title'],
+					':message' => $data['message'],
+					':related_id' => $data['related_id']
+				]);
+			} catch (Exception $e) {
+				// If notifications table doesn't exist, we'll create it later
+				return true;
+			}
+		}
+
+		public function getNotifications($userId, $unreadOnly = false) {
+			try {
+				$query = "SELECT * FROM notifications_tbl WHERE user_id = :user_id";
+				if ($unreadOnly) {
+					$query .= " AND is_read = 0";
+				}
+				$query .= " ORDER BY datetime_created DESC";
+				
+				return $this->db->select($query, [':user_id' => $userId]);
+			} catch (Exception $e) {
+				return [];
+			}
+		}
+
+		public function markAsRead($notificationId) {
+			try {
+				$query = "UPDATE notifications_tbl SET is_read = 1 WHERE notification_id = :id";
+				$conn = $this->db->getConnection();
+				$stmt = $conn->prepare($query);
+				return $stmt->execute([':id' => $notificationId]);
+			} catch (Exception $e) {
+				return false;
+			}
+		}
+
+		public function getUnreadCount($userId) {
+			try {
+				$query = "SELECT COUNT(*) as count FROM notifications_tbl WHERE user_id = :user_id AND is_read = 0";
+				$result = $this->db->select($query, [':user_id' => $userId]);
+				return !empty($result) ? $result[0]['count'] : 0;
+			} catch (Exception $e) {
+				return 0;
+			}
+		}
+	}
+
 	class FileManager {
 		private $db;
 

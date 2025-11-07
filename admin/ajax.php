@@ -303,4 +303,124 @@
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
+		
+	}else if($call == 22){
+		// Create new task
+		$data = $_POST['DATA'] ?? [];
+		
+		try {
+			$taskManager = new TaskManager();
+			$result = $taskManager->createTask($data);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 23){
+		// Get all tasks (for advisers)
+		try {
+			$taskManager = new TaskManager();
+			$result["data"] = $taskManager->getTasks();
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 24){
+		// Get tasks for member
+		$user_id = $_POST['USER_ID'] ?? 0;
+		
+		try {
+			$taskManager = new TaskManager();
+			$result["data"] = $taskManager->getTasksForMember($user_id);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 25){
+		// Submit task
+		$data = $_POST['DATA'] ?? [];
+		
+		try {
+			$taskManager = new TaskManager();
+			$result = $taskManager->submitTask($data);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 26){
+		// Review submission
+		$data = $_POST['DATA'] ?? [];
+		
+		try {
+			$taskManager = new TaskManager();
+			$result = $taskManager->reviewSubmission($data);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 27){
+		// Get submissions for task
+		$task_id = $_POST['TASK_ID'] ?? null;
+		
+		try {
+			$taskManager = new TaskManager();
+			$result["data"] = $taskManager->getSubmissions($task_id);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 28){
+		// Delete task
+		$data = $_POST['DATA'] ?? [];
+		
+		try {
+			$taskManager = new TaskManager();
+			$result = $taskManager->deleteTask($data['task_id'], $data['reason']);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 29){
+		// Get notifications
+		$user_id = $_POST['USER_ID'] ?? 0;
+		$unread_only = $_POST['UNREAD_ONLY'] ?? false;
+		
+		try {
+			$notificationManager = new NotificationManager();
+			$result["data"] = $notificationManager->getNotifications($user_id, $unread_only);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 30){
+		// Mark notification as read
+		$notification_id = $_POST['NOTIFICATION_ID'] ?? 0;
+		
+		try {
+			$notificationManager = new NotificationManager();
+			$result = $notificationManager->markAsRead($notification_id);
+			$result = ["status" => "SUCCESS", "msg" => "Notification marked as read"];
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+		
+	}else if($call == 31){
+		// Get unread notification count
+		$user_id = $_POST['USER_ID'] ?? 0;
+		
+		try {
+			$notificationManager = new NotificationManager();
+			$result["count"] = $notificationManager->getUnreadCount($user_id);
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
 	}
