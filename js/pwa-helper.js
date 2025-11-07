@@ -8,7 +8,11 @@ class UASGPWAHelper {
         // Register service worker
         if ('serviceWorker' in navigator) {
             try {
-                const registration = await navigator.serviceWorker.register('/uasg/sw.js');
+                // Determine correct path for service worker based on current location
+                const swPath = window.location.pathname.includes('/uasg/') ? 
+                    (window.location.pathname.split('/uasg/')[0] + '/uasg/sw.js') : 
+                    '/uasg/sw.js';
+                const registration = await navigator.serviceWorker.register(swPath);
                 console.log('UASG PWA: Service Worker registered successfully:', registration);
                 
                 // Handle service worker updates
