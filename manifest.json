@@ -66,19 +66,19 @@
       "name": "Upload File",
       "short_name": "Upload",
       "description": "Quick upload files",
-      "url": "/uasg/admin/file-management.php",
-      "icons": [{ "src": "resources/icons/upload-icon.png", "sizes": "96x96" }]
+      "url": "/uasg/admin/entry-module.php",
+      "icons": [{ "src": "resources/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
       "name": "Admin Panel",
       "short_name": "Admin",
       "description": "Access admin panel",
       "url": "/uasg/admin/",
-      "icons": [{ "src": "resources/icons/admin-icon.png", "sizes": "96x96" }]
+      "icons": [{ "src": "resources/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
   "share_target": {
-    "action": "/uasg/admin/file-management.php",
+    "action": "/uasg/admin/entry-module.php",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {

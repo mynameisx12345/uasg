@@ -9,9 +9,19 @@ class UASGPWAHelper {
         if ('serviceWorker' in navigator) {
             try {
                 // Determine correct path for service worker based on current location
-                const swPath = window.location.pathname.includes('/uasg/') ? 
-                    (window.location.pathname.split('/uasg/')[0] + '/uasg/sw.js') : 
-                    '/uasg/sw.js';
+                const currentPath = window.location.pathname;
+                let swPath;
+                
+                if (currentPath.includes('/uasg/')) {
+                    // Extract the base path and append /uasg/sw.js
+                    const basePath = currentPath.substring(0, currentPath.indexOf('/uasg/'));
+                    swPath = basePath + '/uasg/sw.js';
+                } else {
+                    // Default path for root level
+                    swPath = '/uasg/sw.js';
+                }
+                
+                console.log('UASG PWA: Registering service worker at:', swPath);
                 const registration = await navigator.serviceWorker.register(swPath);
                 console.log('UASG PWA: Service Worker registered successfully:', registration);
                 
@@ -136,22 +146,45 @@ class UASGPWAHelper {
     }
     
     interceptAjaxRequests() {
+        // Store original fetch
         const originalFetch = window.fetch;
-        window.fetch = async (...args) => {
-            try {
-                const response = await originalFetch(...args);
-                if (!response.ok && !navigator.onLine) {
-                    this.queueRequest(args);
+        
+        // Only intercept if fetch exists
+        if (typeof originalFetch === 'function') {
+            window.fetch = async (...args) => {
+                try {
+                    const response = await originalFetch(...args);
+                    if (!response.ok && !navigator.onLine) {
+                        this.queueRequest(args);
+                    }
+                    return response;
+                } catch (error) {
+                    if (!navigator.onLine) {
+                        this.queueRequest(args);
+                        throw new Error('Request queued for when you\'re back online');
+                    }
+                    throw error;
                 }
-                return response;
-            } catch (error) {
-                if (!navigator.onLine) {
-                    this.queueRequest(args);
-                    throw new Error('Request queued for when you\'re back online');
-                }
-                throw error;
-            }
-        };
+            };
+        }
+        
+        // Also intercept jQuery AJAX if available
+        if (typeof $ !== 'undefined' && $.ajax) {
+            const originalAjax = $.ajax;
+            $.ajax = (options) => {
+                const originalError = options.error;
+                options.error = (xhr, status, error) => {
+                    if (!navigator.onLine) {
+                        this.queueRequest([options.url, options]);
+                        this.showNotification('Request Queued', 'Your request will be sent when you\'re back online.');
+                    }
+                    if (typeof originalError === 'function') {
+                        originalError(xhr, status, error);
+                    }
+                };
+                return originalAjax(options);
+            };
+        }
     }
     
     queueRequest(requestArgs) {
@@ -287,12 +320,36 @@ class UASGPWAHelper {
 
 // Initialize PWA helper when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.uasgPWA = new UASGPWAHelper();
-    
-    // Request notification permission after a delay
-    setTimeout(() => {
-        window.uasgPWA.requestNotificationPermission();
-    }, 3000);
+    try {
+        window.uasgPWA = new UASGPWAHelper();
+        
+        // Request notification permission after a delay
+        setTimeout(() => {
+            try {
+                window.uasgPWA.requestNotificationPermission();
+            } catch (error) {
+                console.warn('UASG PWA: Could not request notification permission:', error);
+            }
+        }, 3000);
+    } catch (error) {
+        console.error('UASG PWA: Failed to initialize PWA helper:', error);
+    }
+});
+
+// Global error handler for PWA
+window.addEventListener('error', (event) => {
+    if (event.filename && event.filename.includes('pwa-helper.js')) {
+        console.warn('UASG PWA: Non-critical PWA error:', event.error);
+        event.preventDefault();
+    }
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && event.reason.message && event.reason.message.includes('PWA')) {
+        console.warn('UASG PWA: Non-critical PWA promise rejection:', event.reason);
+        event.preventDefault();
+    }
 });
 
 // Export for use in other scripts
