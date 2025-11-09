@@ -647,6 +647,35 @@
           },dataType:'json',
           success:function(result){
             openModal(result.status, result.msg);
+            
+            // Send mobile notification for successful actions
+            if (result.status === 'SUCCESS') {
+              if (typeof UASGPWAHelper !== 'undefined') {
+                if (this.url.includes('CALL:32')) {
+                  // Adding keyword
+                  UASGPWAHelper.notifySuccess(
+                    '✅ Keyword Added',
+                    'New keyword has been successfully added to the category.',
+                    window.location.href
+                  );
+                } else if (this.url.includes('CALL:33')) {
+                  // Updating keyword
+                  UASGPWAHelper.notifySuccess(
+                    '📝 Keyword Updated',
+                    'The keyword has been successfully updated.',
+                    window.location.href
+                  );
+                }
+              }
+            } else if (result.status === 'ERROR') {
+              // Show error notification
+              if (typeof UASGPWAHelper !== 'undefined') {
+                UASGPWAHelper.notifyError(
+                  '❌ Operation Failed',
+                  result.msg || 'An error occurred while processing your request.'
+                );
+              }
+            }
           },complete:function(){
             reloadAllAjaxTables();
           }
@@ -663,6 +692,17 @@
           },dataType:'json',
           success:function(result){
             openModal(result.status, result.msg);
+            
+            // Send mobile notification for successful deletion
+            if (result.status === 'SUCCESS') {
+              if (typeof UASGPWAHelper !== 'undefined') {
+                UASGPWAHelper.notifySuccess(
+                  '🗑️ Keyword Deleted',
+                  'The keyword has been successfully removed from the category.',
+                  window.location.href
+                );
+              }
+            }
           },complete:function(){
             reloadAllAjaxTables();
           }

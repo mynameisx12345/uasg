@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Notifications Test - UASG</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Mobile notification testing for UASG PWA">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="UASG Mobile Test">
+    <meta name="msapplication-TileColor" content="#2196F3">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="resources/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="resources/icons/icon-16x16.png">
+    <link rel="apple-touch-icon" href="resources/icons/icon-152x152.png">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2196F3;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 16px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .test-section h3 {
+            margin: 0 0 16px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin: 8px 0;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 12px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .device-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        
+        .device-info strong {
+            color: #1976D2;
+        }
+        
+        .notification-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 16px 0;
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .test-section {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Mobile Notifications Test</h1>
+        <p class="subtitle">Test UASG PWA notifications on your mobile device</p>
+        
+        <div class="device-info">
+            <strong>Device Info:</strong><br>
+            <span id="deviceInfo">Loading...</span>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔔 Permission Status</h3>
+            <div id="permissionStatus">Checking...</div>
+            <button onclick="requestPermissions()">
+                🔓 Request Notification Permission
+            </button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 Notification Tests</h3>
+            <button onclick="testNativeNotification()">
+                📲 Test Native Notification
+            </button>
+            <button onclick="testServiceWorkerNotification()">
+                ⚙️ Test Service Worker Notification
+            </button>
+            <button onclick="testInAppNotification()">
+                💬 Test In-App Notification
+            </button>
+            <button onclick="testMobileFeatures()">
+                📳 Test Mobile Features (Vibrate + Sound)
+            </button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Real-world Scenarios</h3>
+            <button onclick="simulateFileUpload()">
+                📁 Simulate File Upload Complete
+            </button>
+            <button onclick="simulateSystemAlert()">
+                ⚠️ Simulate System Alert
+            </button>
+            <button onclick="simulateOfflineSync()">
+                🔄 Simulate Offline Sync
+            </button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🛠️ Troubleshooting</h3>
+            <button onclick="checkPWAStatus()">
+                🔍 Check PWA Installation Status
+            </button>
+            <button onclick="clearNotifications()">
+                🗑️ Clear All Notifications
+            </button>
+            <button onclick="resetPermissions()">
+                🔄 Reset & Test Again
+            </button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📝 Test Log</h3>
+            <div id="testLog" class="notification-log">Test results will appear here...\n</div>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <script src="js/pwa-helper.js"></script>
+    <script>
+        let testCount = 0;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('testLog');
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logDiv.textContent += `[${timestamp}] ${icon} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`Mobile Notification Test: ${message}`);
+        }
+        
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        async function requestPermissions() {
+            log('Requesting notification permissions...');
+            
+            if (window.uasgPWA) {
+                const granted = await window.uasgPWA.requestNotificationPermission();
+                if (granted) {
+                    updateStatus('permissionStatus', '✅ Notifications enabled successfully!', 'success');
+                    log('Notification permission granted', 'success');
+                } else {
+                    updateStatus('permissionStatus', '❌ Notifications not enabled. Check browser settings.', 'warning');
+                    log('Notification permission denied or failed', 'warning');
+                }
+            } else {
+                updateStatus('permissionStatus', '❌ PWA helper not loaded', 'error');
+                log('PWA helper not available', 'error');
+            }
+            
+            updatePermissionStatus();
+        }
+        
+        async function testNativeNotification() {
+            testCount++;
+            log(`Starting native notification test #${testCount}`);
+            
+            if (!('Notification' in window)) {
+                log('Native notifications not supported on this device', 'error');
+                return;
+            }
+            
+            if (Notification.permission !== 'granted') {
+                log('Notification permission not granted', 'warning');
+                await requestPermissions();
+                return;
+            }
+            
+            try {
+                const notification = new Notification('🧪 Native Test Notification', {
+                    body: `Test #${testCount} - This is a native browser notification`,
+                    icon: 'resources/icons/icon-192x192.png',
+                    badge: 'resources/icons/icon-72x72.png',
+                    tag: 'test-native',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200],
+                    actions: [
+                        { action: 'view', title: '👁️ View' },
+                        { action: 'dismiss', title: '❌ Dismiss' }
+                    ]
+                });
+                
+                notification.onclick = () => {
+                    log('Native notification clicked', 'success');
+                    notification.close();
+                };
+                
+                notification.onerror = (error) => {
+                    log(`Native notification error: ${error}`, 'error');
+                };
+                
+                log('Native notification sent successfully', 'success');
+            } catch (error) {
+                log(`Native notification failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testServiceWorkerNotification() {
+            testCount++;
+            log(`Starting service worker notification test #${testCount}`);
+            
+            if (!('serviceWorker' in navigator)) {
+                log('Service Worker not supported', 'error');
+                return;
+            }
+            
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                
+                await registration.showNotification('⚙️ Service Worker Test', {
+                    body: `Test #${testCount} - This notification comes from the service worker`,
+                    icon: 'resources/icons/icon-192x192.png',
+                    badge: 'resources/icons/icon-72x72.png',
+                    tag: 'test-sw',
+                    requireInteraction: true,
+                    vibrate: [300, 200, 300],
+                    data: { testId: testCount, timestamp: Date.now() },
+                    actions: [
+                        { action: 'view', title: '👁️ View Details' },
+                        { action: 'dismiss', title: '❌ Close' }
+                    ]
+                });
+                
+                log('Service worker notification sent successfully', 'success');
+            } catch (error) {
+                log(`Service worker notification failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testInAppNotification() {
+            testCount++;
+            log(`Starting in-app notification test #${testCount}`);
+            
+            if (window.uasgPWA) {
+                window.uasgPWA.showInAppNotification(
+                    '💬 In-App Test Notification',
+                    `Test #${testCount} - This is an in-app notification that works on all devices`,
+                    {
+                        type: 'info',
+                        url: '#test-section',
+                        duration: 8000
+                    }
+                );
+                log('In-app notification displayed successfully', 'success');
+            } else {
+                log('PWA helper not available for in-app notifications', 'error');
+            }
+        }
+        
+        function testMobileFeatures() {
+            testCount++;
+            log(`Testing mobile-specific features #${testCount}`);
+            
+            // Test vibration
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+                log('Vibration pattern triggered', 'success');
+            } else {
+                log('Vibration not supported on this device', 'warning');
+            }
+            
+            // Test wake lock (keep screen on)
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').then(() => {
+                    log('Screen wake lock requested', 'success');
+                    setTimeout(() => {
+                        log('Wake lock released after 5 seconds');
+                    }, 5000);
+                }).catch(err => {
+                    log(`Wake lock failed: ${err.message}`, 'warning');
+                });
+            } else {
+                log('Screen wake lock not supported', 'warning');
+            }
+            
+            // Show combined notification
+            if (window.uasgPWA) {
+                window.uasgPWA.showNotification(
+                    '📳 Mobile Features Test',
+                    'Testing vibration, wake lock, and mobile-optimized notifications',
+                    { tag: 'mobile-features-test' }
+                );
+            }
+        }
+        
+        function simulateFileUpload() {
+            log('Simulating file upload completion...');
+            
+            // Simulate upload progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 20;
+                if (window.uasgPWA) {
+                    window.uasgPWA.showInAppNotification(
+                        '📁 File Upload Progress',
+                        `Uploading... ${progress}%`,
+                        { type: 'info', duration: 1000 }
+                    );
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // Show completion notification
+                    if (window.uasgPWA) {
+                        window.uasgPWA.showNotification(
+                            '🎉 Upload Complete!',
+                            'Your file "test-document.pdf" has been uploaded successfully.',
+                            { tag: 'upload-complete', url: '/uasg/admin/entry-module.php' }
+                        );
+                    }
+                    
+                    log('File upload simulation completed', 'success');
+                }
+            }, 1000);
+        }
+        
+        function simulateSystemAlert() {
+            log('Simulating system alert...');
+            
+            if (window.uasgPWA) {
+                window.uasgPWA.showNotification(
+                    '⚠️ System Alert',
+                    'Your session will expire in 5 minutes. Please save your work.',
+                    { 
+                        tag: 'system-alert',
+                        requireInteraction: true,
+                        url: '/uasg/login.php'
+                    }
+                );
+            }
+            
+            log('System alert notification sent', 'success');
+        }
+        
+        function simulateOfflineSync() {
+            log('Simulating offline data sync...');
+            
+            // Simulate going offline
+            document.body.classList.add('offline');
+            
+            if (window.uasgPWA) {
+                window.uasgPWA.showInAppNotification(
+                    '📡 You\'re Offline',
+                    'Your changes are being saved locally and will sync when you reconnect.',
+                    { type: 'warning', duration: 4000 }
+                );
+            }
+            
+            // Simulate coming back online after 5 seconds
+            setTimeout(() => {
+                document.body.classList.remove('offline');
+                
+                if (window.uasgPWA) {
+                    window.uasgPWA.showNotification(
+                        '🔄 Data Synced',
+                        'You\'re back online! All your changes have been synced successfully.',
+                        { tag: 'sync-complete' }
+                    );
+                }
+                
+                log('Offline sync simulation completed', 'success');
+            }, 5000);
+            
+            log('Offline mode simulation started');
+        }
+        
+        function checkPWAStatus() {
+            log('Checking PWA installation status...');
+            
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone === true;
+            
+            const hasServiceWorker = 'serviceWorker' in navigator;
+            const hasNotifications = 'Notification' in window;
+            const hasVibrate = 'vibrate' in navigator;
+            const hasPushAPI = 'PushManager' in window;
+            
+            log(`PWA Mode: ${isPWA ? 'Installed' : 'Browser mode'}`);
+            log(`Service Worker: ${hasServiceWorker ? 'Supported' : 'Not supported'}`);
+            log(`Notifications: ${hasNotifications ? 'Supported' : 'Not supported'}`);
+            log(`Vibration: ${hasVibrate ? 'Supported' : 'Not supported'}`);
+            log(`Push API: ${hasPushAPI ? 'Supported' : 'Not supported'}`);
+            
+            if (window.uasgPWA) {
+                const installStatus = window.uasgPWA.getInstallationStatus();
+                log(`Installation Status: ${installStatus}`);
+            }
+        }
+        
+        async function clearNotifications() {
+            log('Clearing all notifications...');
+            
+            // Clear service worker notifications
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const notifications = await registration.getNotifications();
+                    
+                    notifications.forEach(notification => {
+                        notification.close();
+                    });
+                    
+                    log(`Cleared ${notifications.length} service worker notifications`, 'success');
+                } catch (error) {
+                    log(`Error clearing service worker notifications: ${error.message}`, 'warning');
+                }
+            }
+            
+            // Clear in-app notifications
+            document.querySelectorAll('.pwa-notification').forEach(notification => {
+                notification.remove();
+            });
+            
+            log('All notifications cleared', 'success');
+        }
+        
+        function resetPermissions() {
+            log('Resetting notification permissions test...');
+            
+            // Clear previous permission requests from localStorage
+            localStorage.removeItem('notification-permission-requested');
+            
+            updatePermissionStatus();
+            
+            log('Permission status reset. Try requesting permissions again.', 'success');
+        }
+        
+        function updatePermissionStatus() {
+            const status = 'Notification' in window ? Notification.permission : 'not-supported';
+            let statusText = '';
+            let statusType = 'info';
+            
+            switch (status) {
+                case 'granted':
+                    statusText = '✅ Notifications are enabled';
+                    statusType = 'success';
+                    break;
+                case 'denied':
+                    statusText = '❌ Notifications are blocked';
+                    statusType = 'error';
+                    break;
+                case 'default':
+                    statusText = '🔔 Permission not requested yet';
+                    statusType = 'warning';
+                    break;
+                default:
+                    statusText = '❌ Notifications not supported';
+                    statusType = 'error';
+            }
+            
+            updateStatus('permissionStatus', statusText, statusType);
+        }
+        
+        function updateDeviceInfo() {
+            const info = [];
+            info.push(`User Agent: ${navigator.userAgent}`);
+            info.push(`Platform: ${navigator.platform}`);
+            info.push(`Screen: ${screen.width}x${screen.height}`);
+            info.push(`Viewport: ${window.innerWidth}x${window.innerHeight}`);
+            info.push(`Touch: ${('ontouchstart' in window) ? 'Yes' : 'No'}`);
+            info.push(`PWA Mode: ${window.matchMedia('(display-mode: standalone)').matches ? 'Yes' : 'No'}`);
+            info.push(`Online: ${navigator.onLine ? 'Yes' : 'No'}`);
+            
+            document.getElementById('deviceInfo').innerHTML = info.join('<br>');
+        }
+        
+        function clearLog() {
+            document.getElementById('testLog').textContent = 'Test log cleared...\n';
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDeviceInfo();
+            updatePermissionStatus();
+            
+            log('Mobile notification test page loaded');
+            log('Ready to test notifications on your mobile device');
+            
+            // Auto-check PWA status
+            setTimeout(checkPWAStatus, 1000);
+        });
+        
+        // Update device info on orientation change
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateDeviceInfo, 500);
+        });
+        
+        // Monitor online/offline status
+        window.addEventListener('online', () => {
+            log('Device came back online', 'success');
+            updateDeviceInfo();
+        });
+        
+        window.addEventListener('offline', () => {
+            log('Device went offline', 'warning');
+            updateDeviceInfo();
+        });
+    </script>
+</body>
+</html>

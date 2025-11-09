@@ -229,44 +229,127 @@ async function removeQueuedRequest(id) {
   // Implementation would depend on IndexedDB storage
 }
 
-// Push notification handling
+// Enhanced push notification handling for mobile
 self.addEventListener('push', event => {
-  if (!event.data) return;
+  console.log('UASG PWA: Push notification received');
   
-  const data = event.data.json();
+  let data = {};
+  let title = 'UASG Notification';
+  let body = 'New notification from UASG File Manager';
+  
+  // Parse push data safely
+  if (event.data) {
+    try {
+      data = event.data.json();
+      title = data.title || title;
+      body = data.body || body;
+    } catch (error) {
+      body = event.data.text() || body;
+    }
+  }
+  
+  // Mobile-optimized notification options
   const options = {
-    body: data.body || 'New notification from UASG',
+    body: body,
     icon: '/uasg/resources/icons/icon-192x192.png',
     badge: '/uasg/resources/icons/icon-72x72.png',
-    vibrate: [100, 50, 100],
-    data: data.data || {},
+    image: data.image || '/uasg/resources/icons/icon-384x384.png',
+    vibrate: [200, 100, 200, 100, 200], // More noticeable on mobile
+    requireInteraction: true, // Keep notification visible until user interacts
+    tag: 'uasg-notification', // Replace previous notifications
+    renotify: true, // Show even if tag exists
+    timestamp: Date.now(),
+    data: {
+      url: data.url || '/uasg/',
+      timestamp: Date.now(),
+      ...data.data
+    },
     actions: [
       {
         action: 'view',
-        title: 'View',
-        icon: '/uasg/resources/icons/view-icon.png'
+        title: '👁️ View Details',
+        icon: '/uasg/resources/icons/icon-72x72.png'
       },
       {
         action: 'dismiss',
-        title: 'Dismiss'
+        title: '❌ Dismiss',
+        icon: '/uasg/resources/icons/icon-72x72.png'
       }
     ]
   };
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'UASG Notification', options)
+    self.registration.showNotification(title, options)
+      .then(() => {
+        console.log('UASG PWA: Notification shown successfully');
+      })
+      .catch(error => {
+        console.error('UASG PWA: Failed to show notification:', error);
+      })
   );
 });
 
-// Notification click handling
+// Enhanced notification click handling for mobile
 self.addEventListener('notificationclick', event => {
+  console.log('UASG PWA: Notification clicked', event.action);
+  
   event.notification.close();
   
-  if (event.action === 'view') {
+  const notificationData = event.notification.data || {};
+  const targetUrl = notificationData.url || '/uasg/';
+  
+  if (event.action === 'view' || !event.action) {
+    // Open the app or bring it to focus
     event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/uasg/')
+      clients.matchAll({ 
+        type: 'window',
+        includeUncontrolled: true 
+      }).then(windowClients => {
+        // Check if app is already open
+        const existingClient = windowClients.find(client => 
+          client.url.includes('/uasg/') && 'focus' in client
+        );
+        
+        if (existingClient) {
+          // Bring existing window to focus
+          return existingClient.focus().then(client => {
+            if (targetUrl !== '/uasg/' && 'navigate' in client) {
+              return client.navigate(targetUrl);
+            }
+            return client;
+          });
+        } else {
+          // Open new window
+          return clients.openWindow(targetUrl);
+        }
+      }).catch(error => {
+        console.error('UASG PWA: Error handling notification click:', error);
+        // Fallback: just open the URL
+        return clients.openWindow(targetUrl);
+      })
     );
   }
+  
+  // Track notification interaction
+  event.waitUntil(
+    self.registration.sync.register('notification-interaction')
+      .catch(() => {
+        // Sync not supported, ignore
+      })
+  );
+});
+
+// Notification close handling
+self.addEventListener('notificationclose', event => {
+  console.log('UASG PWA: Notification closed');
+  
+  // Track notification dismissal
+  event.waitUntil(
+    self.registration.sync.register('notification-dismissed')
+      .catch(() => {
+        // Sync not supported, ignore
+      })
+  );
 });
 
 // Message handling from main thread

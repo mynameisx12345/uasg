@@ -531,3 +531,131 @@
 		}
 		echo json_encode($result);
 	}
+	
+	// CALL 37: Send Mobile Notification (for testing and real scenarios)
+	else if($call == 37) {
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$title = trim($data['TITLE'] ?? "UASG Notification");
+			$message = trim($data['MESSAGE'] ?? "");
+			$type = trim($data['TYPE'] ?? "info"); // info, success, warning, error
+			$url = trim($data['URL'] ?? "");
+			$userId = $data['USER_ID'] ?? $_SESSION['user_id'];
+			
+			if(empty($message)) {
+				throw new Exception("Notification message is required");
+			}
+			
+			// Save notification to database for future push notification system
+			$notification_data = [
+				'user_id' => $userId,
+				'title' => $title,
+				'message' => $message,
+				'type' => $type,
+				'url' => $url,
+				'sent_at' => date('Y-m-d H:i:s'),
+				'read_status' => 0
+			];
+			
+			// For now, we'll just return the notification data
+			// In a full implementation, you'd save this to a notifications table
+			// and use a push notification service
+			
+			$result = [
+				"status" => "SUCCESS",
+				"data" => [
+					"notification" => $notification_data,
+					"mobile_optimized" => true,
+					"supports_vibration" => true,
+					"supports_actions" => true
+				],
+				"msg" => "Mobile notification prepared successfully"
+			];
+			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}
+	
+	// CALL 38: Test Mobile Notification Features
+	else if($call == 38) {
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$test_type = trim($data['TEST_TYPE'] ?? "basic");
+			
+			$notifications = [];
+			
+			switch($test_type) {
+				case 'file_upload':
+					$notifications[] = [
+						'title' => '📁 File Upload Complete',
+						'message' => 'Your file "test-document.pdf" has been uploaded successfully to the Academic category.',
+						'type' => 'success',
+						'url' => '/uasg/admin/entry-module.php',
+						'actions' => [
+							['action' => 'view', 'title' => '👁️ View File'],
+							['action' => 'dismiss', 'title' => '❌ Dismiss']
+						]
+					];
+					break;
+					
+				case 'system_alert':
+					$notifications[] = [
+						'title' => '⚠️ System Maintenance',
+						'message' => 'System maintenance scheduled for tonight at 11 PM. Please save your work.',
+						'type' => 'warning',
+						'url' => '/uasg/',
+						'requireInteraction' => true
+					];
+					break;
+					
+				case 'approval_needed':
+					$notifications[] = [
+						'title' => '📋 Document Approval Required',
+						'message' => 'A new document is waiting for your approval in the Admin panel.',
+						'type' => 'info',
+						'url' => '/uasg/admin/',
+						'badge' => '1'
+					];
+					break;
+					
+				case 'mobile_features':
+					$notifications[] = [
+						'title' => '📱 Mobile Features Test',
+						'message' => 'Testing vibration, sound, and mobile-specific notification features.',
+						'type' => 'info',
+						'vibrate' => [200, 100, 200, 100, 200],
+						'requireInteraction' => true,
+						'actions' => [
+							['action' => 'test', 'title' => '✅ Test Passed'],
+							['action' => 'dismiss', 'title' => '❌ Close']
+						]
+					];
+					break;
+					
+				default:
+					$notifications[] = [
+						'title' => '🧪 Basic Test Notification',
+						'message' => 'This is a basic test notification to verify mobile functionality.',
+						'type' => 'info',
+						'url' => '/uasg/mobile-notifications-test.html'
+					];
+			}
+			
+			$result = [
+				"status" => "SUCCESS",
+				"data" => [
+					"notifications" => $notifications,
+					"test_type" => $test_type,
+					"mobile_optimized" => true,
+					"timestamp" => time()
+				],
+				"msg" => "Test notifications prepared successfully"
+			];
+			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}
