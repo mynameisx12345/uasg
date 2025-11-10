@@ -1,762 +1,2270 @@
-<!doctype html><!doctype html><!doctype html>
+<!doctype html><!doctype html><!doctype html><!doctype html><!doctype html>
 
 <html lang="en">
 
-<head><html lang="en"><html lang="en">
+<head><html lang="en">
 
   <meta charset="UTF-8">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><head><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><head><html lang="en">
 
   <title>Members Management - UASG</title>
 
-  <link rel="stylesheet" href="../resources/style.css">  <meta charset="UTF-8">  <meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+  <!-- PWA Meta Tags -->
 
-  <script src='../js/all.js'></script>  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UASG Members Management - Manage Subadmins and Students">  <meta name="viewport" content="width=device-width, initial-scale=1.0"><head><html lang="en"><html lang="en">
 
-  <script src='../js/jquery.js'></script>
+  <meta name="theme-color" content="#2196F3">
 
-  <script src='../js/datatable.js'></script>  <title>User Management - UASG</title>  <title>User Management</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">  <title>Members Management - UASG</title>
 
-</head>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-<body>  <link rel="stylesheet" href="../resources/style.css">  <link rel="stylesheet" href="../resources/style.css">
+  <meta name="apple-mobile-web-app-title" content="UASG Admin">    <meta charset="UTF-8">
 
-  <!-- HEADER -->
+  <meta name="msapplication-TileColor" content="#2196F3">
 
-  <?php require_once("header.php");?>  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+    <!-- PWA Meta Tags -->
+
+  <!-- PWA Manifest -->
+
+  <link rel="manifest" href="../manifest.json">  <meta name="description" content="UASG Members Management - Manage Subadmins and Students">  <meta name="viewport" content="width=device-width, initial-scale=1.0"><head><head>
 
   
 
-  <!-- MAIN -->  <script src='../js/all.js'></script>  <script src='../js/all.js'></script>
+  <!-- Favicon and Icons -->  <meta name="theme-color" content="#2196F3">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="../resources/icons/icon-32x32.png">
+
+  <link rel="icon" type="image/png" sizes="16x16" href="../resources/icons/icon-16x16.png">  <meta name="apple-mobile-web-app-capable" content="yes">  <title>Members Management - UASG</title>
+
+  <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
+
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="stylesheet" href="../resources/style.css">
+
+  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>  <meta name="apple-mobile-web-app-title" content="UASG Admin">  <link rel="stylesheet" href="../resources/style.css">  <meta charset="UTF-8">  <meta charset="UTF-8">
+
+  <script src='../js/all.js'></script>
+
+  <script src='../js/jquery.js'></script>  <meta name="msapplication-TileColor" content="#2196F3">
+
+  <script src='../js/datatable.js'></script>
+
+</head>    <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+
+<body>
+
+  <!-- HEADER -->  <!-- PWA Manifest -->
+
+   <?php require_once("header.php");?>
+
+   <header class="topbar">  <link rel="manifest" href="../manifest.json">  <script src='../js/all.js'></script>  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <h1>Members Management</h1>
+
+    <div class="user-info">  
+
+      <span>Welcome, Admin</span>
+
+    </div>  <!-- Favicon and Icons -->  <script src='../js/jquery.js'></script>
+
+  </header>
+
+  <!-- MAIN -->  <link rel="icon" type="image/png" sizes="32x32" href="../resources/icons/icon-32x32.png">
 
   <main class="main">
 
-    <!-- SIDEBAR -->  <script src='../js/jquery.js'></script>  <script src='../js/jquery.js'></script>
+    <!-- SIDEBAR -->  <link rel="icon" type="image/png" sizes="16x16" href="../resources/icons/icon-16x16.png">  <script src='../js/datatable.js'></script>  <title>User Management - UASG</title>  <title>User Management</title>
 
     <?php require_once("sidebar.php");?>
 
-  <script src='../js/datatable.js'></script>  <script src='../js/datatable.js'></script>
+  <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
 
     <!-- CONTENT -->
 
-    <section class="content"></head></head>
+    <section class="content">  </head>
 
       <div class="card">
 
-        <h2>Members Management</h2><body><body>
+        <h2>Members Management</h2>  <link rel="stylesheet" href="../resources/style.css">
 
 
 
-        <!-- TABS -->  <!-- HEADER -->  <!-- HEADER -->
+        <!-- TABS -->  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'><body>  <link rel="stylesheet" href="../resources/style.css">  <link rel="stylesheet" href="../resources/style.css">
 
         <div class="tabs">
 
-          <button class="tab-link active" data-tab="subadmins">Subadmins</button>   <?php require_once("header.php");?>   <?php require_once("header.php");?>
+          <button class="tab-link active" data-tab="subadmins">Subadmins</button>  <script src='../js/all.js'></script>
 
           <button class="tab-link" data-tab="students">Student Members</button>
 
-        </div>   <header class="topbar">   <header class="topbar">
+        </div>  <script src='../js/jquery.js'></script>  <!-- HEADER -->
 
 
 
-        <!-- TAB CONTENT: SUBADMINS -->    <h1>Members Management</h1>    <h1>User Management</h1>
+        <!-- TAB CONTENT: SUBADMINS -->  <script src='../js/datatable.js'></script>
 
         <div class="tab-content active" id="subadmins">
 
-          <div class="compact-form">    <div class="user-info">    <div class="user-info">
+          <div class="compact-form"></head>  <?php require_once("header.php");?>  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
 
             <h3>Add New Subadmin</h3>
 
-                  <span>Welcome, Admin</span>      <span>Welcome, Admin</span>
-
-            <div class="form-columns">
-
-              <!-- Left Column -->    </div>    </div>
+            <div class="form-columns"><body>
 
               <div class="form-column">
 
-                <!-- Account Information -->  </header>  </header>
+                <div class="form-section">  <!-- HEADER -->  
 
-                <div class="form-section">
+                  <h4>Account Information</h4>
 
-                  <h4>Account Information</h4>  <!-- MAIN -->  <!-- MAIN -->
-
-                  <div class="form-row">
-
-                    <div class="form-group">  <main class="main">  <main class="main">
-
-                      <label for="subadminUsername">Username</label>
-
-                      <input type="text" id="subadminUsername" placeholder="Username" required>    <!-- SIDEBAR -->    <!-- SIDEBAR -->
-
-                    </div>
-
-                  </div>    <?php require_once("sidebar.php");?>    <?php require_once("sidebar.php");?>
-
-                  <div class="form-row">
+                  <div class="form-row">  <?php require_once("header.php");?>
 
                     <div class="form-group">
 
-                      <label for="subadminPassword">Password</label>
+                      <label for="subadminUsername">Username</label>  <header class="topbar">  <!-- MAIN -->  <script src='../js/all.js'></script>  <script src='../js/all.js'></script>
 
-                      <input type="password" id="subadminPassword" placeholder="Password" required>    <!-- CONTENT -->    <!-- CONTENT -->
+                      <input type="text" id="subadminUsername" placeholder="Username" required>
 
-                    </div>
+                    </div>    <h1>Members Management</h1>
 
-                  </div>    <section class="content">    <section class="content">
+                  </div>
 
-                </div>
+                  <div class="form-row">    <div class="user-info">  <main class="main">
 
-      <div class="card">      <div class="card">
+                    <div class="form-group">
 
-                <!-- Personal Information -->
+                      <label for="subadminPassword">Password</label>      <span>Welcome, Admin</span>
 
-                <div class="form-section">        <h2>Members Management</h2>        <h2>User Management</h2>
+                      <input type="password" id="subadminPassword" placeholder="Password" required>
+
+                    </div>    </div>    <!-- SIDEBAR -->  <script src='../js/jquery.js'></script>  <script src='../js/jquery.js'></script>
+
+                  </div>
+
+                </div>  </header>
+
+
+
+                <div class="form-section">  <!-- MAIN -->    <?php require_once("sidebar.php");?>
 
                   <h4>Personal Information</h4>
 
-                  <div class="form-row">
+                  <div class="form-row">  <main class="main">
 
                     <div class="form-group">
 
-                      <label for="subadminFname">First Name</label>        <!-- TABS -->        <!-- TABS -->
+                      <label for="subadminFname">First Name</label>    <!-- SIDEBAR -->  <script src='../js/datatable.js'></script>  <script src='../js/datatable.js'></script>
 
                       <input type="text" id="subadminFname" placeholder="First Name" required>
 
-                    </div>        <div class="tabs">        <div class="tabs">
+                    </div>    <?php require_once("sidebar.php");?>
 
                     <div class="form-group">
 
-                      <label for="subadminMname">Middle Name</label>          <button class="tab-link active" data-tab="subadmins">Subadmins</button>          <button class="tab-link active" data-tab="subadmins">Subadmins</button>
+                      <label for="subadminMname">Middle Name</label>    <!-- CONTENT -->
 
                       <input type="text" id="subadminMname" placeholder="Middle Name">
 
-                    </div>          <button class="tab-link" data-tab="students">Student Members</button>          <button class="tab-link" data-tab="students">Student Members</button>
+                    </div>    <!-- CONTENT -->
 
                   </div>
 
-                  <div class="form-row">        </div>        </div>
+                  <div class="form-row">    <section class="content">    <section class="content"></head></head>
 
                     <div class="form-group">
 
-                      <label for="subadminLname">Last Name</label>
+                      <label for="subadminLname">Last Name</label>      <div class="card">
 
                       <input type="text" id="subadminLname" placeholder="Last Name" required>
 
-                    </div>        <!-- TAB CONTENT: SUBADMINS -->        <!-- TAB CONTENT: SUBADMINS -->
+                    </div>        <h2>Members Management</h2>      <div class="card">
 
                     <div class="form-group form-group-small">
 
-                      <label for="subadminAuxname">Suffix</label>        <div class="tab-content active" id="subadmins">        <div class="tab-content active" id="subadmins">
+                      <label for="subadminAuxname">Suffix</label>
 
                       <input type="text" id="subadminAuxname" placeholder="Jr., Sr.">
 
-                    </div>          <div class="compact-form">          <div class="compact-form">
+                    </div>        <!-- TABS -->        <h2>Members Management</h2><body><body>
 
                   </div>
 
-                </div>            <h3>Add New Subadmin</h3>            <h3>Add New Administrator</h3>
+                </div>        <div class="tabs">
 
-              </div>
 
-                        
 
-              <!-- Right Column -->
-
-              <div class="form-column">            <div class="form-columns">            <div class="form-columns">
-
-                <!-- Personal Details -->
-
-                <div class="form-section">              <!-- Left Column -->              <!-- Left Column -->
+                <div class="form-section">          <button class="tab-link active" data-tab="subadmins">Subadmins</button>
 
                   <h4>Personal Details</h4>
 
-                  <div class="form-row">              <div class="form-column">              <div class="form-column">
+                  <div class="form-row">          <button class="tab-link" data-tab="students">Student Members</button>
 
                     <div class="form-group form-group-small">
 
-                      <label for="subadminGender">Gender</label>                <!-- Account Information -->                <!-- Account Information -->
+                      <label for="subadminGender">Gender</label>        </div>        <!-- TABS -->  <!-- HEADER -->  <!-- HEADER -->
 
                       <select id="subadminGender" required>
 
-                        <option value="">Select</option>                <div class="form-section">                <div class="form-section">
+                        <option value="">Select</option>
 
                         <option value="Male">Male</option>
 
-                        <option value="Female">Female</option>                  <h4>Account Information</h4>                  <h4>Account Information</h4>
+                        <option value="Female">Female</option>        <!-- TAB CONTENT: SUBADMINS -->        <div class="tabs">
 
                       </select>
 
-                    </div>                  <div class="form-row">                  <div class="form-row">
+                    </div>        <div class="tab-content active" id="subadmins">
 
                     <div class="form-group">
 
-                      <label for="subadminBirthdate">Birthdate</label>                    <div class="form-group">                    <div class="form-group">
+                      <label for="subadminBirthdate">Birthdate</label>          <div class="compact-form">          <button class="tab-link active" data-tab="subadmins">Subadmins</button>   <?php require_once("header.php");?>   <?php require_once("header.php");?>
 
                       <input type="date" id="subadminBirthdate" required>
 
-                    </div>                      <label for="subadminUsername">Username</label>                      <label for="adminUsername">Username</label>
+                    </div>            <h3>Add New Subadmin</h3>
 
                   </div>
 
-                </div>                      <input type="text" id="subadminUsername" placeholder="Username" required>                      <input type="text" id="adminUsername" placeholder="Username" required>
+                </div>            <div class="form-columns">          <button class="tab-link" data-tab="students">Student Members</button>
 
-
-
-                <!-- Contact Information -->                    </div>                    </div>
-
-                <div class="form-section">
-
-                  <h4>Contact Information</h4>                  </div>                  </div>
-
-                  <div class="form-row">
-
-                    <div class="form-group">                  <div class="form-row">                  <div class="form-row">
-
-                      <label for="subadminContact">Contact Number</label>
-
-                      <input type="text" id="subadminContact" placeholder="Contact Number">                    <div class="form-group">                    <div class="form-group">
-
-                    </div>
-
-                  </div>                      <label for="subadminPassword">Password</label>                      <label for="adminPassword">Password</label>
-
-                  <div class="form-row">
-
-                    <div class="form-group">                      <input type="password" id="subadminPassword" placeholder="Password" required>                      <input type="password" id="adminPassword" placeholder="Password" required>
-
-                      <label for="subadminEmail">Email</label>
-
-                      <input type="email" id="subadminEmail" placeholder="Email Address" required>                    </div>                    </div>
-
-                    </div>
-
-                  </div>                  </div>                  </div>
-
-                </div>
-
-              </div>                </div>                </div>
-
-            </div>
-
-
-
-            <div class="form-actions">
-
-              <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>                <!-- Personal Information -->                <!-- Personal Information -->
-
-              <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>
-
-            </div>                <div class="form-section">                <div class="form-section">
-
-          </div>
-
-                            <h4>Personal Information</h4>                  <h4>Personal Information</h4>
-
-          <div class="table-container">
-
-            <table class='data-table' id='subadminTable'>                  <div class="form-row">                  <div class="form-row">
-
-              <thead>
-
-                <tr>                    <div class="form-group">                    <div class="form-group">
-
-                  <th>ID</th>
-
-                  <th>Username</th>                      <label for="subadminFname">First Name</label>                      <label for="adminFname">First Name</label>
-
-                  <th>Full Name</th>
-
-                  <th>Email</th>                      <input type="text" id="subadminFname" placeholder="First Name" required>                      <input type="text" id="adminFname" placeholder="First Name" required>
-
-                  <th>Contact</th>
-
-                  <th>Actions</th>                    </div>                    </div>
-
-                </tr>
-
-              </thead>                    <div class="form-group">                    <div class="form-group">
-
-              <tbody></tbody>
-
-            </table>                      <label for="subadminMname">Middle Name</label>                      <label for="adminMname">Middle Name</label>
-
-          </div>
-
-        </div>                      <input type="text" id="subadminMname" placeholder="Middle Name">                      <input type="text" id="adminMname" placeholder="Middle Name">
-
-
-
-        <!-- TAB CONTENT: STUDENTS -->                    </div>                    </div>
-
-        <div class="tab-content" id="students">
-
-          <div class="compact-form">                  </div>                  </div>
-
-            <h3>Add New Student Member</h3>
-
-                              <div class="form-row">                  <div class="form-row">
-
-            <div class="form-columns">
-
-              <!-- Left Column -->                    <div class="form-group">                    <div class="form-group">
+              </div>
 
               <div class="form-column">
 
-                <!-- Account Information -->                      <label for="subadminLname">Last Name</label>                      <label for="adminLname">Last Name</label>
+              <div class="form-column">
 
-                <div class="form-section">
+                <div class="form-section">                <div class="form-section">        </div>   <header class="topbar">   <header class="topbar">
 
-                  <h4>Account Information</h4>                      <input type="text" id="subadminLname" placeholder="Last Name" required>                      <input type="text" id="adminLname" placeholder="Last Name" required>
+                  <h4>Contact Information</h4>
 
-                  <div class="form-row">
-
-                    <div class="form-group">                    </div>                    </div>
-
-                      <label for="studentUsername">Username</label>
-
-                      <input type="text" id="studentUsername" placeholder="Username" required>                    <div class="form-group form-group-small">                    <div class="form-group form-group-small">
-
-                    </div>
-
-                  </div>                      <label for="subadminAuxname">Suffix</label>                      <label for="adminAuxname">Suffix</label>
-
-                  <div class="form-row">
-
-                    <div class="form-group">                      <input type="text" id="subadminAuxname" placeholder="Jr., Sr.">                      <input type="text" id="adminAuxname" placeholder="Jr., Sr.">
-
-                      <label for="studentPassword">Password</label>
-
-                      <input type="password" id="studentPassword" placeholder="Password" required>                    </div>                    </div>
-
-                    </div>
-
-                  </div>                  </div>                  </div>
-
-                </div>
-
-                </div>                </div>
-
-                <!-- Personal Information -->
-
-                <div class="form-section">              </div>              </div>
-
-                  <h4>Personal Information</h4>
-
-                  <div class="form-row">
+                  <div class="form-row">                  <h4>Account Information</h4>
 
                     <div class="form-group">
 
-                      <label for="studentFname">First Name</label>              <!-- Right Column -->              <!-- Right Column -->
+                      <label for="subadminContact">Contact Number</label>                  <div class="form-row">
 
-                      <input type="text" id="studentFname" placeholder="First Name" required>
+                      <input type="text" id="subadminContact" placeholder="Contact Number">
 
-                    </div>              <div class="form-column">              <div class="form-column">
-
-                    <div class="form-group">
-
-                      <label for="studentMname">Middle Name</label>                <!-- Personal Details -->                <!-- Personal Details -->
-
-                      <input type="text" id="studentMname" placeholder="Middle Name">
-
-                    </div>                <div class="form-section">                <div class="form-section">
+                    </div>                    <div class="form-group">
 
                   </div>
 
-                  <div class="form-row">                  <h4>Personal Details</h4>                  <h4>Personal Details</h4>
+                  <div class="form-row">                      <label for="subadminUsername">Username</label>        <!-- TAB CONTENT: SUBADMINS -->    <h1>Members Management</h1>    <h1>User Management</h1>
 
                     <div class="form-group">
 
-                      <label for="studentLname">Last Name</label>                  <div class="form-row">                  <div class="form-row">
+                      <label for="subadminEmail">Email</label>                      <input type="text" id="subadminUsername" placeholder="Username" required>
 
-                      <input type="text" id="studentLname" placeholder="Last Name" required>
+                      <input type="email" id="subadminEmail" placeholder="Email Address" required>
 
-                    </div>                    <div class="form-group form-group-small">                    <div class="form-group form-group-small">
-
-                    <div class="form-group form-group-small">
-
-                      <label for="studentAuxname">Suffix</label>                      <label for="subadminGender">Gender</label>                      <label for="adminGender">Gender</label>
-
-                      <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
-
-                    </div>                      <select id="subadminGender" required>                      <select id="adminGender" required>
+                    </div>                    </div>        <div class="tab-content active" id="subadmins">
 
                   </div>
 
-                </div>                        <option value="">Select</option>                        <option value="">Select</option>
+                </div>                  </div>
+
+
+
+                <div class="form-section">                  <div class="form-row">          <div class="compact-form">    <div class="user-info">    <div class="user-info">
+
+                  <h4>Actions</h4>
+
+                  <div class="form-actions">                    <div class="form-group">
+
+                    <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>
+
+                    <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>                      <label for="subadminPassword">Password</label>            <h3>Add New Subadmin</h3>
+
+                  </div>
+
+                </div>                      <input type="password" id="subadminPassword" placeholder="Password" required>
 
               </div>
 
-                        <option value="Male">Male</option>                        <option value="Male">Male</option>
-
-              <!-- Right Column -->
-
-              <div class="form-column">                        <option value="Female">Female</option>                        <option value="Female">Female</option>
-
-                <!-- Personal Details -->
-
-                <div class="form-section">                      </select>                      </select>
-
-                  <h4>Personal Details</h4>
-
-                  <div class="form-row">                    </div>                    </div>
-
-                    <div class="form-group form-group-small">
-
-                      <label for="studentGender">Gender</label>                    <div class="form-group">                    <div class="form-group">
-
-                      <select id="studentGender" required>
-
-                        <option value="">Select</option>                      <label for="subadminBirthdate">Birthdate</label>                      <label for="adminBirthdate">Birthdate</label>
-
-                        <option value="Male">Male</option>
-
-                        <option value="Female">Female</option>                      <input type="date" id="subadminBirthdate" required>                      <input type="date" id="adminBirthdate" required>
-
-                      </select>
-
-                    </div>                    </div>                    </div>
-
-                    <div class="form-group">
-
-                      <label for="studentBirthdate">Birthdate</label>                  </div>                  </div>
-
-                      <input type="date" id="studentBirthdate" required>
-
-                    </div>                </div>                </div>
-
-                  </div>
-
-                </div>
-
-
-
-                <!-- Contact Information -->                <!-- Contact Information -->                <!-- Contact Information -->
-
-                <div class="form-section">
-
-                  <h4>Contact Information</h4>                <div class="form-section">                <div class="form-section">
-
-                  <div class="form-row">
-
-                    <div class="form-group">                  <h4>Contact Information</h4>                  <h4>Contact Information</h4>
-
-                      <label for="studentContact">Contact Number</label>
-
-                      <input type="text" id="studentContact" placeholder="Contact Number">                  <div class="form-row">                  <div class="form-row">
-
-                    </div>
-
-                  </div>                    <div class="form-group">                    <div class="form-group">
-
-                  <div class="form-row">
-
-                    <div class="form-group">                      <label for="subadminContact">Contact Number</label>                      <label for="adminContact">Contact Number</label>
-
-                      <label for="studentEmail">Email</label>
-
-                      <input type="email" id="studentEmail" placeholder="Email Address" required>                      <input type="text" id="subadminContact" placeholder="Contact Number">                      <input type="text" id="adminContact" placeholder="Contact Number">
-
-                    </div>
-
-                  </div>                    </div>                    </div>
-
-                </div>
-
-              </div>                  </div>                  </div>
-
-            </div>
-
-                  <div class="form-row">                  <div class="form-row">
-
-            <div class="form-actions">
-
-              <button type="button" class="btn-primary" id="saveStudent">Save Student Member</button>                    <div class="form-group">                    <div class="form-group">
-
-              <button type="button" class="btn-secondary" onclick="clearForm('student')">Clear</button>
-
-            </div>                      <label for="subadminEmail">Email</label>                      <label for="adminEmail">Email</label>
+            </div>                    </div>                  <span>Welcome, Admin</span>      <span>Welcome, Admin</span>
 
           </div>
 
-                                <input type="email" id="subadminEmail" placeholder="Email Address" required>                      <input type="email" id="adminEmail" placeholder="Email Address" required>
+          <br/>                  </div>
 
           <div class="table-container">
 
-            <table class='data-table' id='studentTable'>                    </div>                    </div>
+            <table class='data-table' id='subadminTable'>                </div>            <div class="form-columns">
 
               <thead>
 
-                <tr>                  </div>                  </div>
+                <tr>
 
                   <th>ID</th>
 
-                  <th>Username</th>                </div>                </div>
+                  <th>Username</th>                <div class="form-section">              <!-- Left Column -->    </div>    </div>
 
                   <th>Full Name</th>
 
-                  <th>Email</th>              </div>              </div>
+                  <th>Email</th>                  <h4>Personal Information</h4>
 
                   <th>Contact</th>
 
-                  <th>Actions</th>            </div>            </div>
+                  <th>Actions</th>                  <div class="form-row">              <div class="form-column">
 
                 </tr>
 
-              </thead>
+              </thead>                    <div class="form-group">
 
               <tbody></tbody>
 
-            </table>            <div class="form-actions">            <div class="form-actions">
+            </table>                      <label for="subadminFname">First Name</label>                <!-- Account Information -->  </header>  </header>
 
           </div>
 
-        </div>              <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>              <button type="button" class="btn-primary" id="saveAdmin">Save Administrator</button>
+        </div>                      <input type="text" id="subadminFname" placeholder="First Name" required>
+
+
+
+        <!-- TAB CONTENT: STUDENTS -->                    </div>                <div class="form-section">
+
+        <div class="tab-content" id="students">
+
+          <div class="compact-form">                    <div class="form-group">
+
+            <h3>Add New Student Member</h3>
+
+            <div class="form-columns">                      <label for="subadminMname">Middle Name</label>                  <h4>Account Information</h4>  <!-- MAIN -->  <!-- MAIN -->
+
+              <div class="form-column">
+
+                <div class="form-section">                      <input type="text" id="subadminMname" placeholder="Middle Name">
+
+                  <h4>Account Information</h4>
+
+                  <div class="form-row">                    </div>                  <div class="form-row">
+
+                    <div class="form-group">
+
+                      <label for="studentUsername">Username</label>                  </div>
+
+                      <input type="text" id="studentUsername" placeholder="Username" required>
+
+                    </div>                  <div class="form-row">                    <div class="form-group">  <main class="main">  <main class="main">
+
+                  </div>
+
+                  <div class="form-row">                    <div class="form-group">
+
+                    <div class="form-group">
+
+                      <label for="studentPassword">Password</label>                      <label for="subadminLname">Last Name</label>                      <label for="subadminUsername">Username</label>
+
+                      <input type="password" id="studentPassword" placeholder="Password" required>
+
+                    </div>                      <input type="text" id="subadminLname" placeholder="Last Name" required>
+
+                  </div>
+
+                </div>                    </div>                      <input type="text" id="subadminUsername" placeholder="Username" required>    <!-- SIDEBAR -->    <!-- SIDEBAR -->
+
+
+
+                <div class="form-section">                    <div class="form-group form-group-small">
+
+                  <h4>Personal Information</h4>
+
+                  <div class="form-row">                      <label for="subadminAuxname">Suffix</label>                    </div>
+
+                    <div class="form-group">
+
+                      <label for="studentFname">First Name</label>                      <input type="text" id="subadminAuxname" placeholder="Jr., Sr.">
+
+                      <input type="text" id="studentFname" placeholder="First Name" required>
+
+                    </div>                    </div>                  </div>    <?php require_once("sidebar.php");?>    <?php require_once("sidebar.php");?>
+
+                    <div class="form-group">
+
+                      <label for="studentMname">Middle Name</label>                  </div>
+
+                      <input type="text" id="studentMname" placeholder="Middle Name">
+
+                    </div>                </div>                  <div class="form-row">
+
+                  </div>
+
+                  <div class="form-row">              </div>
+
+                    <div class="form-group">
+
+                      <label for="studentLname">Last Name</label>                    <div class="form-group">
+
+                      <input type="text" id="studentLname" placeholder="Last Name" required>
+
+                    </div>              <div class="form-column">
+
+                    <div class="form-group form-group-small">
+
+                      <label for="studentAuxname">Suffix</label>                <div class="form-section">                      <label for="subadminPassword">Password</label>
+
+                      <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
+
+                    </div>                  <h4>Personal Details</h4>
+
+                  </div>
+
+                </div>                  <div class="form-row">                      <input type="password" id="subadminPassword" placeholder="Password" required>    <!-- CONTENT -->    <!-- CONTENT -->
+
+
+
+                <div class="form-section">                    <div class="form-group form-group-small">
+
+                  <h4>Personal Details</h4>
+
+                  <div class="form-row">                      <label for="subadminGender">Gender</label>                    </div>
+
+                    <div class="form-group form-group-small">
+
+                      <label for="studentGender">Gender</label>                      <select id="subadminGender" required>
+
+                      <select id="studentGender" required>
+
+                        <option value="">Select</option>                        <option value="">Select</option>                  </div>    <section class="content">    <section class="content">
+
+                        <option value="Male">Male</option>
+
+                        <option value="Female">Female</option>                        <option value="Male">Male</option>
+
+                      </select>
+
+                    </div>                        <option value="Female">Female</option>                </div>
+
+                    <div class="form-group">
+
+                      <label for="studentBirthdate">Birthdate</label>                      </select>
+
+                      <input type="date" id="studentBirthdate" required>
+
+                    </div>                    </div>      <div class="card">      <div class="card">
+
+                  </div>
+
+                </div>                    <div class="form-group">
+
+              </div>
+
+                      <label for="subadminBirthdate">Birthdate</label>                <!-- Personal Information -->
+
+              <div class="form-column">
+
+                <div class="form-section">                      <input type="date" id="subadminBirthdate" required>
+
+                  <h4>Contact Information</h4>
+
+                  <div class="form-row">                    </div>                <div class="form-section">        <h2>Members Management</h2>        <h2>User Management</h2>
+
+                    <div class="form-group">
+
+                      <label for="studentContact">Contact Number</label>                  </div>
+
+                      <input type="text" id="studentContact" placeholder="Contact Number">
+
+                    </div>                </div>                  <h4>Personal Information</h4>
+
+                  </div>
+
+                  <div class="form-row">
+
+                    <div class="form-group">
+
+                      <label for="studentEmail">Email</label>                <div class="form-section">                  <div class="form-row">
+
+                      <input type="email" id="studentEmail" placeholder="Email Address" required>
+
+                    </div>                  <h4>Contact Information</h4>
+
+                  </div>
+
+                </div>                  <div class="form-row">                    <div class="form-group">
+
+
+
+                <div class="form-section">                    <div class="form-group">
+
+                  <h4>Actions</h4>
+
+                  <div class="form-actions">                      <label for="subadminContact">Contact Number</label>                      <label for="subadminFname">First Name</label>        <!-- TABS -->        <!-- TABS -->
+
+                    <button type="button" class="btn-primary" id="saveStudent">Save Student Member</button>
+
+                    <button type="button" class="btn-secondary" onclick="clearForm('student')">Clear</button>                      <input type="text" id="subadminContact" placeholder="Contact Number">
+
+                  </div>
+
+                </div>                    </div>                      <input type="text" id="subadminFname" placeholder="First Name" required>
+
+              </div>
+
+            </div>                  </div>
+
+          </div>
+
+          <br/>                  <div class="form-row">                    </div>        <div class="tabs">        <div class="tabs">
+
+          <div class="table-container">
+
+            <table class='data-table' id='studentTable'>                    <div class="form-group">
+
+              <thead>
+
+                <tr>                      <label for="subadminEmail">Email</label>                    <div class="form-group">
+
+                  <th>ID</th>
+
+                  <th>Username</th>                      <input type="email" id="subadminEmail" placeholder="Email Address" required>
+
+                  <th>Full Name</th>
+
+                  <th>Email</th>                    </div>                      <label for="subadminMname">Middle Name</label>          <button class="tab-link active" data-tab="subadmins">Subadmins</button>          <button class="tab-link active" data-tab="subadmins">Subadmins</button>
+
+                  <th>Contact</th>
+
+                  <th>Actions</th>                  </div>
+
+                </tr>
+
+              </thead>                </div>                      <input type="text" id="subadminMname" placeholder="Middle Name">
+
+              <tbody></tbody>
+
+            </table>
+
+          </div>
+
+        </div>                <div class="form-section">                    </div>          <button class="tab-link" data-tab="students">Student Members</button>          <button class="tab-link" data-tab="students">Student Members</button>
 
       </div>
 
-    </section>              <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>              <button type="button" class="btn-secondary" onclick="clearForm('admin')">Clear</button>
+    </section>                  <h4>Actions</h4>
 
 
 
-    <!-- UPDATE MODAL -->            </div>            </div>
+    <!-- UPDATE MODAL -->                  <div class="form-actions">                  </div>
 
     <div id="updateUserModal" class="modal">
 
-      <div class="modal-content">          </div>          </div>
+      <div class="modal-content">                    <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>
 
         <span class="modal-close" onclick="closeUpdateModal()">&times;</span>
 
-        <h2>Update User Information</h2>                    
+        <h2>Update User Information</h2>                    <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>                  <div class="form-row">        </div>        </div>
 
         
 
-        <div class="compact-form">          <div class="table-container">          <div class="table-container">
+        <div class="compact-form">                  </div>
 
           <input type="hidden" id="updateUserId">
 
-          <input type="hidden" id="updateUserType">            <table class='data-table' id='subadminTable'>            <table class='data-table' id='adminTable'>
+          <input type="hidden" id="updateUserType">                </div>                    <div class="form-group">
 
           
 
-          <div class="form-columns">              <thead>              <thead>
+          <div class="form-section">              </div>
 
-            <!-- Left Column -->
+            <h4>Account Information</h4>
 
-            <div class="form-column">                <tr>                <tr>
+            <div class="form-row">            </div>                      <label for="subadminLname">Last Name</label>
 
-              <!-- Account Information -->
+              <div class="form-group">
 
-              <div class="form-section">                  <th>ID</th>                  <th>ID</th>
+                <label for="updateUsername">Username</label>          </div>
 
-                <h4>Account Information</h4>
+                <input type="text" id="updateUsername" required>
 
-                <div class="form-row">                  <th>Username</th>                  <th>Username</th>
-
-                  <div class="form-group">
-
-                    <label for="updateUsername">Username</label>                  <th>Full Name</th>                  <th>Full Name</th>
-
-                    <input type="text" id="updateUsername" required>
-
-                  </div>                  <th>Email</th>                  <th>Email</th>
-
-                </div>
-
-                <div class="form-row">                  <th>Contact</th>                  <th>Contact</th>
-
-                  <div class="form-group">
-
-                    <label for="updatePassword">Password</label>                  <th>Actions</th>                  <th>Actions</th>
-
-                    <input type="password" id="updatePassword" placeholder="Leave empty to keep current">
-
-                  </div>                </tr>                </tr>
-
-                </div>
-
-              </div>              </thead>              </thead>
-
-              
-
-              <!-- Personal Information -->              <tbody></tbody>              <tbody></tbody>
-
-              <div class="form-section">
-
-                <h4>Personal Information</h4>            </table>            </table>
-
-                <div class="form-row">
-
-                  <div class="form-group">          </div>          </div>
-
-                    <label for="updateFname">First Name</label>
-
-                    <input type="text" id="updateFname" required>        </div>        </div>
-
-                  </div>
-
-                  <div class="form-group">
-
-                    <label for="updateMname">Middle Name</label>
-
-                    <input type="text" id="updateMname">        <!-- TAB CONTENT: STUDENTS -->        <!-- TAB CONTENT: ADVISERS -->
-
-                  </div>
-
-                </div>        <div class="tab-content" id="students">        <div class="tab-content" id="advisers">
-
-                <div class="form-row">
-
-                  <div class="form-group">          <div class="compact-form">          <div class="compact-form">
-
-                    <label for="updateLname">Last Name</label>
-
-                    <input type="text" id="updateLname" required>            <h3>Add New Student Member</h3>            <h3>Add New UASG Adviser</h3>
-
-                  </div>
-
-                  <div class="form-group form-group-small">                        
-
-                    <label for="updateAuxname">Suffix</label>
-
-                    <input type="text" id="updateAuxname">            <div class="form-columns">            <div class="form-columns">
-
-                  </div>
-
-                </div>              <!-- Left Column -->              <!-- Left Column -->
-
-              </div>
-
-            </div>              <div class="form-column">              <div class="form-column">
-
-            
-
-            <!-- Right Column -->                <!-- Account Information -->                <!-- Account Information -->
-
-            <div class="form-column">
-
-              <!-- Personal Details -->                <div class="form-section">                <div class="form-section">
-
-              <div class="form-section">
-
-                <h4>Personal Details</h4>                  <h4>Account Information</h4>                  <h4>Account Information</h4>
-
-                <div class="form-row">
-
-                  <div class="form-group form-group-small">                  <div class="form-row">                  <div class="form-row">
-
-                    <label for="updateGender">Gender</label>
-
-                    <select id="updateGender" required>                    <div class="form-group">                    <div class="form-group">
-
-                      <option value="">Select</option>
-
-                      <option value="Male">Male</option>                      <label for="studentUsername">Username</label>                      <label for="adviserUsername">Username</label>
-
-                      <option value="Female">Female</option>
-
-                    </select>                      <input type="text" id="studentUsername" placeholder="Username" required>                      <input type="text" id="adviserUsername" placeholder="Username" required>
-
-                  </div>
-
-                  <div class="form-group">                    </div>                    </div>
-
-                    <label for="updateBirthdate">Birthdate</label>
-
-                    <input type="date" id="updateBirthdate" required>                  </div>                  </div>
-
-                  </div>
-
-                </div>                  <div class="form-row">                  <div class="form-row">
-
-              </div>
-
-                                  <div class="form-group">                    <div class="form-group">
-
-              <!-- Contact Information -->
-
-              <div class="form-section">                      <label for="studentPassword">Password</label>                      <label for="adviserPassword">Password</label>
-
-                <h4>Contact Information</h4>
-
-                <div class="form-row">                      <input type="password" id="studentPassword" placeholder="Password" required>                      <input type="password" id="adviserPassword" placeholder="Password" required>
-
-                  <div class="form-group">
-
-                    <label for="updateContact">Contact Number</label>                    </div>                    </div>
-
-                    <input type="text" id="updateContact">
-
-                  </div>                  </div>                  </div>
-
-                </div>
-
-                <div class="form-row">                </div>                </div>
-
-                  <div class="form-group">
-
-                    <label for="updateEmail">Email</label>
-
-                    <input type="email" id="updateEmail" required>
-
-                  </div>                <!-- Personal Information -->                <!-- Personal Information -->
-
-                </div>
-
-              </div>                <div class="form-section">                <div class="form-section">
+              </div>          <br/>                      <input type="text" id="subadminLname" placeholder="Last Name" required>
 
             </div>
 
-          </div>                  <h4>Personal Information</h4>                  <h4>Personal Information</h4>
+            <div class="form-row">          <div class="table-container">
+
+              <div class="form-group">
+
+                <label for="updatePassword">Password</label>            <table class='data-table' id='subadminTable'>                    </div>        <!-- TAB CONTENT: SUBADMINS -->        <!-- TAB CONTENT: SUBADMINS -->
+
+                <input type="password" id="updatePassword" placeholder="Leave empty to keep current">
+
+              </div>              <thead>
+
+            </div>
+
+          </div>                <tr>                    <div class="form-group form-group-small">
 
           
 
-          <div class="form-actions">                  <div class="form-row">                  <div class="form-row">
+          <div class="form-section">                  <th>ID</th>
+
+            <h4>Personal Information</h4>
+
+            <div class="form-row">                  <th>Username</th>                      <label for="subadminAuxname">Suffix</label>        <div class="tab-content active" id="subadmins">        <div class="tab-content active" id="subadmins">
+
+              <div class="form-group">
+
+                <label for="updateFname">First Name</label>                  <th>Full Name</th>
+
+                <input type="text" id="updateFname" required>
+
+              </div>                  <th>Email</th>                      <input type="text" id="subadminAuxname" placeholder="Jr., Sr.">
+
+              <div class="form-group">
+
+                <label for="updateMname">Middle Name</label>                  <th>Contact</th>
+
+                <input type="text" id="updateMname">
+
+              </div>                  <th>Actions</th>                    </div>          <div class="compact-form">          <div class="compact-form">
+
+            </div>
+
+            <div class="form-row">                </tr>
+
+              <div class="form-group">
+
+                <label for="updateLname">Last Name</label>              </thead>                  </div>
+
+                <input type="text" id="updateLname" required>
+
+              </div>              <tbody></tbody>
+
+              <div class="form-group form-group-small">
+
+                <label for="updateAuxname">Suffix</label>            </table>                </div>            <h3>Add New Subadmin</h3>            <h3>Add New Administrator</h3>
+
+                <input type="text" id="updateAuxname">
+
+              </div>          </div>
+
+            </div>
+
+          </div>        </div>              </div>
+
+          
+
+          <div class="form-section">
+
+            <h4>Personal Details</h4>
+
+            <div class="form-row">        <!-- TAB CONTENT: STUDENTS -->                        
+
+              <div class="form-group form-group-small">
+
+                <label for="updateGender">Gender</label>        <div class="tab-content" id="students">
+
+                <select id="updateGender" required>
+
+                  <option value="">Select</option>          <div class="compact-form">              <!-- Right Column -->
+
+                  <option value="Male">Male</option>
+
+                  <option value="Female">Female</option>            <h3>Add New Student Member</h3>
+
+                </select>
+
+              </div>            <div class="form-columns">              <div class="form-column">            <div class="form-columns">            <div class="form-columns">
+
+              <div class="form-group">
+
+                <label for="updateBirthdate">Birthdate</label>              <div class="form-column">
+
+                <input type="date" id="updateBirthdate" required>
+
+              </div>                <div class="form-section">                <!-- Personal Details -->
+
+            </div>
+
+          </div>                  <h4>Account Information</h4>
+
+          
+
+          <div class="form-section">                  <div class="form-row">                <div class="form-section">              <!-- Left Column -->              <!-- Left Column -->
+
+            <h4>Contact Information</h4>
+
+            <div class="form-row">                    <div class="form-group">
+
+              <div class="form-group">
+
+                <label for="updateContact">Contact Number</label>                      <label for="studentUsername">Username</label>                  <h4>Personal Details</h4>
+
+                <input type="text" id="updateContact">
+
+              </div>                      <input type="text" id="studentUsername" placeholder="Username" required>
+
+            </div>
+
+            <div class="form-row">                    </div>                  <div class="form-row">              <div class="form-column">              <div class="form-column">
+
+              <div class="form-group">
+
+                <label for="updateEmail">Email</label>                  </div>
+
+                <input type="email" id="updateEmail" required>
+
+              </div>                  <div class="form-row">                    <div class="form-group form-group-small">
+
+            </div>
+
+          </div>                    <div class="form-group">
+
+          
+
+          <div class="form-actions">                      <label for="studentPassword">Password</label>                      <label for="subadminGender">Gender</label>                <!-- Account Information -->                <!-- Account Information -->
 
             <button type="button" class="btn-primary" id="confirmUpdate">Update User</button>
 
-            <button type="button" class="btn-secondary" onclick="closeUpdateModal()">Cancel</button>                    <div class="form-group">                    <div class="form-group">
+            <button type="button" class="btn-secondary" onclick="closeUpdateModal()">Cancel</button>                      <input type="password" id="studentPassword" placeholder="Password" required>
 
           </div>
 
-        </div>                      <label for="studentFname">First Name</label>                      <label for="adviserFname">First Name</label>
+        </div>                    </div>                      <select id="subadminGender" required>
 
       </div>
 
-    </div>                      <input type="text" id="studentFname" placeholder="First Name" required>                      <input type="text" id="adviserFname" placeholder="First Name" required>
+    </div>                  </div>
 
 
 
-    <!-- DELETE MODAL -->                    </div>                    </div>
+    <!-- DELETE MODAL -->                </div>                        <option value="">Select</option>                <div class="form-section">                <div class="form-section">
 
     <div id="deleteUserModal" class="modal">
 
-      <div class="modal-content modal-content-small">                    <div class="form-group">                    <div class="form-group">
+      <div class="modal-content modal-content-small">
 
         <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
 
-        <h2>Delete User Confirmation</h2>                      <label for="studentMname">Middle Name</label>                      <label for="adviserMname">Middle Name</label>
+        <h2>Delete User Confirmation</h2>                <div class="form-section">                        <option value="Male">Male</option>
 
         
 
-        <div class="compact-form">                      <input type="text" id="studentMname" placeholder="Middle Name">                      <input type="text" id="adviserMname" placeholder="Middle Name">
+        <div class="compact-form">                  <h4>Personal Information</h4>
 
           <input type="hidden" id="deleteUserId">
 
-          <input type="hidden" id="deleteUserType">                    </div>                    </div>
+          <input type="hidden" id="deleteUserType">                  <div class="form-row">                        <option value="Female">Female</option>                  <h4>Account Information</h4>                  <h4>Account Information</h4>
 
           
 
-          <div class="form-group">                  </div>                  </div>
+          <div class="form-section">                    <div class="form-group">
 
-            <label for="deleteUserInfo">User to Delete</label>
+            <div class="form-row">
 
-            <input type='text' id='deleteUserInfo' readonly>                  <div class="form-row">                  <div class="form-row">
+              <div class="form-group">                      <label for="studentFname">First Name</label>                      </select>
+
+                <label for="deleteUserInfo">User to Delete</label>
+
+                <input type='text' id='deleteUserInfo' readonly>                      <input type="text" id="studentFname" placeholder="First Name" required>
+
+              </div>
+
+            </div>                    </div>                    </div>                  <div class="form-row">                  <div class="form-row">
+
+            <div class="form-row">
+
+              <div class="form-group">                    <div class="form-group">
+
+                <label for="deleteReason">Reason for Deletion</label>
+
+                <textarea id='deleteReason' name='deleteReason' rows='4' placeholder="Enter reason for deletion..." required></textarea>                      <label for="studentMname">Middle Name</label>                    <div class="form-group">
+
+              </div>
+
+            </div>                      <input type="text" id="studentMname" placeholder="Middle Name">
 
           </div>
+
+                              </div>                      <label for="subadminBirthdate">Birthdate</label>                    <div class="form-group">                    <div class="form-group">
+
+          <div class="form-actions">
+
+            <button type="button" class="btn-primary" id="confirmDelete">Confirm Delete</button>                  </div>
+
+            <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+
+          </div>                  <div class="form-row">                      <input type="date" id="subadminBirthdate" required>
+
+        </div>
+
+      </div>                    <div class="form-group">
+
+    </div>
+
+  </main>                      <label for="studentLname">Last Name</label>                    </div>                      <label for="subadminUsername">Username</label>                      <label for="adminUsername">Username</label>
+
+
+
+  <script>                      <input type="text" id="studentLname" placeholder="Last Name" required>
+
+    // Modal functions
+
+    function openUpdateModal() {                    </div>                  </div>
+
+      document.getElementById("updateUserModal").style.display = "flex";
+
+    }                    <div class="form-group form-group-small">
+
+    
+
+    function closeUpdateModal() {                      <label for="studentAuxname">Suffix</label>                </div>                      <input type="text" id="subadminUsername" placeholder="Username" required>                      <input type="text" id="adminUsername" placeholder="Username" required>
+
+      document.getElementById("updateUserModal").style.display = "none";
+
+    }                      <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
+
+
+
+    function openDeleteModal(){                    </div>
+
+      document.getElementById("deleteUserModal").style.display = "flex";
+
+    }                  </div>
+
+
+
+    function closeDeleteModal(){                </div>                <!-- Contact Information -->                    </div>                    </div>
+
+      document.getElementById("deleteUserModal").style.display = "none";
+
+    }              </div>
+
+
+
+    // Clear form function                <div class="form-section">
+
+    function clearForm(type) {
+
+      const fields = ['Username', 'Password', 'Fname', 'Mname', 'Lname', 'Auxname', 'Gender', 'Birthdate', 'Contact', 'Email'];              <div class="form-column">
+
+      fields.forEach(field => {
+
+        const element = document.getElementById(type + field);                <div class="form-section">                  <h4>Contact Information</h4>                  </div>                  </div>
+
+        if (element) {
+
+          element.value = '';                  <h4>Personal Details</h4>
+
+        }
+
+      });                  <div class="form-row">                  <div class="form-row">
+
+    }
+
+                    <div class="form-group form-group-small">
+
+    // Tab switcher
+
+    const tabLinks = document.querySelectorAll(".tab-link");                      <label for="studentGender">Gender</label>                    <div class="form-group">                  <div class="form-row">                  <div class="form-row">
+
+    const tabContents = document.querySelectorAll(".tab-content");
+
+                      <select id="studentGender" required>
+
+    tabLinks.forEach(link => {
+
+      link.addEventListener("click", () => {                        <option value="">Select</option>                      <label for="subadminContact">Contact Number</label>
+
+        tabLinks.forEach(l => l.classList.remove("active"));
+
+        tabContents.forEach(c => c.classList.remove("active"));                        <option value="Male">Male</option>
+
+
+
+        link.classList.add("active");                        <option value="Female">Female</option>                      <input type="text" id="subadminContact" placeholder="Contact Number">                    <div class="form-group">                    <div class="form-group">
+
+        document.getElementById(link.dataset.tab).classList.add("active");
+
+      });                      </select>
+
+    });
+
+  </script>                    </div>                    </div>
+
+
+
+  <?php require_once("modal.php");?>                    <div class="form-group">
+
+
+
+  <script>                      <label for="studentBirthdate">Birthdate</label>                  </div>                      <label for="subadminPassword">Password</label>                      <label for="adminPassword">Password</label>
+
+    $(document).ready(function(){
+
+      let subadminTable;                      <input type="date" id="studentBirthdate" required>
+
+      let studentTable;
+
+                    </div>                  <div class="form-row">
+
+      // DataTable initialization for Subadmins
+
+      function initSubadminTable(){                  </div>
+
+        subadminTable = $("#subadminTable").DataTable({
+
+          ajax:{                </div>                    <div class="form-group">                      <input type="password" id="subadminPassword" placeholder="Password" required>                      <input type="password" id="adminPassword" placeholder="Password" required>
+
+            url:'ajax.php',
+
+            type:'post',
+
+            data:{
+
+              CALL: 8                <div class="form-section">                      <label for="subadminEmail">Email</label>
+
+            },
+
+            dataSrc: 'data',                  <h4>Contact Information</h4>
+
+            dataType:'json',
+
+            error: function(xhr, error, thrown) {                  <div class="form-row">                      <input type="email" id="subadminEmail" placeholder="Email Address" required>                    </div>                    </div>
+
+              console.log('Subadmin DataTable AJAX Error:', error);
+
+              console.log('Response:', xhr.responseText);                    <div class="form-group">
+
+              openModal("ERROR", "Failed to load subadmin users: " + error);
+
+            }                      <label for="studentContact">Contact Number</label>                    </div>
+
+          },
+
+          responsive: true,                      <input type="text" id="studentContact" placeholder="Contact Number">
+
+          scroll: '50vh',
+
+          scrollCollapse: true,                     </div>                  </div>                  </div>                  </div>
+
+          paging: true,
+
+          columns: [                  </div>
+
+            { data: "user_id" },
+
+            { data: "user_name" },                  <div class="form-row">                </div>
+
+            { 
+
+              data: null,                    <div class="form-group">
+
+              render: function(data, type, row) {
+
+                return `${row.fname} ${row.mname ? row.mname + ' ' : ''}${row.lname}${row.auxname ? ' ' + row.auxname : ''}`;                      <label for="studentEmail">Email</label>              </div>                </div>                </div>
+
+              }
+
+            },                      <input type="email" id="studentEmail" placeholder="Email Address" required>
+
+            { data: "email" },
+
+            { data: "contact_number" },                    </div>            </div>
+
+            { 
+
+              data: 'user_id',                  </div>
+
+              render: function(data, type, row) {
+
+                return `                </div>
+
+                  <button class="btn-secondary updateBtn" data-id="${data}" data-type="subadmin">Edit</button>
+
+                  <button class="btn-primary deleteBtn" data-id="${data}" data-type="subadmin">Delete</button>
+
+                `;
+
+              }                <div class="form-section">            <div class="form-actions">
+
+            }
+
+          ],                  <h4>Actions</h4>
+
+          columnDefs: [
+
+            { targets: 0, visible: false, searchable: false }                   <div class="form-actions">              <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>                <!-- Personal Information -->                <!-- Personal Information -->
+
+          ]
+
+        });                    <button type="button" class="btn-primary" id="saveStudent">Save Student Member</button>
+
+      }
+
+                    <button type="button" class="btn-secondary" onclick="clearForm('student')">Clear</button>              <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>
+
+      // DataTable initialization for Students
+
+      function initStudentTable(){                  </div>
+
+        studentTable = $("#studentTable").DataTable({
+
+          ajax:{                </div>            </div>                <div class="form-section">                <div class="form-section">
+
+            url:'ajax.php',
+
+            type:'post',              </div>
+
+            data:{
+
+              CALL: 9            </div>          </div>
+
+            },
+
+            dataSrc: 'data',          </div>
+
+            dataType:'json',
+
+            error: function(xhr, error, thrown) {          <br/>                            <h4>Personal Information</h4>                  <h4>Personal Information</h4>
+
+              console.log('Student DataTable AJAX Error:', error);
+
+              console.log('Response:', xhr.responseText);          <div class="table-container">
+
+              openModal("ERROR", "Failed to load student users: " + error);
+
+            }            <table class='data-table' id='studentTable'>          <div class="table-container">
+
+          },
+
+          responsive: true,              <thead>
+
+          scroll: '50vh',
+
+          scrollCollapse: true,                 <tr>            <table class='data-table' id='subadminTable'>                  <div class="form-row">                  <div class="form-row">
+
+          paging: true,
+
+          columns: [                  <th>ID</th>
+
+            { data: "user_id" },
+
+            { data: "user_name" },                  <th>Username</th>              <thead>
+
+            { 
+
+              data: null,                  <th>Full Name</th>
+
+              render: function(data, type, row) {
+
+                return `${row.fname} ${row.mname ? row.mname + ' ' : ''}${row.lname}${row.auxname ? ' ' + row.auxname : ''}`;                  <th>Email</th>                <tr>                    <div class="form-group">                    <div class="form-group">
+
+              }
+
+            },                  <th>Contact</th>
+
+            { data: "email" },
+
+            { data: "contact_number" },                  <th>Actions</th>                  <th>ID</th>
+
+            { 
+
+              data: 'user_id',                </tr>
+
+              render: function(data, type, row) {
+
+                return `              </thead>                  <th>Username</th>                      <label for="subadminFname">First Name</label>                      <label for="adminFname">First Name</label>
+
+                  <button class="btn-secondary updateBtn" data-id="${data}" data-type="student">Edit</button>
+
+                  <button class="btn-primary deleteBtn" data-id="${data}" data-type="student">Delete</button>              <tbody></tbody>
+
+                `;
+
+              }            </table>                  <th>Full Name</th>
+
+            }
+
+          ],          </div>
+
+          columnDefs: [
+
+            { targets: 0, visible: false, searchable: false }         </div>                  <th>Email</th>                      <input type="text" id="subadminFname" placeholder="First Name" required>                      <input type="text" id="adminFname" placeholder="First Name" required>
+
+          ]
+
+        });      </div>
+
+      }
+
+    </section>                  <th>Contact</th>
+
+      // Initialize all tables
+
+      initSubadminTable();
+
+      initStudentTable();
+
+    <!-- UPDATE MODAL -->                  <th>Actions</th>                    </div>                    </div>
+
+      // Reload all tables
+
+      function reloadAllTables(){    <div id="updateUserModal" class="modal">
+
+        subadminTable.ajax.reload(null, false);
+
+        studentTable.ajax.reload(null, false);      <div class="modal-content">                </tr>
+
+      }
+
+        <span class="modal-close" onclick="closeUpdateModal()">&times;</span>
+
+      // Save user function
+
+      function saveUser(call, userData, userType) {        <h2>Update User Information</h2>              </thead>                    <div class="form-group">                    <div class="form-group">
+
+        $.ajax({
+
+          url: 'ajax.php',        
+
+          type: 'post',
+
+          data: {        <div class="compact-form">              <tbody></tbody>
+
+            CALL: call,
+
+            DATA: userData          <input type="hidden" id="updateUserId">
+
+          },
+
+          dataType: 'json',          <input type="hidden" id="updateUserType">            </table>                      <label for="subadminMname">Middle Name</label>                      <label for="adminMname">Middle Name</label>
+
+          success: function(result) {
+
+            openModal(result.status, result.msg);          
+
+            if(result.status == "SUCCESS") {
+
+              clearForm(userType);          <div class="form-columns">          </div>
+
+            }
+
+          },            <div class="form-column">
+
+          complete: function() {
+
+            reloadAllTables();              <div class="form-section">        </div>                      <input type="text" id="subadminMname" placeholder="Middle Name">                      <input type="text" id="adminMname" placeholder="Middle Name">
+
+          }
+
+        });                <h4>Account Information</h4>
+
+      }
+
+                <div class="form-row">
+
+      // Update and Delete button handlers
+
+      $(document).on("click", ".updateBtn", function() {                  <div class="form-group">
+
+        const userId = $(this).data('id');
+
+        const userType = $(this).data('type');                    <label for="updateUsername">Username</label>        <!-- TAB CONTENT: STUDENTS -->                    </div>                    </div>
+
+        
+
+        $.ajax({                    <input type="text" id="updateUsername" required>
+
+          url: 'ajax.php',
+
+          type: 'post',                  </div>        <div class="tab-content" id="students">
+
+          data: {
+
+            CALL: 13,                </div>
+
+            USER_ID: userId
+
+          },                <div class="form-row">          <div class="compact-form">                  </div>                  </div>
+
+          dataType: 'json',
+
+          success: function(result) {                  <div class="form-group">
+
+            if(result.status === "SUCCESS") {
+
+              const user = result.data;                    <label for="updatePassword">Password</label>            <h3>Add New Student Member</h3>
+
+              $("#updateUserId").val(user.user_id);
+
+              $("#updateUserType").val(userType);                    <input type="password" id="updatePassword" placeholder="Leave empty to keep current">
+
+              $("#updateUsername").val(user.user_name);
+
+              $("#updateFname").val(user.fname);                  </div>                              <div class="form-row">                  <div class="form-row">
+
+              $("#updateMname").val(user.mname);
+
+              $("#updateLname").val(user.lname);                </div>
+
+              $("#updateAuxname").val(user.auxname);
+
+              $("#updateGender").val(user.gender);              </div>            <div class="form-columns">
+
+              $("#updateBirthdate").val(user.birthdate);
+
+              $("#updateContact").val(user.contact_number);              
+
+              $("#updateEmail").val(user.email);
+
+              openUpdateModal();              <div class="form-section">              <!-- Left Column -->                    <div class="form-group">                    <div class="form-group">
+
+            }
+
+          }                <h4>Personal Information</h4>
+
+        });
+
+      });                <div class="form-row">              <div class="form-column">
+
+
+
+      $(document).on("click", ".deleteBtn", function() {                  <div class="form-group">
+
+        const userId = $(this).data('id');
+
+        const userType = $(this).data('type');                    <label for="updateFname">First Name</label>                <!-- Account Information -->                      <label for="subadminLname">Last Name</label>                      <label for="adminLname">Last Name</label>
+
+        const userName = $(this).closest("tr").find("td").eq(1).text();
+
+        const fullName = $(this).closest("tr").find("td").eq(2).text();                    <input type="text" id="updateFname" required>
+
+        
+
+        $("#deleteUserId").val(userId);                  </div>                <div class="form-section">
+
+        $("#deleteUserType").val(userType);
+
+        $("#deleteUserInfo").val(`${userName} (${fullName})`);                  <div class="form-group">
+
+        openDeleteModal();
+
+      });                    <label for="updateMname">Middle Name</label>                  <h4>Account Information</h4>                      <input type="text" id="subadminLname" placeholder="Last Name" required>                      <input type="text" id="adminLname" placeholder="Last Name" required>
+
+
+
+      // Confirm update                    <input type="text" id="updateMname">
+
+      $("#confirmUpdate").click(function() {
+
+        const updateData = {                  </div>                  <div class="form-row">
+
+          user_id: $("#updateUserId").val(),
+
+          user_name: $("#updateUsername").val(),                </div>
+
+          password: $("#updatePassword").val(),
+
+          fname: $("#updateFname").val(),                <div class="form-row">                    <div class="form-group">                    </div>                    </div>
+
+          mname: $("#updateMname").val(),
+
+          lname: $("#updateLname").val(),                  <div class="form-group">
+
+          auxname: $("#updateAuxname").val(),
+
+          gender: $("#updateGender").val(),                    <label for="updateLname">Last Name</label>                      <label for="studentUsername">Username</label>
+
+          birthdate: $("#updateBirthdate").val(),
+
+          contact_number: $("#updateContact").val(),                    <input type="text" id="updateLname" required>
+
+          email: $("#updateEmail").val()
+
+        };                  </div>                      <input type="text" id="studentUsername" placeholder="Username" required>                    <div class="form-group form-group-small">                    <div class="form-group form-group-small">
+
+
+
+        $.ajax({                  <div class="form-group form-group-small">
+
+          url: 'ajax.php',
+
+          type: 'post',                    <label for="updateAuxname">Suffix</label>                    </div>
+
+          data: {
+
+            CALL: 11,                    <input type="text" id="updateAuxname">
+
+            DATA: updateData
+
+          },                  </div>                  </div>                      <label for="subadminAuxname">Suffix</label>                      <label for="adminAuxname">Suffix</label>
+
+          dataType: 'json',
+
+          success: function(result) {                </div>
+
+            openModal(result.status, result.msg);
+
+            if(result.status === "SUCCESS") {              </div>                  <div class="form-row">
+
+              closeUpdateModal();
+
+            }            </div>
+
+          },
+
+          complete: function() {                                <div class="form-group">                      <input type="text" id="subadminAuxname" placeholder="Jr., Sr.">                      <input type="text" id="adminAuxname" placeholder="Jr., Sr.">
+
+            reloadAllTables();
+
+          }            <div class="form-column">
+
+        });
+
+      });              <div class="form-section">                      <label for="studentPassword">Password</label>
+
+
+
+      // Confirm delete                <h4>Personal Details</h4>
+
+      $("#confirmDelete").click(function() {
+
+        const deleteData = {                <div class="form-row">                      <input type="password" id="studentPassword" placeholder="Password" required>                    </div>                    </div>
+
+          user_id: $("#deleteUserId").val(),
+
+          reason: $("#deleteReason").val()                  <div class="form-group form-group-small">
+
+        };
+
+                    <label for="updateGender">Gender</label>                    </div>
+
+        if(!deleteData.reason.trim()) {
+
+          openModal("ERROR", "Please provide a reason for deletion");                    <select id="updateGender" required>
+
+          return;
+
+        }                      <option value="">Select</option>                  </div>                  </div>                  </div>
+
+
+
+        $.ajax({                      <option value="Male">Male</option>
+
+          url: 'ajax.php',
+
+          type: 'post',                      <option value="Female">Female</option>                </div>
+
+          data: {
+
+            CALL: 12,                    </select>
+
+            DATA: deleteData
+
+          },                  </div>                </div>                </div>
+
+          dataType: 'json',
+
+          success: function(result) {                  <div class="form-group">
+
+            openModal(result.status, result.msg);
+
+            if(result.status === "SUCCESS") {                    <label for="updateBirthdate">Birthdate</label>                <!-- Personal Information -->
+
+              closeDeleteModal();
+
+              $("#deleteReason").val('');                    <input type="date" id="updateBirthdate" required>
+
+            }
+
+          },                  </div>                <div class="form-section">              </div>              </div>
+
+          complete: function() {
+
+            reloadAllTables();                </div>
+
+          }
+
+        });              </div>                  <h4>Personal Information</h4>
+
+      });
+
+              
+
+      // Save Subadmin button handler
+
+      $("#saveSubadmin").click(function() {              <div class="form-section">                  <div class="form-row">
+
+        const subadminData = {
+
+          user_name: $("#subadminUsername").val(),                <h4>Contact Information</h4>
+
+          password: $("#subadminPassword").val(),
+
+          fname: $("#subadminFname").val(),                <div class="form-row">                    <div class="form-group">
+
+          mname: $("#subadminMname").val(),
+
+          lname: $("#subadminLname").val(),                  <div class="form-group">
+
+          auxname: $("#subadminAuxname").val(),
+
+          gender: $("#subadminGender").val(),                    <label for="updateContact">Contact Number</label>                      <label for="studentFname">First Name</label>              <!-- Right Column -->              <!-- Right Column -->
+
+          birthdate: $("#subadminBirthdate").val(),
+
+          contact_number: $("#subadminContact").val(),                    <input type="text" id="updateContact">
+
+          email: $("#subadminEmail").val(),
+
+          user_type: 'adviser'                  </div>                      <input type="text" id="studentFname" placeholder="First Name" required>
+
+        };
+
+                </div>
+
+        if(!subadminData.user_name.trim() || !subadminData.password.trim() || !subadminData.fname.trim() || !subadminData.lname.trim() || !subadminData.email.trim()) {
+
+          openModal("ERROR", "Please fill in all required fields");                <div class="form-row">                    </div>              <div class="form-column">              <div class="form-column">
+
+          return;
+
+        }                  <div class="form-group">
+
+
+
+        saveUser(10, subadminData, 'subadmin');                    <label for="updateEmail">Email</label>                    <div class="form-group">
+
+      });
+
+                    <input type="email" id="updateEmail" required>
+
+      // Save Student button handler
+
+      $("#saveStudent").click(function() {                  </div>                      <label for="studentMname">Middle Name</label>                <!-- Personal Details -->                <!-- Personal Details -->
+
+        const studentData = {
+
+          user_name: $("#studentUsername").val(),                </div>
+
+          password: $("#studentPassword").val(),
+
+          fname: $("#studentFname").val(),              </div>                      <input type="text" id="studentMname" placeholder="Middle Name">
+
+          mname: $("#studentMname").val(),
+
+          lname: $("#studentLname").val(),            </div>
+
+          auxname: $("#studentAuxname").val(),
+
+          gender: $("#studentGender").val(),          </div>                    </div>                <div class="form-section">                <div class="form-section">
+
+          birthdate: $("#studentBirthdate").val(),
+
+          contact_number: $("#studentContact").val(),          
+
+          email: $("#studentEmail").val(),
+
+          user_type: 'student'          <div class="form-actions">                  </div>
+
+        };
+
+            <button type="button" class="btn-primary" id="confirmUpdate">Update User</button>
+
+        if(!studentData.user_name.trim() || !studentData.password.trim() || !studentData.fname.trim() || !studentData.lname.trim() || !studentData.email.trim()) {
+
+          openModal("ERROR", "Please fill in all required fields");            <button type="button" class="btn-secondary" onclick="closeUpdateModal()">Cancel</button>                  <div class="form-row">                  <h4>Personal Details</h4>                  <h4>Personal Details</h4>
+
+          return;
+
+        }          </div>
+
+
+
+        saveUser(10, studentData, 'student');        </div>                    <div class="form-group">
+
+      });
+
+    });      </div>
+
+  </script>
+
+      </div>                      <label for="studentLname">Last Name</label>                  <div class="form-row">                  <div class="form-row">
+
+  <!-- PWA Scripts -->
+
+  <script src="../js/pwa-helper.js"></script>
+
+</body>
+
+</html>    <!-- DELETE MODAL -->                      <input type="text" id="studentLname" placeholder="Last Name" required>
+
+
+    <div id="deleteUserModal" class="modal">
+
+      <div class="modal-content modal-content-small">                    </div>                    <div class="form-group form-group-small">                    <div class="form-group form-group-small">
+
+        <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
+
+        <h2>Delete User Confirmation</h2>                    <div class="form-group form-group-small">
+
+        
+
+        <div class="compact-form">                      <label for="studentAuxname">Suffix</label>                      <label for="subadminGender">Gender</label>                      <label for="adminGender">Gender</label>
+
+          <input type="hidden" id="deleteUserId">
+
+          <input type="hidden" id="deleteUserType">                      <input type="text" id="studentAuxname" placeholder="Jr., Sr.">
+
+          
+
+          <div class="form-section">                    </div>                      <select id="subadminGender" required>                      <select id="adminGender" required>
+
+            <div class="form-row">
+
+              <div class="form-group">                  </div>
+
+                <label for="deleteUserInfo">User to Delete</label>
+
+                <input type='text' id='deleteUserInfo' readonly>                </div>                        <option value="">Select</option>                        <option value="">Select</option>
+
+              </div>
+
+            </div>              </div>
+
+            
+
+            <div class="form-row">                        <option value="Male">Male</option>                        <option value="Male">Male</option>
+
+              <div class="form-group">
+
+                <label for="deleteReason">Reason for Deletion</label>              <!-- Right Column -->
+
+                <textarea id='deleteReason' name='deleteReason' rows='4' placeholder="Enter reason for deletion..." required></textarea>
+
+              </div>              <div class="form-column">                        <option value="Female">Female</option>                        <option value="Female">Female</option>
+
+            </div>
+
+          </div>                <!-- Personal Details -->
+
+          
+
+          <div class="form-actions">                <div class="form-section">                      </select>                      </select>
+
+            <button type="button" class="btn-primary" id="confirmDelete">Confirm Delete</button>
+
+            <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>                  <h4>Personal Details</h4>
+
+          </div>
+
+        </div>                  <div class="form-row">                    </div>                    </div>
+
+      </div>
+
+    </div>                    <div class="form-group form-group-small">
+
+  </main>
+
+                      <label for="studentGender">Gender</label>                    <div class="form-group">                    <div class="form-group">
+
+  <script>
+
+    // Modal functions                      <select id="studentGender" required>
+
+    function openUpdateModal() {
+
+      document.getElementById("updateUserModal").style.display = "flex";                        <option value="">Select</option>                      <label for="subadminBirthdate">Birthdate</label>                      <label for="adminBirthdate">Birthdate</label>
+
+    }
+
+                            <option value="Male">Male</option>
+
+    function closeUpdateModal() {
+
+      document.getElementById("updateUserModal").style.display = "none";                        <option value="Female">Female</option>                      <input type="date" id="subadminBirthdate" required>                      <input type="date" id="adminBirthdate" required>
+
+    }
+
+                      </select>
+
+    function openDeleteModal(){
+
+      document.getElementById("deleteUserModal").style.display = "flex";                    </div>                    </div>                    </div>
+
+    }
+
+                    <div class="form-group">
+
+    function closeDeleteModal(){
+
+      document.getElementById("deleteUserModal").style.display = "none";                      <label for="studentBirthdate">Birthdate</label>                  </div>                  </div>
+
+    }
+
+                      <input type="date" id="studentBirthdate" required>
+
+    // Clear form function
+
+    function clearForm(type) {                    </div>                </div>                </div>
+
+      const fields = ['Username', 'Password', 'Fname', 'Mname', 'Lname', 'Auxname', 'Gender', 'Birthdate', 'Contact', 'Email'];
+
+      fields.forEach(field => {                  </div>
+
+        const element = document.getElementById(type + field);
+
+        if (element) {                </div>
+
+          element.value = '';
+
+        }
+
+      });
+
+    }                <!-- Contact Information -->                <!-- Contact Information -->                <!-- Contact Information -->
+
+
+
+    // Tab switcher                <div class="form-section">
+
+    const tabLinks = document.querySelectorAll(".tab-link");
+
+    const tabContents = document.querySelectorAll(".tab-content");                  <h4>Contact Information</h4>                <div class="form-section">                <div class="form-section">
+
+
+
+    tabLinks.forEach(link => {                  <div class="form-row">
+
+      link.addEventListener("click", () => {
+
+        tabLinks.forEach(l => l.classList.remove("active"));                    <div class="form-group">                  <h4>Contact Information</h4>                  <h4>Contact Information</h4>
+
+        tabContents.forEach(c => c.classList.remove("active"));
+
+                      <label for="studentContact">Contact Number</label>
+
+        link.classList.add("active");
+
+        const targetTab = document.getElementById(link.dataset.tab);                      <input type="text" id="studentContact" placeholder="Contact Number">                  <div class="form-row">                  <div class="form-row">
+
+        if (targetTab) {
+
+          targetTab.classList.add("active");                    </div>
+
+        }
+
+      });                  </div>                    <div class="form-group">                    <div class="form-group">
+
+    });
+
+  </script>                  <div class="form-row">
+
+
+
+  <?php require_once("modal.php");?>                    <div class="form-group">                      <label for="subadminContact">Contact Number</label>                      <label for="adminContact">Contact Number</label>
+
+
+
+  <script>                      <label for="studentEmail">Email</label>
+
+    $(document).ready(function(){
+
+      let subadminTable;                      <input type="email" id="studentEmail" placeholder="Email Address" required>                      <input type="text" id="subadminContact" placeholder="Contact Number">                      <input type="text" id="adminContact" placeholder="Contact Number">
+
+      let studentTable;
+
+                    </div>
+
+      // DataTable initialization for Subadmins
+
+      function initSubadminTable(){                  </div>                    </div>                    </div>
+
+        subadminTable = $("#subadminTable").DataTable({
+
+          ajax:{                </div>
+
+            url:'ajax.php',
+
+            type:'post',              </div>                  </div>                  </div>
+
+            data:{
+
+              CALL: 8            </div>
+
+            },
+
+            dataSrc: 'data',                  <div class="form-row">                  <div class="form-row">
+
+            dataType:'json',
+
+            error: function(xhr, error, thrown) {            <div class="form-actions">
+
+              console.log('Subadmin DataTable AJAX Error:', error);
+
+              console.log('Response:', xhr.responseText);              <button type="button" class="btn-primary" id="saveStudent">Save Student Member</button>                    <div class="form-group">                    <div class="form-group">
+
+              openModal("ERROR", "Failed to load subadmin users: " + error);
+
+            }              <button type="button" class="btn-secondary" onclick="clearForm('student')">Clear</button>
+
+          },
+
+          responsive: true,            </div>                      <label for="subadminEmail">Email</label>                      <label for="adminEmail">Email</label>
+
+          scroll: '50vh',
+
+          scrollCollapse: true,           </div>
+
+          paging: true,
+
+          columns: [                                <input type="email" id="subadminEmail" placeholder="Email Address" required>                      <input type="email" id="adminEmail" placeholder="Email Address" required>
+
+            { data: "user_id" },
+
+            { data: "user_name" },          <div class="table-container">
+
+            { 
+
+              data: null,            <table class='data-table' id='studentTable'>                    </div>                    </div>
+
+              render: function(data, type, row) {
+
+                return `${row.fname} ${row.mname ? row.mname + ' ' : ''}${row.lname}${row.auxname ? ' ' + row.auxname : ''}`;              <thead>
+
+              }
+
+            },                <tr>                  </div>                  </div>
+
+            { data: "email" },
+
+            { data: "contact_number" },                  <th>ID</th>
+
+            { 
+
+              data: 'user_id',                  <th>Username</th>                </div>                </div>
+
+              render: function(data, type, row) {
+
+                return `                  <th>Full Name</th>
+
+                  <button class="btn-secondary updateBtn" data-id="${data}" data-type="subadmin">Edit</button>
+
+                  <button class="btn-primary deleteBtn" data-id="${data}" data-type="subadmin">Delete</button>                  <th>Email</th>              </div>              </div>
+
+                `;
+
+              }                  <th>Contact</th>
+
+            }
+
+          ],                  <th>Actions</th>            </div>            </div>
+
+          columnDefs: [
+
+            { targets: 0, visible: false, searchable: false }                 </tr>
+
+          ]
+
+        });              </thead>
+
+      }
+
+              <tbody></tbody>
+
+      // DataTable initialization for Students
+
+      function initStudentTable(){            </table>            <div class="form-actions">            <div class="form-actions">
+
+        studentTable = $("#studentTable").DataTable({
+
+          ajax:{          </div>
+
+            url:'ajax.php',
+
+            type:'post',        </div>              <button type="button" class="btn-primary" id="saveSubadmin">Save Subadmin</button>              <button type="button" class="btn-primary" id="saveAdmin">Save Administrator</button>
+
+            data:{
+
+              CALL: 9      </div>
+
+            },
+
+            dataSrc: 'data',    </section>              <button type="button" class="btn-secondary" onclick="clearForm('subadmin')">Clear</button>              <button type="button" class="btn-secondary" onclick="clearForm('admin')">Clear</button>
+
+            dataType:'json',
+
+            error: function(xhr, error, thrown) {
+
+              console.log('Student DataTable AJAX Error:', error);
+
+              console.log('Response:', xhr.responseText);    <!-- UPDATE MODAL -->            </div>            </div>
+
+              openModal("ERROR", "Failed to load student users: " + error);
+
+            }    <div id="updateUserModal" class="modal">
+
+          },
+
+          responsive: true,      <div class="modal-content">          </div>          </div>
+
+          scroll: '50vh',
+
+          scrollCollapse: true,         <span class="modal-close" onclick="closeUpdateModal()">&times;</span>
+
+          paging: true,
+
+          columns: [        <h2>Update User Information</h2>                    
+
+            { data: "user_id" },
+
+            { data: "user_name" },        
+
+            { 
+
+              data: null,        <div class="compact-form">          <div class="table-container">          <div class="table-container">
+
+              render: function(data, type, row) {
+
+                return `${row.fname} ${row.mname ? row.mname + ' ' : ''}${row.lname}${row.auxname ? ' ' + row.auxname : ''}`;          <input type="hidden" id="updateUserId">
+
+              }
+
+            },          <input type="hidden" id="updateUserType">            <table class='data-table' id='subadminTable'>            <table class='data-table' id='adminTable'>
+
+            { data: "email" },
+
+            { data: "contact_number" },          
+
+            { 
+
+              data: 'user_id',          <div class="form-columns">              <thead>              <thead>
+
+              render: function(data, type, row) {
+
+                return `            <!-- Left Column -->
+
+                  <button class="btn-secondary updateBtn" data-id="${data}" data-type="student">Edit</button>
+
+                  <button class="btn-primary deleteBtn" data-id="${data}" data-type="student">Delete</button>            <div class="form-column">                <tr>                <tr>
+
+                `;
+
+              }              <!-- Account Information -->
+
+            }
+
+          ],              <div class="form-section">                  <th>ID</th>                  <th>ID</th>
+
+          columnDefs: [
+
+            { targets: 0, visible: false, searchable: false }                 <h4>Account Information</h4>
+
+          ]
+
+        });                <div class="form-row">                  <th>Username</th>                  <th>Username</th>
+
+      }
+
+                  <div class="form-group">
+
+      // Initialize all tables
+
+      initSubadminTable();                    <label for="updateUsername">Username</label>                  <th>Full Name</th>                  <th>Full Name</th>
+
+      initStudentTable();
+
+                    <input type="text" id="updateUsername" required>
+
+      // Reload all tables
+
+      function reloadAllTables(){                  </div>                  <th>Email</th>                  <th>Email</th>
+
+        subadminTable.ajax.reload(null, false);
+
+        studentTable.ajax.reload(null, false);                </div>
+
+      }
+
+                <div class="form-row">                  <th>Contact</th>                  <th>Contact</th>
+
+      // Save user function
+
+      function saveUser(call, userData, userType) {                  <div class="form-group">
+
+        $.ajax({
+
+          url: 'ajax.php',                    <label for="updatePassword">Password</label>                  <th>Actions</th>                  <th>Actions</th>
+
+          type: 'post',
+
+          data: {                    <input type="password" id="updatePassword" placeholder="Leave empty to keep current">
+
+            CALL: call,
+
+            DATA: userData                  </div>                </tr>                </tr>
+
+          },
+
+          dataType: 'json',                </div>
+
+          success: function(result) {
+
+            openModal(result.status, result.msg);              </div>              </thead>              </thead>
+
+            if(result.status == "SUCCESS") {
+
+              clearForm(userType);              
+
+            }
+
+          },              <!-- Personal Information -->              <tbody></tbody>              <tbody></tbody>
+
+          complete: function() {
+
+            reloadAllTables();              <div class="form-section">
+
+          }
+
+        });                <h4>Personal Information</h4>            </table>            </table>
+
+      }
+
+                <div class="form-row">
+
+      // Update and Delete button handlers
+
+      $(document).on("click", ".updateBtn", function() {                  <div class="form-group">          </div>          </div>
+
+        const userId = $(this).data('id');
+
+        const userType = $(this).data('type');                    <label for="updateFname">First Name</label>
+
+        
+
+        $.ajax({                    <input type="text" id="updateFname" required>        </div>        </div>
+
+          url: 'ajax.php',
+
+          type: 'post',                  </div>
+
+          data: {
+
+            CALL: 13,                  <div class="form-group">
+
+            USER_ID: userId
+
+          },                    <label for="updateMname">Middle Name</label>
+
+          dataType: 'json',
+
+          success: function(result) {                    <input type="text" id="updateMname">        <!-- TAB CONTENT: STUDENTS -->        <!-- TAB CONTENT: ADVISERS -->
+
+            if(result.status === "SUCCESS") {
+
+              const user = result.data;                  </div>
+
+              $("#updateUserId").val(user.user_id);
+
+              $("#updateUserType").val(userType);                </div>        <div class="tab-content" id="students">        <div class="tab-content" id="advisers">
+
+              $("#updateUsername").val(user.user_name);
+
+              $("#updateFname").val(user.fname);                <div class="form-row">
+
+              $("#updateMname").val(user.mname);
+
+              $("#updateLname").val(user.lname);                  <div class="form-group">          <div class="compact-form">          <div class="compact-form">
+
+              $("#updateAuxname").val(user.auxname);
+
+              $("#updateGender").val(user.gender);                    <label for="updateLname">Last Name</label>
+
+              $("#updateBirthdate").val(user.birthdate);
+
+              $("#updateContact").val(user.contact_number);                    <input type="text" id="updateLname" required>            <h3>Add New Student Member</h3>            <h3>Add New UASG Adviser</h3>
+
+              $("#updateEmail").val(user.email);
+
+              openUpdateModal();                  </div>
+
+            }
+
+          }                  <div class="form-group form-group-small">                        
+
+        });
+
+      });                    <label for="updateAuxname">Suffix</label>
+
+
+
+      $(document).on("click", ".deleteBtn", function() {                    <input type="text" id="updateAuxname">            <div class="form-columns">            <div class="form-columns">
+
+        const userId = $(this).data('id');
+
+        const userType = $(this).data('type');                  </div>
+
+        const userName = $(this).closest("tr").find("td").eq(1).text();
+
+        const fullName = $(this).closest("tr").find("td").eq(2).text();                </div>              <!-- Left Column -->              <!-- Left Column -->
+
+        
+
+        $("#deleteUserId").val(userId);              </div>
+
+        $("#deleteUserType").val(userType);
+
+        $("#deleteUserInfo").val(`${userName} (${fullName})`);            </div>              <div class="form-column">              <div class="form-column">
+
+        openDeleteModal();
+
+      });            
+
+
+
+      // Confirm update            <!-- Right Column -->                <!-- Account Information -->                <!-- Account Information -->
+
+      $("#confirmUpdate").click(function() {
+
+        const updateData = {            <div class="form-column">
+
+          user_id: $("#updateUserId").val(),
+
+          user_name: $("#updateUsername").val(),              <!-- Personal Details -->                <div class="form-section">                <div class="form-section">
+
+          password: $("#updatePassword").val(),
+
+          fname: $("#updateFname").val(),              <div class="form-section">
+
+          mname: $("#updateMname").val(),
+
+          lname: $("#updateLname").val(),                <h4>Personal Details</h4>                  <h4>Account Information</h4>                  <h4>Account Information</h4>
+
+          auxname: $("#updateAuxname").val(),
+
+          gender: $("#updateGender").val(),                <div class="form-row">
+
+          birthdate: $("#updateBirthdate").val(),
+
+          contact_number: $("#updateContact").val(),                  <div class="form-group form-group-small">                  <div class="form-row">                  <div class="form-row">
+
+          email: $("#updateEmail").val()
+
+        };                    <label for="updateGender">Gender</label>
+
+
+
+        $.ajax({                    <select id="updateGender" required>                    <div class="form-group">                    <div class="form-group">
+
+          url: 'ajax.php',
+
+          type: 'post',                      <option value="">Select</option>
+
+          data: {
+
+            CALL: 11,                      <option value="Male">Male</option>                      <label for="studentUsername">Username</label>                      <label for="adviserUsername">Username</label>
+
+            DATA: updateData
+
+          },                      <option value="Female">Female</option>
+
+          dataType: 'json',
+
+          success: function(result) {                    </select>                      <input type="text" id="studentUsername" placeholder="Username" required>                      <input type="text" id="adviserUsername" placeholder="Username" required>
+
+            openModal(result.status, result.msg);
+
+            if(result.status === "SUCCESS") {                  </div>
+
+              closeUpdateModal();
+
+            }                  <div class="form-group">                    </div>                    </div>
+
+          },
+
+          complete: function() {                    <label for="updateBirthdate">Birthdate</label>
+
+            reloadAllTables();
+
+          }                    <input type="date" id="updateBirthdate" required>                  </div>                  </div>
+
+        });
+
+      });                  </div>
+
+
+
+      // Confirm delete                </div>                  <div class="form-row">                  <div class="form-row">
+
+      $("#confirmDelete").click(function() {
+
+        const deleteData = {              </div>
+
+          user_id: $("#deleteUserId").val(),
+
+          reason: $("#deleteReason").val()                                  <div class="form-group">                    <div class="form-group">
+
+        };
+
+              <!-- Contact Information -->
+
+        if(!deleteData.reason.trim()) {
+
+          openModal("ERROR", "Please provide a reason for deletion");              <div class="form-section">                      <label for="studentPassword">Password</label>                      <label for="adviserPassword">Password</label>
+
+          return;
+
+        }                <h4>Contact Information</h4>
+
+
+
+        $.ajax({                <div class="form-row">                      <input type="password" id="studentPassword" placeholder="Password" required>                      <input type="password" id="adviserPassword" placeholder="Password" required>
+
+          url: 'ajax.php',
+
+          type: 'post',                  <div class="form-group">
+
+          data: {
+
+            CALL: 12,                    <label for="updateContact">Contact Number</label>                    </div>                    </div>
+
+            DATA: deleteData
+
+          },                    <input type="text" id="updateContact">
+
+          dataType: 'json',
+
+          success: function(result) {                  </div>                  </div>                  </div>
+
+            openModal(result.status, result.msg);
+
+            if(result.status === "SUCCESS") {                </div>
+
+              closeDeleteModal();
+
+              $("#deleteReason").val('');                <div class="form-row">                </div>                </div>
+
+            }
+
+          },                  <div class="form-group">
+
+          complete: function() {
+
+            reloadAllTables();                    <label for="updateEmail">Email</label>
+
+          }
+
+        });                    <input type="email" id="updateEmail" required>
+
+      });
+
+                  </div>                <!-- Personal Information -->                <!-- Personal Information -->
+
+      // Save Subadmin button handler
+
+      $("#saveSubadmin").click(function() {                </div>
+
+        const subadminData = {
+
+          user_name: $("#subadminUsername").val(),              </div>                <div class="form-section">                <div class="form-section">
+
+          password: $("#subadminPassword").val(),
+
+          fname: $("#subadminFname").val(),            </div>
+
+          mname: $("#subadminMname").val(),
+
+          lname: $("#subadminLname").val(),          </div>                  <h4>Personal Information</h4>                  <h4>Personal Information</h4>
+
+          auxname: $("#subadminAuxname").val(),
+
+          gender: $("#subadminGender").val(),          
+
+          birthdate: $("#subadminBirthdate").val(),
+
+          contact_number: $("#subadminContact").val(),          <div class="form-actions">                  <div class="form-row">                  <div class="form-row">
+
+          email: $("#subadminEmail").val(),
+
+          user_type: 'adviser'            <button type="button" class="btn-primary" id="confirmUpdate">Update User</button>
+
+        };
+
+            <button type="button" class="btn-secondary" onclick="closeUpdateModal()">Cancel</button>                    <div class="form-group">                    <div class="form-group">
+
+        if(!subadminData.user_name.trim() || !subadminData.password.trim() || !subadminData.fname.trim() || !subadminData.lname.trim() || !subadminData.email.trim()) {
+
+          openModal("ERROR", "Please fill in all required fields");          </div>
+
+          return;
+
+        }        </div>                      <label for="studentFname">First Name</label>                      <label for="adviserFname">First Name</label>
+
+
+
+        saveUser(10, subadminData, 'subadmin');      </div>
+
+      });
+
+    </div>                      <input type="text" id="studentFname" placeholder="First Name" required>                      <input type="text" id="adviserFname" placeholder="First Name" required>
+
+      // Save Student button handler
+
+      $("#saveStudent").click(function() {
+
+        const studentData = {
+
+          user_name: $("#studentUsername").val(),    <!-- DELETE MODAL -->                    </div>                    </div>
+
+          password: $("#studentPassword").val(),
+
+          fname: $("#studentFname").val(),    <div id="deleteUserModal" class="modal">
+
+          mname: $("#studentMname").val(),
+
+          lname: $("#studentLname").val(),      <div class="modal-content modal-content-small">                    <div class="form-group">                    <div class="form-group">
+
+          auxname: $("#studentAuxname").val(),
+
+          gender: $("#studentGender").val(),        <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
+
+          birthdate: $("#studentBirthdate").val(),
+
+          contact_number: $("#studentContact").val(),        <h2>Delete User Confirmation</h2>                      <label for="studentMname">Middle Name</label>                      <label for="adviserMname">Middle Name</label>
+
+          email: $("#studentEmail").val(),
+
+          user_type: 'student'        
+
+        };
+
+        <div class="compact-form">                      <input type="text" id="studentMname" placeholder="Middle Name">                      <input type="text" id="adviserMname" placeholder="Middle Name">
+
+        if(!studentData.user_name.trim() || !studentData.password.trim() || !studentData.fname.trim() || !studentData.lname.trim() || !studentData.email.trim()) {
+
+          openModal("ERROR", "Please fill in all required fields");          <input type="hidden" id="deleteUserId">
+
+          return;
+
+        }          <input type="hidden" id="deleteUserType">                    </div>                    </div>
+
+
+
+        saveUser(10, studentData, 'student');          
+
+      });
+
+    });          <div class="form-group">                  </div>                  </div>
+
+  </script>
+
+              <label for="deleteUserInfo">User to Delete</label>
+
+  <!-- PWA Scripts -->
+
+  <script src="../js/pwa-helper.js"></script>            <input type='text' id='deleteUserInfo' readonly>                  <div class="form-row">                  <div class="form-row">
+
+</body>
+
+</html>          </div>
+
 
                               <div class="form-group">                    <div class="form-group">
 
