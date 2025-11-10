@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 07, 2025 at 06:31 AM
+-- Generation Time: Nov 10, 2025 at 07:43 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -50,7 +50,22 @@ CREATE TABLE IF NOT EXISTS `file_category_key_tbl` (
   `keyword` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`file_category_key_id`),
   KEY `file_category_id` (`file_category_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `file_category_key_tbl`
+--
+
+INSERT INTO `file_category_key_tbl` (`file_category_key_id`, `file_category_id`, `keyword`) VALUES
+(1, 1, 'resolution'),
+(2, 1, 'motion'),
+(3, 1, 'vote'),
+(4, 1, 'council'),
+(5, 2, 'amendment'),
+(6, 2, 'change'),
+(7, 2, 'constitution'),
+(8, 2, 'bylaw'),
+(9, 4, 'dear');
 
 -- --------------------------------------------------------
 
@@ -63,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `file_category_tbl` (
   `file_category_id` int NOT NULL AUTO_INCREMENT,
   `file_category` text COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`file_category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_category_tbl`
@@ -71,7 +86,9 @@ CREATE TABLE IF NOT EXISTS `file_category_tbl` (
 
 INSERT INTO `file_category_tbl` (`file_category_id`, `file_category`) VALUES
 (1, 'Resolutions'),
-(2, 'Amendments');
+(2, 'Amendments'),
+(3, 'Minutes'),
+(4, 'Letters');
 
 -- --------------------------------------------------------
 
@@ -127,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -139,7 +156,13 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (7, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-07 03:30:45'),
 (8, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'Invalid password', '2025-11-07 03:34:09'),
 (9, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-07 03:34:09'),
-(12, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-07 03:40:30');
+(15, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:24:57'),
+(16, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:24:57'),
+(17, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:02'),
+(18, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:02'),
+(19, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:05'),
+(20, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:05'),
+(21, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-09 07:25:10');
 
 -- --------------------------------------------------------
 
@@ -213,6 +236,30 @@ CREATE TABLE IF NOT EXISTS `profile_tbl` (
 
 INSERT INTO `profile_tbl` (`profile_id`, `fname`, `mname`, `lname`, `auxname`, `gender`, `birthdate`, `contact_number`, `email`) VALUES
 (4, 'System', '', 'Administrator', '', 'Not specified', '1990-01-01', '', 'admin@system.local');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `subadmin_permissions_tbl`
+--
+
+DROP TABLE IF EXISTS `subadmin_permissions_tbl`;
+CREATE TABLE IF NOT EXISTS `subadmin_permissions_tbl` (
+  `permission_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `permission_key` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `permission_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `can_view` tinyint(1) DEFAULT '0',
+  `can_create` tinyint(1) DEFAULT '0',
+  `can_edit` tinyint(1) DEFAULT '0',
+  `can_delete` tinyint(1) DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`permission_id`),
+  UNIQUE KEY `unique_user_permission` (`user_id`,`permission_key`),
+  KEY `user_id` (`user_id`),
+  KEY `permission_key` (`permission_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -294,7 +341,7 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`) VALUES
-(4, 'admin', '$2y$10$oDB5bY0WJheUhZFZO9jo/uACNilbIOv3C6jxl9fbRvd8BXAbZI/Qi', 3, 4, 'admin', '7a27c2d2b5c2d491e9cd225fbca92c1de1347befb6cb4fc2334c98fb9e8f0c78');
+(4, 'admin', '$2y$10$oDB5bY0WJheUhZFZO9jo/uACNilbIOv3C6jxl9fbRvd8BXAbZI/Qi', 3, 4, 'admin', '48ceec3a9b735d45f3868fa8c630b74cc99f1029e98533809820fa1c5ed5e7e0');
 
 --
 -- Constraints for dumped tables
@@ -325,6 +372,12 @@ ALTER TABLE `file_upload_tbl`
 --
 ALTER TABLE `notifications_tbl`
   ADD CONSTRAINT `notifications_tbl_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `subadmin_permissions_tbl`
+--
+ALTER TABLE `subadmin_permissions_tbl`
+  ADD CONSTRAINT `fk_subadmin_permissions_user` FOREIGN KEY (`user_id`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `task_submission_tbl`

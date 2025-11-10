@@ -659,3 +659,9 @@
 		}
 		echo json_encode($result);
 	}
+
+
+
+
+	// Include permission management endpoints
+	include_once('ajax_permissions.php');

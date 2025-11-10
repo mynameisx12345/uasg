@@ -306,8 +306,231 @@ if($call == 1){
     }
     echo json_encode($result);
     
+}else if($call == 19){
+    // Get subadmin accessible files with filters
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        $filters = $_POST['DATA'] ?? [];
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        $fileManager = new FileManager();
+        $managerResult = $fileManager->getAdviserAccessibleFiles($userId, $filters);
+        
+        // Extract data array for DataTables format
+        if (isset($managerResult['data'])) {
+            $result = ["status" => "SUCCESS", "data" => $managerResult['data']];
+        } else if (is_array($managerResult)) {
+            $result = ["status" => "SUCCESS", "data" => $managerResult];
+        } else {
+            $result = ["status" => "SUCCESS", "data" => []];
+        }
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'view_files', 'file_management', 'Viewed file list');
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage(), "data" => []];
+    }
+    echo json_encode($result);
+    
+}else if($call == 20){
+    // Get file categories
+    try {
+        $entityManager = new EntityManager();
+        $categories = $entityManager::getAllFileCategories();
+        $result = ["status" => "SUCCESS", "data" => $categories];
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 21){
+    // Upload file
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'create')) {
+            throw new Exception("Permission denied: You cannot upload files");
+        }
+        
+        // Handle file upload
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception("File upload error");
+        }
+        
+        $fileManager = new FileManager();
+        
+        // Prepare file data
+        $fileData = [
+            'file' => $_FILES['file'],
+            'category_id' => $_POST['category_id'] ?? null,
+            'file_title' => $_POST['file_title'] ?? null,
+            'description' => $_POST['description'] ?? null,
+            'uploaded_by' => $userId
+        ];
+        
+        $result = $fileManager->uploadFile($fileData);
+        
+        // Log activity
+        if ($result['status'] === 'SUCCESS') {
+            SubadminPermission::logActivity($userId, 'upload_file', 'file_management', 'Uploaded file: ' . $_FILES['file']['name']);
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 22){
+    // Update file information
+    $data = $_POST['DATA'] ?? [];
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'edit')) {
+            throw new Exception("Permission denied: You cannot edit files");
+        }
+        
+        if (empty($data['file_id'])) {
+            throw new Exception("File ID is required");
+        }
+        
+        $fileManager = new FileManager();
+        $result = $fileManager->updateMemberFileInfo($data);
+        
+        // Log activity
+        if ($result['status'] === 'SUCCESS') {
+            SubadminPermission::logActivity($userId, 'update_file', 'file_management', 'Updated file ID: ' . $data['file_id']);
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 23){
+    // Get file details
+    $data = $_POST['DATA'] ?? [];
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        if (empty($data['file_id'])) {
+            throw new Exception("File ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT fu.*, fc.file_category as category_name, 
+                  CONCAT(p.fname, ' ', p.lname) as uploaded_by_name
+                  FROM file_upload_tbl fu
+                  LEFT JOIN file_category_tbl fc ON fu.category_id = fc.file_category_id
+                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  WHERE fu.file_upload_id = :file_id";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([':file_id' => $data['file_id']]);
+        $fileDetails = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($fileDetails) {
+            $result = ["status" => "SUCCESS", "data" => $fileDetails];
+        } else {
+            $result = ["status" => "ERROR", "msg" => "File not found"];
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 24){
+    // Delete file
+    $data = $_POST['DATA'] ?? [];
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'delete')) {
+            throw new Exception("Permission denied: You cannot delete files");
+        }
+        
+        if (empty($data['file_id']) || empty($data['reason'])) {
+            throw new Exception("File ID and reason are required");
+        }
+        
+        $fileManager = new FileManager();
+        $result = $fileManager->deleteFile($data['file_id'], $userId, $data['reason']);
+        
+        // Log activity
+        if ($result['status'] === 'SUCCESS') {
+            SubadminPermission::logActivity($userId, 'delete_file', 'file_management', 'Deleted file ID: ' . $data['file_id'] . ' - Reason: ' . $data['reason']);
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
+}
+
+// Handle file download (GET request)
+if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        $fileId = $_GET['file_id'];
+        $db = Database::getInstance()->getConnection();
+        
+        $query = "SELECT * FROM file_upload_tbl WHERE file_upload_id = :file_id";
+        $stmt = $db->prepare($query);
+        $stmt->execute([':file_id' => $fileId]);
+        $file = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$file) {
+            throw new Exception("File not found");
+        }
+        
+        $filePath = '../' . $file['file_path'];
+        
+        if (!file_exists($filePath)) {
+            throw new Exception("File does not exist on server");
+        }
+        
+        // Log download activity
+        SubadminPermission::logActivity($userId, 'download_file', 'file_management', 'Downloaded file: ' . $file['file_name']);
+        
+        // Set headers for download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $file['file_name'] . '"');
+        header('Content-Length: ' . filesize($filePath));
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        
+        // Output file
+        readfile($filePath);
+        exit;
+        
+    } catch(Exception $e) {
+        echo "Download error: " . $e->getMessage();
+        exit;
+    }
 }
 ?>
             

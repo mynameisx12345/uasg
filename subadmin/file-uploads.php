@@ -1,0 +1,379 @@
+<?php
+require_once("../resources/session.php");
+
+// Require subadmin role
+$session = SessionManager::getInstance();
+$session->requireRole(['Adviser', 'adviser', 'Subadmin', 'subadmin']);
+
+$currentUser = $session->getUserData();
+$userId = $currentUser['user_id'];
+
+// Check if user has permission to view file uploads
+require_once("../resources/objects/permission_class.php");
+$canView = SubadminPermission::hasPermission($userId, 'file_management', 'view');
+$canCreate = SubadminPermission::hasPermission($userId, 'file_management', 'create');
+$canEdit = SubadminPermission::hasPermission($userId, 'file_management', 'edit');
+$canDelete = SubadminPermission::hasPermission($userId, 'file_management', 'delete');
+
+if (!$canView) {
+    header("Location: dashboard.php");
+    exit;
+}
+?>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Uploads - UASG Subadmin</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="UASG Subadmin - File Upload Management">
+  <meta name="theme-color" content="#2196F3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="UASG Subadmin">
+  <meta name="msapplication-TileColor" content="#2196F3">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="../manifest.json">
+  
+  <!-- Favicon and Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="../resources/icons/icon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../resources/icons/icon-16x16.png">
+  <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
+  
+  <link rel="stylesheet" href="../resources/style.css">
+  <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+  <script src='../js/all.js'></script>
+  <script src='../js/jquery.js'></script>
+  <script src='../js/datatable.js'></script>
+  
+  <style>
+    .permission-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
+    .badge-view { background: #e3f2fd; color: #1976d2; }
+    .badge-create { background: #e8f5e9; color: #388e3c; }
+    .badge-edit { background: #fff3e0; color: #f57c00; }
+    .badge-delete { background: #ffebee; color: #d32f2f; }
+    
+    .file-preview {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    
+    .upload-area {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .upload-area:hover {
+      border-color: #2196F3;
+      background: #f5f5f5;
+    }
+    
+    .upload-area.dragging {
+      border-color: #2196F3;
+      background: #e3f2fd;
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <?php require_once("header.php");?>
+  <header class="topbar">
+    <h1>File Upload Management</h1>
+    <div class="user-info">
+      <span>Welcome, <?= htmlspecialchars($currentUser['full_name']) ?></span>
+      <div class="permission-badges">
+        <?php if ($canView): ?>
+          <span class="permission-badge badge-view">View</span>
+        <?php endif; ?>
+        <?php if ($canCreate): ?>
+          <span class="permission-badge badge-create">Create</span>
+        <?php endif; ?>
+        <?php if ($canEdit): ?>
+          <span class="permission-badge badge-edit">Edit</span>
+        <?php endif; ?>
+        <?php if ($canDelete): ?>
+          <span class="permission-badge badge-delete">Delete</span>
+        <?php endif; ?>
+      </div>
+    </div>
+  </header>
+  
+  <!-- MAIN -->
+  <main class="main">
+    <!-- SIDEBAR -->
+    <?php require_once("sidebar.php");?>
+
+    <!-- CONTENT -->
+    <section class="content">
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab-link active" data-tab="file-list">File List</button>
+        <?php if ($canCreate): ?>
+        <button class="tab-link" data-tab="upload-files">Upload Files</button>
+        <?php endif; ?>
+      </div>
+
+      <!-- TAB CONTENT: FILE LIST -->
+      <div class="tab-content active" id="file-list">
+        <div class="card">
+          <h2>Uploaded Files</h2>
+          
+          <!-- Filters -->
+          <div class="compact-form">
+            <h3>Filter Files</h3>
+            <div class="form-columns">
+              <div class="form-column">
+                <div class="form-section">
+                  <div class="form-row">
+                    <label for="filterCategory">Category:</label>
+                    <select id="filterCategory" class="form-control">
+                      <option value="">All Categories</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label for="filterDateFrom">Date From:</label>
+                    <input type="date" id="filterDateFrom" class="form-control">
+                  </div>
+                </div>
+              </div>
+              <div class="form-column">
+                <div class="form-section">
+                  <div class="form-row">
+                    <label for="filterDateTo">Date To:</label>
+                    <input type="date" id="filterDateTo" class="form-control">
+                  </div>
+                  <div class="form-row">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn-primary" onclick="applyFileFilters()">Apply Filters</button>
+                    <button type="button" class="btn-secondary" onclick="clearFileFilters()">Clear</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <br/>
+          
+          <!-- Files Table -->
+          <div class="table-container">
+            <table class='data-table' id='filesTable'>
+              <thead>
+                <tr>
+                  <th>File ID</th>
+                  <th>File Name</th>
+                  <th>Category</th>
+                  <th>File Type</th>
+                  <th>File Size</th>
+                  <th>Uploaded By</th>
+                  <th>Upload Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB CONTENT: UPLOAD FILES -->
+      <?php if ($canCreate): ?>
+      <div class="tab-content" id="upload-files">
+        <div class="card">
+          <h2>Upload Files</h2>
+          
+          <!-- Upload Form -->
+          <div class="compact-form">
+            <form id="uploadForm" enctype="multipart/form-data">
+              <div class="form-columns">
+                <div class="form-column">
+                  <div class="form-section">
+                    <h4>File Information</h4>
+                    <div class="form-row">
+                      <label for="uploadCategory">Category: *</label>
+                      <select id="uploadCategory" name="category_id" class="form-control" required>
+                        <option value="">Select Category</option>
+                      </select>
+                    </div>
+                    <div class="form-row">
+                      <label for="uploadTitle">File Title:</label>
+                      <input type="text" id="uploadTitle" name="file_title" class="form-control" placeholder="Optional: Custom file title">
+                    </div>
+                    <div class="form-row">
+                      <label for="uploadDescription">Description:</label>
+                      <textarea id="uploadDescription" name="description" class="form-control" rows="3" placeholder="Optional: File description"></textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-column">
+                  <div class="form-section">
+                    <h4>File Upload</h4>
+                    <div class="form-row">
+                      <label>Select File: *</label>
+                      <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" name="file" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" required>
+                        <p>📁 Click or drag file here to upload</p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG</p>
+                        <p style="font-size: 12px; color: #666;">Max size: 10MB</p>
+                      </div>
+                      <div id="filePreview" style="display: none;">
+                        <p><strong>Selected file:</strong> <span id="fileName"></span></p>
+                        <p><strong>Size:</strong> <span id="fileSize"></span></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                  <i class="fa fa-upload"></i> Upload File
+                </button>
+                <button type="reset" class="btn-secondary" onclick="resetUploadForm()">
+                  <i class="fa fa-times"></i> Clear
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+    </section>
+  </main>
+
+  <!-- MODALS -->
+  
+  <!-- Edit File Modal -->
+  <?php if ($canEdit): ?>
+  <div id="editFileModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit File Information</h2>
+        <span class="close" onclick="closeEditModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="editFileForm">
+          <input type="hidden" id="editFileId" name="file_id">
+          
+          <div class="form-row">
+            <label for="editFileTitle">File Title:</label>
+            <input type="text" id="editFileTitle" name="file_title" class="form-control">
+          </div>
+          
+          <div class="form-row">
+            <label for="editFileCategory">Category:</label>
+            <select id="editFileCategory" name="category_id" class="form-control">
+              <option value="">Select Category</option>
+            </select>
+          </div>
+          
+          <div class="form-row">
+            <label for="editFileDescription">Description:</label>
+            <textarea id="editFileDescription" name="description" class="form-control" rows="4"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Save Changes</button>
+            <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+  
+  <!-- View File Modal -->
+  <div id="viewFileModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>File Details</h2>
+        <span class="close" onclick="closeViewModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="fileDetails"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" onclick="downloadFile()">Download</button>
+        <button type="button" class="btn-secondary" onclick="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete Confirmation Modal -->
+  <?php if ($canDelete): ?>
+  <div id="deleteFileModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Confirm Deletion</h2>
+        <span class="close" onclick="closeDeleteModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this file?</p>
+        <p><strong>File:</strong> <span id="deleteFileName"></span></p>
+        
+        <div class="form-row">
+          <label for="deleteReason">Reason for deletion: *</label>
+          <textarea id="deleteReason" class="form-control" rows="3" placeholder="Please provide a reason for deleting this file" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-danger" onclick="confirmDelete()">Delete File</button>
+        <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <script>
+    // Pass PHP permissions to JavaScript
+    window.userPermissions = {
+      canView: <?= $canView ? 'true' : 'false' ?>,
+      canCreate: <?= $canCreate ? 'true' : 'false' ?>,
+      canEdit: <?= $canEdit ? 'true' : 'false' ?>,
+      canDelete: <?= $canDelete ? 'true' : 'false' ?>,
+      userId: <?= $userId ?>
+    };
+    
+    // Initialize current user data
+    window.currentUser = <?= json_encode($currentUser) ?>;
+    
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        $.ajax({
+          url: '../auth.php',
+          type: 'POST',
+          data: { action: 'logout' },
+          dataType: 'json',
+          success: function(response) {
+            window.location.href = '../login.php';
+          },
+          error: function() {
+            window.location.href = '../login.php';
+          }
+        });
+      }
+    }
+  </script>
+
+  <script src="js/file-uploads.js"></script>
+  
+  <!-- PWA Scripts -->
+  <script src="../js/pwa-helper.js"></script>
+</body>
+</html>

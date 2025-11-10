@@ -32,7 +32,7 @@
         <!-- TABS -->
         <div class="tabs">
           <button class="tab-link active" data-tab="admins">Administrators</button>
-          <button class="tab-link" data-tab="advisers">UASG Advisers</button>
+          <button class="tab-link" data-tab="subadmins">Subadmins</button>
           <button class="tab-link" data-tab="students">Student Members</button>
         </div>
 

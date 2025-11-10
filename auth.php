@@ -205,7 +205,7 @@ function getRedirectUrl($userType) {
         case 'admin':
             return 'admin/index.php';
         case 'adviser':
-            return 'adviser/index.php';
+            return 'subadmin/index.php';
         case 'member':
             return 'member/index.php';
         default:

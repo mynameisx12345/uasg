@@ -2,7 +2,7 @@
   "name": "UASG File Manager",
   "short_name": "UASG",
   "description": "University Student Government File Management System",
-  "start_url": "/uasg/",
+  "start_url": "/uasg/index.php",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196F3",
