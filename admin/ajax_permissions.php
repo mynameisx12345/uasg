@@ -1,23 +1,26 @@
-	
-	// CALL 39: Get Permission Definitions
-	else if($call == 39) {
-		try {
-			$groupedPermissions = PermissionDefinition::getGroupedByCategory();
-			
-			$result = [
-				"status" => "SUCCESS",
-				"data" => $groupedPermissions,
-				"msg" => "Permission definitions retrieved successfully"
-			];
-			
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
+<?php
+// Permission Management AJAX Endpoints
+// This file is included by ajax.php
+
+// CALL 39: Get Permission Definitions
+if($call == 39) {
+	try {
+		$groupedPermissions = PermissionDefinition::getGroupedByCategory();
+		
+		$result = [
+			"status" => "SUCCESS",
+			"data" => $groupedPermissions,
+			"msg" => "Permission definitions retrieved successfully"
+		];
+		
+	} catch(Exception $e) {
+		$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 	}
-	
-	// CALL 40: Get Subadmin Permissions
-	else if($call == 40) {
+	echo json_encode($result);
+}
+
+// CALL 40: Get Subadmin Permissions
+else if($call == 40) {
 		try {
 			$data = $_POST['DATA'] ?? [];
 			$userId = intval($data['USER_ID'] ?? 0);

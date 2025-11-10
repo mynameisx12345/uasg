@@ -1,13 +1,41 @@
 <?php
 	// Prevent any output before JSON
+	error_reporting(E_ALL);
+	ini_set('display_errors', 0); // Don't display errors in output
+	ini_set('log_errors', 1); // Log errors instead
+	
+	// Prevent caching of AJAX responses
+	header("Cache-Control: no-cache, no-store, must-revalidate");
+	header("Pragma: no-cache");
+	header("Expires: 0");
+	
 	ob_start();
 	
 	session_start();
 	require_once("../resources/objects/db_config.php");
 	require_once("../resources/objects/main_class.php");
 	
-	// Clear any previous output and set headers
-	ob_clean();
+	// Check if this is a download request (GET allowed for downloads)
+	if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL']) && $_GET['CALL'] === 'download') {
+		// Handle file download
+		ob_end_clean(); // Clear and disable buffer
+		
+		$fileId = $_GET['file_id'] ?? 0;
+		
+		try {
+			$fileManager = new FileManager();
+			$fileManager->downloadFile($fileId);
+			exit; // downloadFile handles headers and output
+		} catch(Exception $e) {
+			header("Content-Type: application/json");
+			echo json_encode(["status" => "ERROR", "msg" => "Download failed: " . $e->getMessage()]);
+			exit;
+		}
+	}
+	
+	// Clear any previous output and set headers for normal AJAX
+	ob_end_clean();
+	ob_start(); // Start fresh buffer
 	header("Content-Type: application/json"); // always return JSON
 
 	if(!(isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')) {
@@ -254,9 +282,10 @@
 		
 		try {
 			$fileManager = new FileManager();
-			$result["data"] = $fileManager->getAllFiles($user_id);
+			$files = $fileManager->getAllFiles($user_id);
+			$result = ["data" => $files ?: []];
 		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+			$result = ["data" => [], "status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
 	}else if($call == 15){
@@ -266,14 +295,26 @@
 		
 		try {
 			$fileManager = new FileManager();
-			$result["data"] = $fileManager->getFilesByCategory($category_id, $user_id);
+			$files = $fileManager->getFilesByCategory($category_id, $user_id);
+			$result = ["data" => $files ?: []];
 		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+			$result = ["data" => [], "status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
 	}else if($call == 16){
 		// Upload file
-		$data = $_POST['DATA'] ?? [];
+		// Handle both old DATA format and new FormData format
+		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+			// New FormData upload
+			$data = [
+				'file_category_id' => $_POST['file_category_id'] ?? 0,
+				'uploaded_by' => $_POST['uploaded_by'] ?? ($_SESSION['user_id'] ?? 0),
+				'file' => $_FILES['file']
+			];
+		} else {
+			// Old DATA format
+			$data = $_POST['DATA'] ?? [];
+		}
 		
 		try {
 			$fileManager = new FileManager();
@@ -319,9 +360,10 @@
 		// Get file permissions
 		try {
 			$fileManager = new FileManager();
-			$result["data"] = $fileManager->getFilePermissions();
+			$permissions = $fileManager->getFilePermissions();
+			$result = ["data" => $permissions ?: []];
 		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+			$result = ["data" => [], "status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
 	}else if($call == 21){

@@ -25,15 +25,29 @@ class UASGPWAHelper {
                 const registration = await navigator.serviceWorker.register(swPath);
                 console.log('UASG PWA: Service Worker registered successfully:', registration);
                 
+                // Check for updates immediately
+                registration.update();
+                
                 // Handle service worker updates
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
+                    console.log('UASG PWA: New service worker found, installing...');
+                    
                     newWorker.addEventListener('statechange', () => {
+                        console.log('UASG PWA: Service worker state changed to:', newWorker.state);
+                        
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New service worker available
+                            console.log('UASG PWA: New version available!');
                             this.showUpdateNotification();
                         }
                     });
                 });
+                
+                // Check for updates every 60 seconds
+                setInterval(() => {
+                    registration.update();
+                }, 60000);
             } catch (error) {
                 console.error('UASG PWA: Service Worker registration failed:', error);
             }
@@ -206,12 +220,101 @@ class UASGPWAHelper {
     }
     
     showUpdateNotification() {
-        if (confirm('A new version of UASG is available. Update now?')) {
-            if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-            }
+        // Create a more prominent update banner
+        const existingBanner = document.getElementById('pwa-update-banner');
+        if (existingBanner) {
+            existingBanner.remove();
         }
+        
+        const banner = document.createElement('div');
+        banner.id = 'pwa-update-banner';
+        banner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            animation: slideDown 0.3s ease-out;
+        `;
+        
+        banner.innerHTML = `
+            <style>
+                @keyframes slideDown {
+                    from { transform: translateY(-100%); }
+                    to { transform: translateY(0); }
+                }
+            </style>
+            <span style="flex: 1; text-align: center;">
+                <strong>🎉 New version available!</strong> 
+                <span style="display: block; font-size: 12px; margin-top: 3px; opacity: 0.9;">
+                    Click "Update Now" to get the latest features
+                </span>
+            </span>
+            <button onclick="window.uasgPWA.applyUpdate()" style="
+                background: white;
+                color: #667eea;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.3s;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                Update Now
+            </button>
+            <button onclick="this.parentElement.remove()" style="
+                background: transparent;
+                color: white;
+                border: 1px solid white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+            ">
+                Later
+            </button>
+        `;
+        
+        document.body.insertBefore(banner, document.body.firstChild);
+        
+        // Auto-update after 10 seconds if user doesn't respond
+        setTimeout(() => {
+            if (document.getElementById('pwa-update-banner')) {
+                console.log('UASG PWA: Auto-updating after 10 seconds...');
+                this.applyUpdate();
+            }
+        }, 10000);
+    }
+    
+    applyUpdate() {
+        console.log('UASG PWA: Applying update...');
+        
+        // Remove banner
+        const banner = document.getElementById('pwa-update-banner');
+        if (banner) {
+            banner.remove();
+        }
+        
+        // Tell service worker to skip waiting
+        if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+        }
+        
+        // Listen for the controlling service worker to change
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('UASG PWA: Controller changed, reloading page...');
+            window.location.reload();
+        });
     }
     
     async showNotification(title, body, options = {}) {
