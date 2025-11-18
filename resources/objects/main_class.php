@@ -1,6 +1,7 @@
 <?php
 	require_once("db_config.php");
 	require_once("permission_class.php");
+	require_once("google_nlp_service.php");
 
 	class Main{
 		protected $table;
@@ -322,7 +323,7 @@
         		];
         		
         		// TODO: Implement actual Google Drive API integration
-        		/*
+        	 /*
         		$client = new Google_Client();
         		$client->setClientId('your-client-id');
         		$client->setClientSecret('your-client-secret');
@@ -1427,48 +1428,91 @@
 			$this->db = Database::getInstance();
 		}
 
-		// Base file upload functionality
-		public function uploadFile($data) {
-			// Validate required fields
-			$required = ['file_category_id', 'mime_type', 'file_name', 'drive_id', 'uploaded_by'];
-			foreach($required as $field) {
-				if(empty($data[$field])) {
-					throw new Exception("Missing required field: $field");
-				}
-			}
-
-			// Check if user has permission to upload to this category
-			if(!$this->checkUploadPermission($data['uploaded_by'], $data['file_category_id'])) {
-				throw new Exception("You do not have permission to upload to this file category");
-			}
-
-			$connection = $this->db->getConnection();
-			$connection->beginTransaction();
-
-			try {
-				$fileUpload = new FileUpload([
-					'file_category_id' => $data['file_category_id'],
-					'mime_type' => $data['mime_type'],
-					'file_name' => $data['file_name'],
-					'drive_id' => $data['drive_id'],
-					'datetime_uploaded' => date('Y-m-d H:i:s'),
-					'uploaded_by' => $data['uploaded_by']
-				]);
-
-				if(!$fileUpload->insert()) {
-					throw new Exception("Failed to save file record");
-				}
-
-				$connection->commit();
-				return ['status' => 'SUCCESS', 'message' => 'File uploaded successfully'];
-
-			} catch(Exception $e) {
-				$connection->rollback();
-				throw $e;
-			}
+	// Base file upload functionality with Google NLP auto-categorization
+	public function uploadFile($data) {
+		// Handle file upload from $_FILES
+		if (!isset($data['file']) && !isset($_FILES['file'])) {
+			throw new Exception("No file provided");
 		}
-
-		// Member-specific file operations
+		
+		$file = $data['file'] ?? $_FILES['file'];
+		$uploadedBy = $data['uploaded_by'] ?? ($data['user_id'] ?? 0);
+		$categoryId = $data['file_category_id'] ?? $data['category_id'] ?? null; // Optional - NLP will auto-detect
+		
+		// Validate file upload
+		if ($file['error'] !== UPLOAD_ERR_OK) {
+			throw new Exception("File upload error: " . $file['error']);
+		}
+		
+		// Validate file size (10MB max)
+		$maxSize = 10 * 1024 * 1024;
+		if ($file['size'] > $maxSize) {
+			throw new Exception("File size exceeds 10MB limit");
+		}
+		
+		// Create upload directory
+		$uploadDir = __DIR__ . '/../../uploads/files/';
+		if (!file_exists($uploadDir)) {
+			mkdir($uploadDir, 0777, true);
+		}
+		
+		// Generate unique filename
+		$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+		$uniqueFileName = uniqid() . '_' . time() . '.' . $extension;
+		$uploadPath = $uploadDir . $uniqueFileName;
+		
+		// Move uploaded file
+		if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
+			throw new Exception("Failed to move uploaded file");
+		}
+		
+		$connection = $this->db->getConnection();
+		$connection->beginTransaction();
+		
+		try {
+			// Insert file record (category can be null - will be set by NLP)
+			$stmt = $connection->prepare("
+				INSERT INTO file_upload_tbl (
+					file_category_id, 
+					mime_type, 
+					file_name, 
+					file_path,
+					file_size,
+					datetime_uploaded, 
+					uploaded_by
+				) VALUES (?, ?, ?, ?, ?, NOW(), ?)
+			");
+			
+			$stmt->execute([
+				$categoryId,
+				$file['type'],
+				$file['name'],
+				$uploadPath,
+				$file['size'],
+				$uploadedBy
+			]);
+			
+			$fileId = $connection->lastInsertId();
+			
+			$connection->commit();
+			
+			// Return success with file ID for NLP analysis
+			return [
+				'status' => 'SUCCESS', 
+				'message' => 'File uploaded successfully',
+				'msg' => 'File uploaded successfully',
+				'file_id' => $fileId
+			];
+			
+		} catch(Exception $e) {
+			$connection->rollback();
+			// Clean up uploaded file on database error
+			if (file_exists($uploadPath)) {
+				unlink($uploadPath);
+			}
+			throw $e;
+		}
+	}		// Member-specific file operations
 		public function uploadMemberFile($data) {
 			// Handle file upload with intelligent categorization
 			if (!isset($_FILES['file'])) {
@@ -1524,13 +1568,222 @@
 				]);
 
 				if ($result) {
-					return ['status' => 'SUCCESS', 'msg' => 'File uploaded successfully'];
+					// Get the inserted file ID
+					$fileId = $this->db->getConnection()->lastInsertId();
+					
+					// Perform NLP analysis if file type is supported
+					$this->performNLPAnalysis($fileId, $uploadPath, $file['type']);
+					
+					return ['status' => 'SUCCESS', 'msg' => 'File uploaded successfully', 'file_id' => $fileId];
 				} else {
 					unlink($uploadPath);
 					return ['status' => 'ERROR', 'msg' => 'Failed to save file information'];
 				}
 			} else {
 				return ['status' => 'ERROR', 'msg' => 'Failed to upload file'];
+			}
+		}
+		
+		/**
+		 * Perform NLP analysis on uploaded file using Google Cloud Natural Language API
+		 * @param int $fileId - Database ID of the uploaded file
+		 * @param string $filePath - Path to the uploaded file
+		 * @param string $mimeType - MIME type of the file
+		 * @return void
+		 */
+		private function performNLPAnalysis($fileId, $filePath, $mimeType) {
+			try {
+				// Load configuration
+				$configFile = __DIR__ . '/../../config/google_nlp_config.php';
+				if (!file_exists($configFile)) {
+					return; // Skip if config not found
+				}
+				
+				$config = include($configFile);
+				
+				// Check if NLP is enabled
+				if (!($config['enabled'] ?? false)) {
+					return;
+				}
+				
+				// Check if file type is supported
+				if (!in_array($mimeType, $config['supported_mime_types'] ?? [])) {
+					return;
+				}
+				
+				// Check file size
+				$fileSize = filesize($filePath);
+				if ($fileSize > ($config['max_file_size'] ?? 10485760)) {
+					return; // Skip if file too large
+				}
+				
+				// Initialize Google NLP service
+				$nlpService = new GoogleNLPService($config['api_key']);
+				
+				// Get available categories with keywords for matching
+				$categories = $this->getFileCategoriesWithKeywords();
+				
+				if (empty($categories)) {
+					return; // No categories available
+				}
+				
+				// Perform analysis
+				$startTime = microtime(true);
+				$analysisResult = $nlpService->analyzeFileAndSuggestCategory($filePath, $mimeType, $categories);
+				$processingTime = round((microtime(true) - $startTime) * 1000); // in milliseconds
+				
+				if ($analysisResult['success']) {
+					// Store analysis results in database
+					$this->storeNLPAnalysis($fileId, $analysisResult, $processingTime);
+					
+					// Update file category if auto-categorization is enabled and confidence is high enough
+					$minConfidence = $config['min_confidence'] ?? 30;
+					if (($config['auto_categorization'] ?? false) && 
+					    !empty($analysisResult['suggested_category_id']) &&
+					    $analysisResult['confidence'] >= $minConfidence) {
+						$this->updateFileCategory($fileId, $analysisResult['suggested_category_id']);
+					}
+					// Always update category_tag and category_score in file_upload_tbl
+					$categoryTag = $analysisResult['suggested_category_name'] ?? null;
+					$categoryScore = $analysisResult['confidence'] ?? null;
+					if ($categoryTag !== null && $categoryScore !== null) {
+						$stmt = $this->db->getConnection()->prepare("UPDATE file_upload_tbl SET category_tag = ?, category_score = ? WHERE file_upload_id = ?");
+						$stmt->execute([$categoryTag, $categoryScore, $fileId]);
+					}
+				}
+				
+			} catch (Exception $e) {
+				// Log error but don't fail the upload
+				error_log('NLP Analysis Error: ' . $e->getMessage());
+			}
+		}
+		
+		/**
+		 * Store NLP analysis results in database
+		 */
+		private function storeNLPAnalysis($fileId, $analysisResult, $processingTime) {
+			try {
+				$stmt = $this->db->getConnection()->prepare("
+					INSERT INTO file_nlp_analysis_tbl (
+						file_upload_id,
+						extracted_text,
+						word_count,
+						suggested_category,
+						category_confidence,
+						keywords,
+						entities,
+						full_analysis,
+						processing_time_ms
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				");
+				
+				$extractedText = '';
+				if (isset($analysisResult['text_extraction']['text'])) {
+					$extractedText = substr($analysisResult['text_extraction']['text'], 0, 65535);
+				}
+				
+				$wordCount = 0;
+				if (!empty($extractedText)) {
+					$wordCount = str_word_count($extractedText);
+				}
+				
+				$entities = [];
+				if (isset($analysisResult['entities']['entities'])) {
+					$entities = $analysisResult['entities']['entities'];
+				}
+				
+				$stmt->execute([
+					$fileId,
+					$extractedText,
+					$wordCount,
+					$analysisResult['suggested_category_name'] ?? null,
+					$analysisResult['confidence'] ?? 0,
+					json_encode($analysisResult['matched_keywords'] ?? []),
+					json_encode($entities),
+					json_encode($analysisResult),
+					$processingTime
+				]);
+				
+			} catch (Exception $e) {
+				error_log('Error storing NLP analysis: ' . $e->getMessage());
+			}
+		}
+		
+		/**
+		 * Get file categories with keywords for NLP classification
+		 */
+		private function getFileCategoriesWithKeywords() {
+			try {
+				$categories = $this->db->select("
+					SELECT 
+						fc.file_category_id,
+						fc.file_category,
+						GROUP_CONCAT(fck.keyword) as keywords
+					FROM file_category_tbl fc
+					LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
+					GROUP BY fc.file_category_id
+				");
+				
+				// Process keywords into arrays
+				foreach ($categories as &$category) {
+					if (!empty($category['keywords'])) {
+						$category['keywords'] = explode(',', $category['keywords']);
+					} else {
+						$category['keywords'] = [];
+					}
+				}
+				
+				return $categories;
+			} catch (Exception $e) {
+				error_log('Error getting categories with keywords: ' . $e->getMessage());
+				return [];
+			}
+		}
+		
+		/**
+		 * Update file category based on NLP suggestion
+		 */
+		private function updateFileCategory($fileId, $categoryId) {
+			try {
+				$stmt = $this->db->getConnection()->prepare("
+					UPDATE file_upload_tbl 
+					SET file_category_id = ? 
+					WHERE file_upload_id = ?
+				");
+				
+				$stmt->execute([$categoryId, $fileId]);
+			} catch (Exception $e) {
+				error_log('Error updating file category: ' . $e->getMessage());
+			}
+		}
+		
+		/**
+		 * Get NLP analysis for a file
+		 * @param int $fileId - File upload ID
+		 * @return array|null
+		 */
+		public function getNLPAnalysis($fileId) {
+			try {
+				$result = $this->db->select(
+					"SELECT * FROM file_nlp_analysis_tbl WHERE file_upload_id = ?",
+					[$fileId]
+				);
+				
+				if (!empty($result)) {
+					$analysis = $result[0];
+					
+					// Decode JSON fields
+					$analysis['keywords'] = json_decode($analysis['keywords'], true);
+					$analysis['entities'] = json_decode($analysis['entities'], true);
+					$analysis['full_analysis'] = json_decode($analysis['full_analysis'], true);
+					
+					return $analysis;
+				}
+				
+				return null;
+			} catch (Exception $e) {
+				error_log('Error getting NLP analysis: ' . $e->getMessage());
+				return null;
 			}
 		}
 

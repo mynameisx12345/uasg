@@ -349,12 +349,12 @@
 		}
 		echo json_encode($result);
 	}else if($call == 16){
-		// Upload file
+		// Upload file with Google NLP auto-categorization
 		// Handle both old DATA format and new FormData format
 		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
 			// New FormData upload
 			$data = [
-				'file_category_id' => $_POST['file_category_id'] ?? 0,
+				'file_category_id' => $_POST['file_category_id'] ?? null, // Optional - NLP will auto-detect
 				'uploaded_by' => $_POST['uploaded_by'] ?? ($_SESSION['user_id'] ?? 0),
 				'file' => $_FILES['file']
 			];
@@ -365,29 +365,28 @@
 		
 		try {
 			$fileManager = new FileManager();
-			$result = $fileManager->uploadFile($data);
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => "Failed to upload file: " . $e->getMessage()];
-		}
-		echo json_encode($result);
-	}else if($call == 16){
-		// Upload file
-		// Handle both old DATA format and new FormData format
-		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-			// New FormData upload
-			$data = [
-				'file_category_id' => $_POST['file_category_id'] ?? 0,
-				'uploaded_by' => $_POST['uploaded_by'] ?? ($_SESSION['user_id'] ?? 0),
-				'file' => $_FILES['file']
-			];
-		} else {
-			// Old DATA format
-			$data = $_POST['DATA'] ?? [];
-		}
-		
-		try {
-			$fileManager = new FileManager();
-			$result = $fileManager->uploadFile($data);
+			$uploadResult = $fileManager->uploadFile($data);
+			
+			// If upload successful and file ID returned, run NLP analysis
+			if($uploadResult['status'] === 'SUCCESS' && isset($uploadResult['file_id'])) {
+				$fileId = $uploadResult['file_id'];
+				
+				// Perform NLP analysis to auto-categorize
+				$nlpResult = $fileManager->performNLPAnalysis($fileId);
+				
+				// Add NLP info to response
+				if($nlpResult['status'] === 'SUCCESS') {
+					$uploadResult['nlp_analysis'] = [
+						'category' => $nlpResult['suggested_category'] ?? 'Uncategorized',
+						'confidence' => $nlpResult['confidence'] ?? 0,
+						'auto_assigned' => $nlpResult['auto_assigned'] ?? false
+					];
+					$uploadResult['msg'] = $uploadResult['msg'] . ' File auto-categorized with ' . 
+						round($nlpResult['confidence'] ?? 0, 1) . '% confidence.';
+				}
+			}
+			
+			$result = $uploadResult;
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => "Failed to upload file: " . $e->getMessage()];
 		}
@@ -1320,6 +1319,22 @@
 			}
 			
 			echo json_encode(["status" => "SUCCESS", "data" => $settings]);
+		} catch(Exception $e) {
+			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
+		}
+	}else if($call == 62){
+		// Get NLP analysis for a file
+		$fileId = $_POST['file_id'] ?? 0;
+		
+		try {
+			$fileManager = new FileManager();
+			$analysis = $fileManager->getNLPAnalysis($fileId);
+			
+			if ($analysis) {
+				echo json_encode(["status" => "SUCCESS", "data" => $analysis]);
+			} else {
+				echo json_encode(["status" => "ERROR", "msg" => "No NLP analysis found for this file"]);
+			}
 		} catch(Exception $e) {
 			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
 		}

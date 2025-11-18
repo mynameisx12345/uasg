@@ -192,13 +192,13 @@ $(document).ready(function(){
                     });
                     $('#filterCategory').html(filterOptions);
                     
-                    // Populate upload dropdown
-                    let uploadOptions = '<option value="">Select Category</option>';
+                    // Populate edit dropdown (category can be changed manually after upload)
+                    let editOptions = '<option value="">Select Category</option>';
                     categories.forEach(cat => {
-                        uploadOptions += '<option value="' + cat.file_category_id + '">' + 
+                        editOptions += '<option value="' + cat.file_category_id + '">' + 
                                        escapeHtml(cat.file_category) + '</option>';
                     });
-                    $('#uploadCategory, #editFileCategory').html(uploadOptions);
+                    $('#editFileCategory').html(editOptions);
                 }
             },
             error: function(xhr, status, error) {
@@ -237,17 +237,20 @@ $(document).ready(function(){
             fileInput.addEventListener('change', (e) => {
                 if (e.target.files.length > 0) {
                     displayFilePreview(e.target.files[0]);
+                    // Show NLP preview
+                    $('#nlpPreview').show();
                 }
             });
         }
         
-        // Upload form submission
+        // Upload form submission with Google NLP auto-categorization
         $('#uploadForm').on('submit', function(e) {
             e.preventDefault();
             
             const formData = new FormData(this);
             formData.append('CALL', 21); // Upload file call
             formData.append('uploaded_by', window.userPermissions.userId);
+            // No category_id - NLP will auto-categorize
             
             // Validate file size (10MB max)
             const file = fileInput.files[0];
@@ -263,11 +266,23 @@ $(document).ready(function(){
                 processData: false,
                 contentType: false,
                 beforeSend: function() {
-                    $('button[type="submit"]').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Uploading...');
+                    $('button[type="submit"]').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Uploading & Analyzing...');
                 },
                 success: function(response) {
                     if (response.status === 'SUCCESS') {
-                        alert('File uploaded successfully!');
+                        let message = 'File uploaded successfully!';
+                        
+                        // Show NLP analysis results if available
+                        if (response.nlp_analysis) {
+                            message += '\n\n🤖 Auto-categorized as: ' + response.nlp_analysis.category +
+                                      '\n📊 Confidence: ' + response.nlp_analysis.confidence.toFixed(1) + '%';
+                            
+                            if (response.nlp_analysis.auto_assigned) {
+                                message += '\n✅ Category automatically assigned';
+                            }
+                        }
+                        
+                        alert(message);
                         resetUploadForm();
                         filesTable.ajax.reload();
                         
@@ -481,8 +496,11 @@ $(document).ready(function(){
     window.resetUploadForm = function() {
         $('#uploadForm')[0].reset();
         $('#filePreview').hide();
+        $('#nlpPreview').hide();
         $('#fileName').text('');
         $('#fileSize').text('');
+        $('#suggestedCategory').text('Will be detected on upload');
+        $('#categoryConfidence').text('TBD');
     };
     
     // Modal functions

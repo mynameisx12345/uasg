@@ -184,6 +184,8 @@ if (!$canView) {
                   <th>Uploaded By</th>
                   <th>Upload Date</th>
                   <th>Actions</th>
+                    <th>NLP Category</th>
+                    <th>NLP Score</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -205,11 +207,9 @@ if (!$canView) {
                 <div class="form-column">
                   <div class="form-section">
                     <h4>File Information</h4>
-                    <div class="form-row">
-                      <label for="uploadCategory">Category: *</label>
-                      <select id="uploadCategory" name="category_id" class="form-control" required>
-                        <option value="">Select Category</option>
-                      </select>
+                    <div class="alert alert-info" style="margin-bottom: 15px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                      <strong>🤖 Auto-Categorization Enabled</strong>
+                      <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
                     </div>
                     <div class="form-row">
                       <label for="uploadTitle">File Title:</label>
@@ -219,6 +219,20 @@ if (!$canView) {
                       <label for="uploadDescription">Description:</label>
                       <textarea id="uploadDescription" name="description" class="form-control" rows="3" placeholder="Optional: File description"></textarea>
                     </div>
+                    <!-- NLP Preview -->
+                    <div id="nlpPreview" style="display: none; margin-top: 15px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+                      <h5 style="margin: 0 0 10px 0; font-size: 14px; color: #555;">📊 Classification Preview</h5>
+                      <div style="font-size: 13px;">
+                        <div style="margin: 5px 0;">
+                          <strong>Suggested Category:</strong> 
+                          <span id="suggestedCategory" style="color: #2196F3;">Will be detected on upload</span>
+                        </div>
+                        <div style="margin: 5px 0;">
+                          <strong>Confidence:</strong> 
+                          <span id="categoryConfidence">TBD</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="form-column">
@@ -227,9 +241,9 @@ if (!$canView) {
                     <div class="form-row">
                       <label>Select File: *</label>
                       <div class="upload-area" id="uploadArea">
-                        <input type="file" id="fileInput" name="file" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" required>
+                        <input type="file" id="fileInput" name="file" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
                         <p>📁 Click or drag file here to upload</p>
-                        <p style="font-size: 12px; color: #666; margin-top: 10px;">Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG</p>
+                        <p style="font-size: 12px; color: #666; margin-top: 10px;">Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, HTML, RTF</p>
                         <p style="font-size: 12px; color: #666;">Max size: 10MB</p>
                       </div>
                       <div id="filePreview" style="display: none;">

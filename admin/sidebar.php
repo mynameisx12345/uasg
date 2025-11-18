@@ -8,6 +8,6 @@
     <li><a href="members-management.php">👥 Members</a></li>
     <li><a href="reports-page.php">📊 Reports & Analytics</a></li>
     <li><a href="account-security.php">🔒 Account Security</a></li>
-    <li><a href="#">🚪 Logout</a></li>
+    <li><a href="logout.php" onclick="return confirm('Are you sure you want to logout?');" style="color: #e74c3c;">🚪 Logout</a></li>
   </ul>
 </aside>

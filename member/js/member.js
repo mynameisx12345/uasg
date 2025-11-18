@@ -265,13 +265,8 @@ function uploadFile() {
     const taskAssociation = $('#taskAssociation').val();
     const detectedCategory = $('#uploadFile').data('detectedCategory');
     
-    // Use manual category if selected, otherwise use detected category
-    const categoryId = manualCategory || detectedCategory;
-    
-    if (!categoryId) {
-        showAlert('Unable to determine file category. Please select manually.', 'error');
-        return;
-    }
+    // Use manual category if selected, otherwise use detected category (both optional - NLP will auto-detect)
+    const categoryId = manualCategory || detectedCategory || null;
     
     // Show upload progress
     showUploadProgress();
@@ -279,9 +274,12 @@ function uploadFile() {
     // Create FormData
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('CALL', 3); // Upload file
+    formData.append('CALL', 3); // Upload file with NLP auto-categorization
     formData.append('description', description);
-    formData.append('category_id', categoryId);
+    if (categoryId) {
+        formData.append('category_id', categoryId);
+    }
+    // If no category_id, NLP will automatically categorize
     if (taskAssociation) {
         formData.append('task_id', taskAssociation);
     }
@@ -307,7 +305,19 @@ function uploadFile() {
             hideUploadProgress();
             
             if (response.status === 'SUCCESS') {
-                showAlert(response.msg, 'success');
+                let message = response.msg;
+                
+                // Show NLP analysis results if available
+                if (response.nlp_analysis) {
+                    message += '\n\n🤖 Auto-categorized as: ' + response.nlp_analysis.category +
+                              '\n📊 Confidence: ' + response.nlp_analysis.confidence.toFixed(1) + '%';
+                    
+                    if (response.nlp_analysis.auto_assigned) {
+                        message += '\n✅ Category automatically assigned';
+                    }
+                }
+                
+                showAlert(message, 'success');
                 resetUploadForm();
                 loadDashboardStats();
                 loadRecentActivity();

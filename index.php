@@ -19,6 +19,12 @@
             <div class="github-login-form">
                 <h2>Sign in to your account</h2>
                 
+                <?php if (isset($_GET['logout']) && $_GET['logout'] === 'success'): ?>
+                <div class="github-success-message" style="background: #dff0d8; border: 1px solid #d6e9c6; color: #3c763d; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 14px;">
+                    ✓ You have been successfully logged out.
+                </div>
+                <?php endif; ?>
+                
                 <form id="loginForm">
                     <div class="form-group">
                         <label for="username">Username</label>
