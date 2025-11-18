@@ -53,7 +53,7 @@
     </ul>
     
     <div class="sidebar-footer">
-      <a href="#" class="logout-link" onclick="logout(); return false;">
+      <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?');">
         <span class="nav-icon">🚪</span>
         <span class="nav-text">Logout</span>
       </a>

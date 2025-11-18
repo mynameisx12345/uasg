@@ -250,6 +250,8 @@ $currentUser = $session->getUserData();
                   <th>Uploaded</th>
                   <th>Task Association</th>
                   <th>Actions</th>
+                    <th>NLP Category</th>
+                    <th>NLP Score</th>
                 </tr>
               </thead>
               <tbody></tbody>

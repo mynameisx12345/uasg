@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 18, 2025 at 03:49 AM
+-- Generation Time: Nov 18, 2025 at 07:41 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `file_category_key_tbl` (
   `keyword` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`file_category_key_id`),
   KEY `file_category_id` (`file_category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_category_key_tbl`
@@ -65,7 +65,16 @@ INSERT INTO `file_category_key_tbl` (`file_category_key_id`, `file_category_id`,
 (6, 2, 'change'),
 (7, 2, 'constitution'),
 (8, 2, 'bylaw'),
-(9, 4, 'dear');
+(9, 4, 'dear'),
+(10, 1, 'resolution'),
+(11, 1, 'motion'),
+(12, 1, 'whereas'),
+(13, 1, 'vote'),
+(14, 1, 'council'),
+(15, 2, 'minutes'),
+(16, 2, 'meeting'),
+(17, 2, 'attendance'),
+(18, 2, 'agenda');
 
 -- --------------------------------------------------------
 
@@ -93,6 +102,31 @@ INSERT INTO `file_category_tbl` (`file_category_id`, `file_category`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `file_nlp_analysis_tbl`
+--
+
+DROP TABLE IF EXISTS `file_nlp_analysis_tbl`;
+CREATE TABLE IF NOT EXISTS `file_nlp_analysis_tbl` (
+  `analysis_id` int NOT NULL AUTO_INCREMENT,
+  `file_upload_id` int NOT NULL,
+  `extracted_text` longtext COLLATE utf8mb4_unicode_ci,
+  `word_count` int DEFAULT '0',
+  `suggested_category` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `category_confidence` decimal(5,2) DEFAULT NULL COMMENT 'Confidence score 0-100',
+  `keywords` json DEFAULT NULL COMMENT 'Keywords that matched from file_category_key_tbl',
+  `entities` json DEFAULT NULL COMMENT 'Entities extracted by Google NLP API',
+  `full_analysis` json DEFAULT NULL COMMENT 'Complete analysis result from NLP service',
+  `processing_time_ms` int DEFAULT NULL,
+  `analyzed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`analysis_id`),
+  KEY `idx_file_upload` (`file_upload_id`),
+  KEY `idx_suggested_category` (`suggested_category`),
+  KEY `idx_analyzed_at` (`analyzed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Stores NLP analysis results from Google Cloud Natural Language API';
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `file_permission_tbl`
 --
 
@@ -116,8 +150,11 @@ DROP TABLE IF EXISTS `file_upload_tbl`;
 CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   `file_upload_id` int NOT NULL AUTO_INCREMENT,
   `file_category_id` int NOT NULL,
+  `category_tag` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `category_score` decimal(5,2) DEFAULT NULL,
   `mime_type` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `file_name` text COLLATE utf8mb4_general_ci NOT NULL,
+  `file_path` text COLLATE utf8mb4_general_ci,
   `drive_id` text COLLATE utf8mb4_general_ci NOT NULL,
   `datetime_uploaded` datetime NOT NULL,
   `uploaded_by` int NOT NULL,
@@ -341,6 +378,27 @@ CREATE TABLE IF NOT EXISTS `task_tbl` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `user_security_tbl`
+--
+
+DROP TABLE IF EXISTS `user_security_tbl`;
+CREATE TABLE IF NOT EXISTS `user_security_tbl` (
+  `security_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `question1` varchar(255) DEFAULT NULL,
+  `answer1` varchar(255) DEFAULT NULL,
+  `question2` varchar(255) DEFAULT NULL,
+  `answer2` varchar(255) DEFAULT NULL,
+  `recovery_email` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`security_id`),
+  UNIQUE KEY `unique_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `user_tbl`
 --
 
@@ -377,6 +435,12 @@ INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `pro
 --
 ALTER TABLE `file_category_key_tbl`
   ADD CONSTRAINT `file_category_key_tbl_ibfk_1` FOREIGN KEY (`file_category_id`) REFERENCES `file_category_tbl` (`file_category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `file_nlp_analysis_tbl`
+--
+ALTER TABLE `file_nlp_analysis_tbl`
+  ADD CONSTRAINT `file_nlp_analysis_tbl_ibfk_1` FOREIGN KEY (`file_upload_id`) REFERENCES `file_upload_tbl` (`file_upload_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `file_permission_tbl`
@@ -422,6 +486,12 @@ ALTER TABLE `task_submission_tbl`
 --
 ALTER TABLE `task_tbl`
   ADD CONSTRAINT `task_tbl_ibfk_1` FOREIGN KEY (`task_category_id`) REFERENCES `task_category_tbl` (`task_category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `user_security_tbl`
+--
+ALTER TABLE `user_security_tbl`
+  ADD CONSTRAINT `user_security_tbl_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `user_tbl`

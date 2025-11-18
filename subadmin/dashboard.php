@@ -99,6 +99,8 @@ $currentUser = $session->getUserData();
                   <th>Action</th>
                   <th>Task</th>
                   <th>Status</th>
+                    <th>NLP Category</th>
+                    <th>NLP Score</th>
                 </tr>
               </thead>
               <tbody></tbody>

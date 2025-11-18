@@ -122,16 +122,12 @@ header("Expires: 0");
                   <div class="form-row">
                     <div class="form-group">
                       <label for="uploadFile">Select File</label>
-                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png" required>
+                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
                     </div>
                   </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="uploadCategory">File Category</label>
-                      <select id="uploadCategory" required>
-                        <option value="">Select Category</option>
-                      </select>
-                    </div>
+                  <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                    <strong>🤖 Auto-Categorization Enabled</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
                   </div>
                 </div>
               </div>
@@ -151,6 +147,20 @@ header("Expires: 0");
                     <div class="form-group">
                       <label for="fileSize">File Size</label>
                       <input type="text" id="fileSize" placeholder="Auto-detected" readonly>
+                    </div>
+                  </div>
+                  <!-- NLP Preview Section -->
+                  <div id="nlpPreview" style="display: none; margin-top: 15px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+                    <h5 style="margin: 0 0 10px 0; font-size: 14px; color: #555;">📊 Classification Preview</h5>
+                    <div style="font-size: 13px;">
+                      <div style="margin: 5px 0;">
+                        <strong>Suggested Category:</strong> 
+                        <span id="suggestedCategory" style="color: #2196F3;">Analyzing...</span>
+                      </div>
+                      <div style="margin: 5px 0;">
+                        <strong>Confidence:</strong> 
+                        <span id="categoryConfidence">-</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -319,9 +329,9 @@ header("Expires: 0");
     // Clear upload form
     function clearUploadForm() {
       document.getElementById('uploadFile').value = '';
-      document.getElementById('uploadCategory').value = '';
       document.getElementById('fileName').value = '';
       document.getElementById('fileSize').value = '';
+      document.getElementById('nlpPreview').style.display = 'none';
     }
 
     // Tab switcher
@@ -344,6 +354,11 @@ header("Expires: 0");
       if(file) {
         document.getElementById('fileName').value = file.name;
         document.getElementById('fileSize').value = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        
+        // Show NLP preview placeholder
+        document.getElementById('nlpPreview').style.display = 'block';
+        document.getElementById('suggestedCategory').textContent = 'Will be detected on upload';
+        document.getElementById('categoryConfidence').textContent = 'TBD';
       }
     });
   </script>
@@ -373,17 +388,14 @@ header("Expires: 0");
             console.log('Categories loaded:', result);
             if(result.data) {
               let options = '<option value="">All Categories</option>';
-              let uploadOptions = '<option value="">Select Category</option>';
               let permOptions = '<option value="">Select Category</option>';
               
               result.data.forEach(category => {
                 options += `<option value="${category.file_category_id}">${category.file_category}</option>`;
-                uploadOptions += `<option value="${category.file_category_id}">${category.file_category}</option>`;
                 permOptions += `<option value="${category.file_category_id}">${category.file_category}</option>`;
               });
               
               $('#categoryFilter').html(options);
-              $('#uploadCategory').html(uploadOptions);
               $('#permissionCategory').html(permOptions);
               $('#totalCategories').val(result.data.length);
             }
@@ -645,15 +657,9 @@ header("Expires: 0");
       // File upload
       $('#uploadBtn').click(function() {
         const fileInput = document.getElementById('uploadFile');
-        const categoryId = $('#uploadCategory').val();
         
         if(!fileInput.files[0]) {
           openModal("ERROR", "Please select a file to upload");
-          return;
-        }
-        
-        if(!categoryId) {
-          openModal("ERROR", "Please select a file category");
           return;
         }
 
@@ -663,31 +669,37 @@ header("Expires: 0");
         const formData = new FormData();
         formData.append('CALL', 16);
         formData.append('file', file);
-        formData.append('file_category_id', categoryId);
         formData.append('uploaded_by', currentUserId);
+        // No category_id - NLP will auto-categorize
 
         $.ajax({
           url: 'ajax.php',
           type: 'POST',
           data: formData,
-          processData: false,  // Don't process the data
-          contentType: false,  // Don't set content type (let browser set with boundary)
+          processData: false,
+          contentType: false,
           dataType: 'json',
           beforeSend: function() {
             $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
           },
           success: function(result) {
-            openModal(result.status, result.message || result.msg);
             if(result.status === "SUCCESS") {
+              let message = result.msg || result.message;
+              if(result.nlp_analysis) {
+                message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.category || '-') +
+                           '\nConfidence: ' + (result.nlp_analysis.confidence ? result.nlp_analysis.confidence.toFixed(1) + '%' : '-');
+              }
+              openModal(result.status, message);
               clearUploadForm();
               filesTable.ajax.reload();
-              // Switch to files tab
               $('.tab-link[data-tab="files"]').click();
+            } else {
+              openModal(result.status, result.message || result.msg);
             }
           },
           error: function(xhr, status, error) {
             console.error('Upload error:', xhr.responseText);
-            openModal("ERROR", "Upload failed. Please try again.");
+            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
           },
           complete: function() {
             $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
