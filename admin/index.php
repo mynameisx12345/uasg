@@ -5,22 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard - UASG</title>
   
-  <!-- PWA Meta Tags -->
-  <meta name="description" content="UASG Admin Dashboard - System Administration and Management">
-  <meta name="theme-color" content="#2196F3">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="UASG Admin">
-  <meta name="msapplication-TileColor" content="#2196F3">
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="../manifest.json">
-  
-  <!-- Favicon and Icons -->
-  <link rel="icon" type="image/png" sizes="32x32" href="../resources/icons/icon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="../resources/icons/icon-16x16.png">
-  <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
-  
   <link rel="stylesheet" href="../resources/style.css">
 </head>
 <body>

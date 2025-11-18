@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UASG - Sign in</title>
     
-    <!-- Favicon and Icons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="resources/icons/icon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="resources/icons/icon-16x16.png">
-    
-    <!-- Stylesheets -->
     <link rel="stylesheet" href="resources/style.css">
     <script src="js/jquery.js"></script>
 </head>
