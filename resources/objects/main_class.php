@@ -567,9 +567,15 @@
 					'user_type' => $data['user_type']
 				]);
 
-				if($user->insert()) {
+				$user_id = $user->insertAndGetId();
+				if($user_id) {
+					// Handle sub-admin role if provided
+					if($data['user_type'] === 'subadmin' && !empty($data['subadmin_role'])) {
+						$this->setSubadminRole($user_id, $data['subadmin_role']);
+					}
+
 					$connection->commit();
-					return ['success' => true, 'message' => 'User created successfully'];
+					return $user_id; // Return user ID for permission setting
 				} else {
 					throw new Exception("Failed to create user");
 				}
@@ -651,6 +657,11 @@
 
 				$user = new User($userData);
 				if($user->update('user_id', $data['user_id'])) {
+					// Handle sub-admin role if provided
+					if($data['user_type'] === 'subadmin' && !empty($data['subadmin_role'])) {
+						$this->setSubadminRole($data['user_id'], $data['subadmin_role']);
+					}
+
 					$connection->commit();
 					return ['success' => true, 'message' => 'User updated successfully'];
 				} else {
@@ -663,9 +674,16 @@
 			}
 		}
 
-		public function deleteUser($data) {
-			if(empty($data['user_id']) || empty(trim($data['reason']))) {
-				throw new Exception("Missing required fields");
+		public function deleteUser($user_id, $user_type = '', $reason = 'Administrative deletion') {
+			// Handle both old array format and new parameter format
+			if(is_array($user_id)) {
+				$data = $user_id;
+				$user_id = $data['user_id'] ?? 0;
+				$reason = $data['reason'] ?? 'Administrative deletion';
+			}
+
+			if(empty($user_id)) {
+				throw new Exception("User ID is required");
 			}
 
 			$connection = $this->db->getConnection();
@@ -677,7 +695,7 @@
 						  JOIN profile_tbl p ON u.profile_id = p.profile_id 
 						  WHERE u.user_id = :user_id";
 				$stmt = $connection->prepare($query);
-				$stmt->execute([':user_id' => $data['user_id']]);
+				$stmt->execute([':user_id' => $user_id]);
 				$userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
 				if(!$userData) {
@@ -687,7 +705,7 @@
 				// Log deletion
 				$deleteLog = new Delete([
 					'data' => json_encode($userData),
-					'reason' => trim($data['reason']),
+					'reason' => trim($reason),
 					'table' => 'user_tbl',
 					'datetime' => date('Y-m-d H:i:s')
 				]);
@@ -696,9 +714,27 @@
 					throw new Exception("Failed to log deletion");
 				}
 
+				// Delete permissions first if they exist
+				try {
+					$query = "DELETE FROM subadmin_permissions_tbl WHERE user_id = :user_id";
+					$stmt = $connection->prepare($query);
+					$stmt->execute([':user_id' => $user_id]);
+				} catch(Exception $e) {
+					// Table might not exist, continue
+				}
+
+				// Delete sub-admin role if exists
+				try {
+					$query = "DELETE FROM subadmin_roles_tbl WHERE user_id = :user_id";
+					$stmt = $connection->prepare($query);
+					$stmt->execute([':user_id' => $user_id]);
+				} catch(Exception $e) {
+					// Table might not exist, continue
+				}
+
 				// Delete user (this will cascade delete profile due to foreign key constraints)
 				$user = new User();
-				if($user->delete('user_id', $data['user_id'])) {
+				if($user->delete('user_id', $user_id)) {
 					$connection->commit();
 					return ['success' => true, 'message' => 'User deleted successfully'];
 				} else {
@@ -730,6 +766,115 @@
 
 			} catch(Exception $e) {
 				throw $e;
+			}
+		}
+
+		public function setSubadminRole($user_id, $role) {
+			if(empty($user_id) || empty($role)) {
+				return false;
+			}
+
+			try {
+				$connection = $this->db->getConnection();
+				
+				// Check if role already exists, update or insert
+				$query = "INSERT INTO subadmin_roles_tbl (user_id, role) VALUES (:user_id, :role) 
+						  ON DUPLICATE KEY UPDATE role = :role2";
+				$stmt = $connection->prepare($query);
+				return $stmt->execute([
+					':user_id' => $user_id,
+					':role' => $role,
+					':role2' => $role
+				]);
+			} catch(Exception $e) {
+				// If table doesn't exist, we'll just store it in user_tbl for now
+				$connection = $this->db->getConnection();
+				$query = "UPDATE user_tbl SET user_type = :user_type WHERE user_id = :user_id";
+				$stmt = $connection->prepare($query);
+				return $stmt->execute([
+					':user_type' => 'subadmin',
+					':user_id' => $user_id
+				]);
+			}
+		}
+
+		public function getSubadminRole($user_id) {
+			try {
+				$connection = $this->db->getConnection();
+				$query = "SELECT role FROM subadmin_roles_tbl WHERE user_id = :user_id";
+				$stmt = $connection->prepare($query);
+				$stmt->execute([':user_id' => $user_id]);
+				$result = $stmt->fetch(PDO::FETCH_ASSOC);
+				return $result ? $result['role'] : null;
+			} catch(Exception $e) {
+				return null;
+			}
+		}
+
+		public function setUserPermissions($user_id, $permissions) {
+			if(empty($user_id) || empty($permissions)) {
+				return false;
+			}
+
+			try {
+				$connection = $this->db->getConnection();
+				$connection->beginTransaction();
+
+				// Delete existing permissions
+				$query = "DELETE FROM subadmin_permissions_tbl WHERE user_id = :user_id";
+				$stmt = $connection->prepare($query);
+				$stmt->execute([':user_id' => $user_id]);
+
+				// Insert new permissions
+				foreach($permissions as $module => $perms) {
+					$query = "INSERT INTO subadmin_permissions_tbl 
+							  (user_id, permission_key, permission_name, can_view, can_create, can_edit, can_delete) 
+							  VALUES (:user_id, :permission_key, :permission_name, :can_view, :can_create, :can_edit, :can_delete)";
+					$stmt = $connection->prepare($query);
+					$stmt->execute([
+						':user_id' => $user_id,
+						':permission_key' => $module,
+						':permission_name' => ucwords(str_replace('_', ' ', $module)),
+						':can_view' => isset($perms['view']) ? 1 : 0,
+						':can_create' => isset($perms['create']) ? 1 : 0,
+						':can_edit' => isset($perms['edit']) ? 1 : 0,
+						':can_delete' => isset($perms['delete']) ? 1 : 0
+					]);
+				}
+
+				$connection->commit();
+				return true;
+			} catch(Exception $e) {
+				$connection->rollback();
+				throw new Exception("Failed to set permissions: " . $e->getMessage());
+			}
+		}
+
+		public function getUserPermissions($user_id) {
+			try {
+				$query = "SELECT * FROM subadmin_permissions_tbl WHERE user_id = :user_id";
+				return $this->db->select($query, [':user_id' => $user_id]);
+			} catch(Exception $e) {
+				return [];
+			}
+		}
+
+		public function getUsersByTypeWithRoles($userType) {
+			try {
+				if($userType === 'subadmin') {
+					$query = "SELECT u.*, p.*, sr.role as subadmin_role 
+							  FROM user_tbl u 
+							  JOIN profile_tbl p ON u.profile_id = p.profile_id 
+							  LEFT JOIN subadmin_roles_tbl sr ON u.user_id = sr.user_id
+							  WHERE u.user_type = :user_type";
+				} else {
+					$query = "SELECT u.*, p.* FROM user_tbl u 
+							  JOIN profile_tbl p ON u.profile_id = p.profile_id 
+							  WHERE u.user_type = :user_type";
+				}
+				return $this->db->select($query, [':user_type' => $userType]);
+			} catch (Exception $e) {
+				throw new Exception("Failed to get users: " . $e->getMessage());
 			}
 		}
 	}

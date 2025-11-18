@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 10, 2025 at 07:43 AM
+-- Generation Time: Nov 18, 2025 at 03:49 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -162,7 +162,7 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (18, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:02'),
 (19, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:05'),
 (20, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:05'),
-(21, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-09 07:25:10');
+(44, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-18 00:41:05');
 
 -- --------------------------------------------------------
 
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS `position_tbl` (
   `position` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `access_restriction` int DEFAULT '1',
   PRIMARY KEY (`position_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `position_tbl`
@@ -208,7 +208,11 @@ INSERT INTO `position_tbl` (`position_id`, `position`, `access_restriction`) VAL
 (1, 'Adviser', 2),
 (2, 'Student Government Member', 1),
 (3, 'System Administrator', 3),
-(4, 'Guest User', 0);
+(4, 'Guest User', 0),
+(5, 'Adviser', 2),
+(6, 'President', 2),
+(7, 'Vice-President', 2),
+(8, 'Secretary', 2);
 
 -- --------------------------------------------------------
 
@@ -259,6 +263,24 @@ CREATE TABLE IF NOT EXISTS `subadmin_permissions_tbl` (
   UNIQUE KEY `unique_user_permission` (`user_id`,`permission_key`),
   KEY `user_id` (`user_id`),
   KEY `permission_key` (`permission_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `subadmin_roles_tbl`
+--
+
+DROP TABLE IF EXISTS `subadmin_roles_tbl`;
+CREATE TABLE IF NOT EXISTS `subadmin_roles_tbl` (
+  `role_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `role` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`role_id`),
+  UNIQUE KEY `unique_user_role` (`user_id`),
+  KEY `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -331,6 +353,9 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
   `profile_id` int NOT NULL,
   `user_type` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `auth_token` varchar(250) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1=active, 0=deactivated',
+  `deactivated_at` datetime DEFAULT NULL COMMENT 'When the user was deactivated',
+  `deactivation_reason` text COLLATE utf8mb4_general_ci COMMENT 'Reason for deactivation',
   PRIMARY KEY (`user_id`),
   KEY `position_id` (`position_id`),
   KEY `profile_id` (`profile_id`)
@@ -340,8 +365,8 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 -- Dumping data for table `user_tbl`
 --
 
-INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`) VALUES
-(4, 'admin', '$2y$10$oDB5bY0WJheUhZFZO9jo/uACNilbIOv3C6jxl9fbRvd8BXAbZI/Qi', 3, 4, 'admin', '48ceec3a9b735d45f3868fa8c630b74cc99f1029e98533809820fa1c5ed5e7e0');
+INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '109aec84f88eec8a3a36fd826f610bbb5790bb9816e84bc6bb3c06b412f9c954', 1, NULL, NULL);
 
 --
 -- Constraints for dumped tables
@@ -378,6 +403,12 @@ ALTER TABLE `notifications_tbl`
 --
 ALTER TABLE `subadmin_permissions_tbl`
   ADD CONSTRAINT `fk_subadmin_permissions_user` FOREIGN KEY (`user_id`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `subadmin_roles_tbl`
+--
+ALTER TABLE `subadmin_roles_tbl`
+  ADD CONSTRAINT `fk_subadmin_roles_user` FOREIGN KEY (`user_id`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `task_submission_tbl`
