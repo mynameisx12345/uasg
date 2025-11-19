@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 18, 2025 at 07:41 AM
+-- Generation Time: Nov 19, 2025 at 12:49 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -149,19 +149,27 @@ CREATE TABLE IF NOT EXISTS `file_permission_tbl` (
 DROP TABLE IF EXISTS `file_upload_tbl`;
 CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   `file_upload_id` int NOT NULL AUTO_INCREMENT,
-  `file_category_id` int NOT NULL,
+  `file_category_id` int DEFAULT NULL,
   `category_tag` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `category_score` decimal(5,2) DEFAULT NULL,
   `mime_type` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   `file_name` text COLLATE utf8mb4_general_ci NOT NULL,
   `file_path` text COLLATE utf8mb4_general_ci,
+  `file_size` int UNSIGNED NOT NULL DEFAULT '0',
   `drive_id` text COLLATE utf8mb4_general_ci NOT NULL,
   `datetime_uploaded` datetime NOT NULL,
   `uploaded_by` int NOT NULL,
   PRIMARY KEY (`file_upload_id`),
   KEY `file_category_id` (`file_category_id`),
   KEY `uploaded_by` (`uploaded_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `file_upload_tbl`
+--
+
+INSERT INTO `file_upload_tbl` (`file_upload_id`, `file_category_id`, `category_tag`, `category_score`, `mime_type`, `file_name`, `file_path`, `file_size`, `drive_id`, `datetime_uploaded`, `uploaded_by`) VALUES
+(1, NULL, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'TEST DOCUMENT.docx', 'C:\\wamp64\\www\\uasg\\resources\\objects/../../uploads/files/691c2aac24ec6_1763453612.docx', 13728, '', '2025-11-18 16:13:32', 4);
 
 -- --------------------------------------------------------
 

@@ -306,6 +306,15 @@ header("Expires: 0");
         </div>
       </div>
     </div>
+    <div id='loadingModal' class='modal'>
+      <div class='modal-content modal-content-small'>
+        <h2>Processing...</h2>
+        <div style='text-align: center; margin: 20px 0;'>
+          <i class='fas fa-spinner fa-spin' style='font-size: 48px; color: #2196F3;'></i>
+        </div>
+        <p style='text-align: center;'>Please wait while we process your request.</p>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -324,6 +333,14 @@ header("Expires: 0");
 
     function openViewFileModal() {
       document.getElementById("viewFileModal").style.display = "flex";
+    }
+
+    function openLoadModal(){
+      document.getElementById('loadingModal').style.display = 'flex';
+    }
+
+    function closeLoadModal(){
+      document.getElementById('loadingModal').style.display = 'none';
     }
 
     // Clear upload form
@@ -364,17 +381,16 @@ header("Expires: 0");
   </script>
 
   <?php require_once("modal.php");?>
-
   <script>
-    $(document).ready(function(){
-      let filesTable;
-      let permissionsTable;
-      const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
+  $(document).ready(function(){
+    let filesTable;
+    let permissionsTable;
+    const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
 
-      console.log('Current User ID:', currentUserId);
+    console.log('Current User ID:', currentUserId);
 
-      // Initialize dropdowns
-      function loadDropdowns() {
+    // Initialize dropdowns
+    function loadDropdowns() {
         // Load file categories
         $.ajax({
           url: 'ajax.php',
@@ -430,95 +446,179 @@ header("Expires: 0");
         });
       }
 
-      // DataTable initialization for files
-      function initFilesTable(){
-        filesTable = $("#filesTable").DataTable({
-          ajax:{
-            url:'ajax.php',
-            type:'post',
-            data:{
-              CALL: 14, // Get all files
-              USER_ID: currentUserId
-            },
-            dataType:'json',
-            dataSrc: 'data', // Tell DataTables where to find the array
-            beforeSend: function(xhr) {
-              // Ensure AJAX header is set
-              xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            },
-            error: function(xhr, error, code) {
-              console.error('AJAX Error:', error);
-              console.error('Status Code:', code);
-              console.error('Response Text:', xhr.responseText);
-              alert('Error loading files. Check console for details.');
+      let nlpSuggestedCategory = null;
+      let nlpCategoryConfidence = null;
+      let nlpAnalysisData = null;
+
+      $('#uploadFile').on("change",function() {
+        const fileInput = document.getElementById('uploadFile');
+        if(!fileInput.files[0]) {
+          openModal("ERROR", "Please select a file to upload");
+          return;
+        }
+        const file = fileInput.files[0];
+        // Step 1: Request NLP analysis
+        const formData = new FormData();
+        formData.append('CALL', 'nlp_analyze');
+        formData.append('file', file);
+        openLoadModal();
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          beforeSend: function() {
+            $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Analyzing...');
+          },
+          success: function(result) {
+            if(result.status === "SUCCESS") {
+              nlpSuggestedCategory = result.category;
+              nlpCategoryConfidence = result.nlp_analysis['confidence'];
+              nlpAnalysisData = result.nlp_analysis;
+              // Show NLP preview and ask for confirmation
+              $('#nlpPreview').show();
+              $('#suggestedCategory').text(nlpSuggestedCategory || 'Uncategorized');
+              $('#categoryConfidence').text(nlpCategoryConfidence ? nlpCategoryConfidence + '%' : 'N/A');
+              // Show confirmation dialog
+              //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
+            } else {
+              openModal("ERROR", "NLP analysis failed. Please try again.\n" + (result.message || result.msg));
             }
           },
-          responsive: true,
-          scroll: '50vh',
-          scrollCollapse: true, 
-          paging: true,
-          columns: [
-            { data: "file_upload_id" },
-            { data: "file_name" },
-            { data: "file_category", defaultContent: "Uncategorized" },
-            { data: "mime_type", defaultContent: "Unknown" },
-            { 
-              data: null,
-              render: function(data, type, row) {
-                const fname = row.fname || '';
-                const lname = row.lname || '';
-                return fname && lname ? `${fname} ${lname}` : 'Unknown';
-              }
-            },
-            { 
-              data: "datetime_uploaded",
-              render: function(data) {
-                if(!data) return 'N/A';
-                return new Date(data).toLocaleDateString();
-              }
-            },
-            { 
-              data: 'file_upload_id',
-              orderable: false,
-              render: function(data, type, row) {
-                return `
-                  <button class="btn-secondary viewBtn" data-id="${data}" title="View/Download">
-                    <i class="fas fa-eye"></i> View
-                  </button>
-                  <button class="btn-primary deleteFileBtn" data-id="${data}" data-name="${escapeHtml(row.file_name)}" title="Delete File">
-                    <i class="fas fa-trash"></i> Delete
-                  </button>
-                `;
-              }
-            }
-          ],
-          columnDefs: [
-            { targets: 0, visible: false, searchable: false }
-          ],
-          language: {
-            emptyTable: "No files uploaded yet",
-            loadingRecords: "Loading files..."
+          error: function(xhr, status, error) {
+            console.error('NLP error:', xhr.responseText);
+            openModal("ERROR", "NLP analysis failed. Please try again.\n" + xhr.responseText);
           },
-          initComplete: function(settings, json) {
-            console.log('DataTable initialized with data:', json);
-            if(json && json.data) {
-              $('#totalFiles').val(json.data.length);
+          complete: function() {
+            closeLoadModal();
+            $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
+          }
+        });
+      });
+
+      // Confirmation dialog for upload
+      function confirmUploadWithCategory(file, suggestedCategory, confidence, analysisData) {
+        // Use a simple prompt for now; can be replaced with a modal for better UX
+        let userCategory = prompt(
+          `Suggested Category: ${suggestedCategory || 'Uncategorized'}\nConfidence: ${confidence || 'N/A'}%\n\nEnter category to use (or leave blank to accept suggestion):`,
+          suggestedCategory || ''
+        );
+        if(userCategory === null) {
+          // User cancelled
+          return;
+        }
+        // Step 2: Finalize upload with selected category
+        const formData = new FormData();
+        formData.append('CALL', 16); // Actual upload
+        formData.append('file', file);
+        formData.append('uploaded_by', currentUserId);
+        formData.append('category_tag', userCategory || suggestedCategory || 'Uncategorized');
+        formData.append('category_score', confidence || '0');
+        formData.append('nlp_analysis', JSON.stringify(analysisData));
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          beforeSend: function() {
+            $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+          },
+          success: function(result) {
+            let message = result.msg || result.message;
+            if(result.success === true) {
+              
+              if(result.nlp_result) {
+                message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.suggested_category || '-') +
+                           '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
+              }
+              //openModal(result.status, message);
+              //clearUploadForm();
+              filesTable.ajax.reload();
+              $('.tab-link[data-tab="files"]').click();
+            } else {
+              openModal("FAILED", message);
             }
+          },
+          error: function(xhr, status, error) {
+            console.error('Upload error:', xhr.responseText);
+            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+          },
+          complete: function() {
+            $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
           }
         });
       }
-      
-      // Helper function to escape HTML
-      function escapeHtml(text) {
-        if(!text) return '';
-        const map = {
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#039;'
-        };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+
+      //Datatable initialization for filesTable
+
+      function initFilesTable() {
+        filesTable = $("#filesTable").DataTable({
+            ajax: {
+                url: "ajax.php",
+                type: "POST",
+                data: {
+                    CALL: 14, // or 15 if you want filter applied
+                    USER_ID: currentUserId
+                },
+                dataType: "json",
+                dataSrc: "data",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                }
+            },
+            responsive: true,
+            scrollY: "50vh",
+            scrollCollapse: true,
+            paging: true,
+            columns: [
+                { data: "file_upload_id" },
+                { data: "file_name" },
+                { data: "file_category" },
+                { data: "mime_type" },
+                { 
+                    data: null,
+                    render: function(data) {
+                        return data.fname && data.lname ? data.fname + " " + data.lname : "Unknown";
+                    }
+                },
+                { 
+                    data: "datetime_uploaded",
+                    render: d => d ? new Date(d).toLocaleDateString() : "N/A"
+                },
+                {
+                    data: "file_upload_id",
+                    render: function(id, type, row) {
+                        return `
+                            <button class="btn-secondary viewBtn" data-id="${id}">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-primary deleteFileBtn" 
+                                    data-id="${id}" 
+                                    data-name="${row.file_name}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        `;
+                    }
+                }
+            ],
+            columnDefs: [{ targets: 0, visible: false }],
+            language: {
+                emptyTable: "No files found"
+            },
+            // Update total files after every AJAX load
+            initComplete: function(settings, json) {
+                $('#totalFiles').val(json.data ? json.data.length : 0);
+            }
+        });
+
+        // Also update total files on every reload (filter apply, refresh)
+        filesTable.on('xhr', function(e, settings, json, xhr) {
+            $('#totalFiles').val(json.data ? json.data.length : 0);
+        });
       }
 
       // DataTable initialization for permissions
@@ -578,81 +678,94 @@ header("Expires: 0");
       initPermissionsTable();
       loadDropdowns();
 
+      //escape html
+      function escapeHtml(text) {
+          if (!text) return '';
+          return text
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+      }
+
       // Apply filter
       $('#applyFilter').click(function() {
-        const categoryId = $('#categoryFilter').val();
-        
-        if(categoryId) {
-          filesTable.destroy();
-          filesTable = $("#filesTable").DataTable({
-            ajax:{
-              url:'ajax.php',
-              type:'post',
-              data:{
-                CALL: 15, // Get files by category
-                CATEGORY_ID: categoryId,
-                USER_ID: currentUserId
-              },
-              dataType:'json',
-              dataSrc: 'data',
-              beforeSend: function(xhr) {
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-              },
-              error: function(xhr, error, code) {
-                console.error('Filter AJAX Error:', error);
-                console.error('Response Text:', xhr.responseText);
-              }
-            },
-            responsive: true,
-            scroll: '50vh',
-            scrollCollapse: true, 
-            paging: true,
-            columns: [
-              { data: "file_upload_id" },
-              { data: "file_name" },
-              { data: "file_category", defaultContent: "Uncategorized" },
-              { data: "mime_type", defaultContent: "Unknown" },
-              { 
-                data: null,
-                render: function(data, type, row) {
-                  const fname = row.fname || '';
-                  const lname = row.lname || '';
-                  return fname && lname ? `${fname} ${lname}` : 'Unknown';
+        let categoryId = $('#categoryFilter').val();
+        categoryId = categoryId ? categoryId.trim() : '';
+
+        //if(categoryId !== '') {
+            // Filter by selected category
+            filesTable.destroy();
+            filesTable = $("#filesTable").DataTable({
+                ajax: {
+                    url: 'ajax.php',
+                    type: 'post',
+                    data: {
+                        CALL: 15,
+                        CATEGORY_ID: categoryId,
+                        USER_ID: currentUserId
+                    },
+                    dataType: 'json',
+                    dataSrc: 'data',
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    },
+                    error: function(xhr, error, code) {
+                        console.error('Filter AJAX Error:', error);
+                        console.error('Response Text:', xhr.responseText);
+                    }
+                },
+                responsive: true,
+                scrollY: '50vh',
+                scrollCollapse: true, 
+                paging: true,
+                columns: [
+                    { data: "file_upload_id" },
+                    { data: "file_name" },
+                    { data: "file_category", defaultContent: "Uncategorized" },
+                    { data: "mime_type", defaultContent: "Unknown" },
+                    { 
+                        data: null,
+                        render: function(data, type, row) {
+                            const fname = row.fname || '';
+                            const lname = row.lname || '';
+                            return fname && lname ? `${fname} ${lname}` : 'Unknown';
+                        }
+                    },
+                    { 
+                        data: "datetime_uploaded",
+                        render: function(data) {
+                            return data ? new Date(data).toLocaleDateString() : 'N/A';
+                        }
+                    },
+                    { 
+                        data: 'file_upload_id',
+                        orderable: false,
+                        render: function(data, type, row) {
+                            return `
+                                <button class="btn-secondary viewBtn" data-id="${data}" title="View/Download">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button class="btn-primary deleteFileBtn" data-id="${data}" data-name="${escapeHtml(row.file_name)}" title="Delete File">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            `;
+                        }
+                    }
+                ],
+                columnDefs: [
+                    { targets: 0, visible: false, searchable: false }
+                ],
+                language: {
+                    emptyTable: "No files found in this category"
                 }
-              },
-              { 
-                data: "datetime_uploaded",
-                render: function(data) {
-                  if(!data) return 'N/A';
-                  return new Date(data).toLocaleDateString();
-                }
-              },
-              { 
-                data: 'file_upload_id',
-                orderable: false,
-                render: function(data, type, row) {
-                  return `
-                    <button class="btn-secondary viewBtn" data-id="${data}" title="View/Download">
-                      <i class="fas fa-eye"></i> View
-                    </button>
-                    <button class="btn-primary deleteFileBtn" data-id="${data}" data-name="${escapeHtml(row.file_name)}" title="Delete File">
-                      <i class="fas fa-trash"></i> Delete
-                    </button>
-                  `;
-                }
-              }
-            ],
-            columnDefs: [
-              { targets: 0, visible: false, searchable: false }
-            ],
-            language: {
-              emptyTable: "No files found in this category"
-            }
-          });
-        } else {
-          filesTable.ajax.reload();
-        }
-      });
+            });
+        /*} else {
+            // No category selected → reload all
+            filesTable.ajax.reload();
+        }*/
+    });
 
       // File upload
       $('#uploadBtn').click(function() {
@@ -671,7 +784,7 @@ header("Expires: 0");
         formData.append('file', file);
         formData.append('uploaded_by', currentUserId);
         // No category_id - NLP will auto-categorize
-
+        openLoadModal();
         $.ajax({
           url: 'ajax.php',
           type: 'POST',
@@ -683,18 +796,18 @@ header("Expires: 0");
             $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
           },
           success: function(result) {
-            if(result.status === "SUCCESS") {
-              let message = result.msg || result.message;
-              if(result.nlp_analysis) {
-                message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.category || '-') +
-                           '\nConfidence: ' + (result.nlp_analysis.confidence ? result.nlp_analysis.confidence.toFixed(1) + '%' : '-');
+            let message = result.msg || result.message;
+            if(result.success === true) {
+              
+              if(result.nlp_result) {
+                message += '\n\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
+                           '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
               }
-              openModal(result.status, message);
-              clearUploadForm();
-              filesTable.ajax.reload();
+              //openModal(result.status, message);
+              //clearUploadForm();
               $('.tab-link[data-tab="files"]').click();
             } else {
-              openModal(result.status, result.message || result.msg);
+              openModal("FAILED", message);
             }
           },
           error: function(xhr, status, error) {
@@ -702,6 +815,8 @@ header("Expires: 0");
             openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
           },
           complete: function() {
+            closeLoadModal();
+            filesTable.ajax.reload();
             $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
           }
         });
@@ -894,7 +1009,7 @@ header("Expires: 0");
           }
         });
       });
-    });
+  });
   </script>
 </body>
 </html>

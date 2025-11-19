@@ -39,6 +39,37 @@ if(empty($_POST["CALL"])){
 $call = $_POST["CALL"];
 $result = [];
 
+// NLP analysis before upload (for preview)
+if($call === 'nlp_analyze') {
+    if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        try {
+            require_once '../resources/objects/nlp_helper.php'; // Helper for Google NLP
+            $nlp = new NLPHelper();
+            $file = $_FILES['file'];
+            $text = $nlp->extractTextFromFile($file['tmp_name'], $file['type']);
+            $analysis = $nlp->analyzeText($text);
+            $suggestedCategory = $analysis['suggested_category'] ?? 'Uncategorized';
+            $categoryConfidence = $analysis['category_confidence'] ?? 0;
+            $result = [
+                'status' => 'SUCCESS',
+                'nlp_analysis' => [
+                    'suggested_category' => $suggestedCategory,
+                    'category_confidence' => $categoryConfidence,
+                    'keywords' => $analysis['keywords'] ?? [],
+                    'entities' => $analysis['entities'] ?? [],
+                    'full_analysis' => $analysis
+                ]
+            ];
+        } catch(Exception $e) {
+            $result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
+        }
+    } else {
+        $result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
+    }
+    echo json_encode($result);
+    exit;
+}
+
 // Adviser AJAX Calls
 if($call == 1){
     // Get dashboard stats
@@ -349,65 +380,29 @@ if($call == 1){
     echo json_encode($result);
     
 }else if($call == 21){
-    // Upload file with Google NLP auto-categorization
+    // Upload file with Google NLP auto-categorization and user-confirmed category
     try {
         $userId = $_SESSION['user_id'] ?? 0;
-        
-        // Check permission
         if (!SubadminPermission::hasPermission($userId, 'file_management', 'create')) {
             throw new Exception("Permission denied: You cannot upload files");
         }
-        
-        // Handle file upload
         if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception("File upload error");
         }
-        
         $fileManager = new FileManager();
-        
-        // Prepare file data - category_id is now optional (NLP will auto-detect)
         $fileData = [
             'file' => $_FILES['file'],
-            'category_id' => $_POST['category_id'] ?? null, // Optional - NLP will auto-categorize
-            'file_title' => $_POST['file_title'] ?? null,
-            'description' => $_POST['description'] ?? null,
-            'uploaded_by' => $userId
+            'uploaded_by' => $userId,
+            'category_tag' => $_POST['category_tag'] ?? 'Uncategorized',
+            'category_score' => $_POST['category_score'] ?? 0,
+            'nlp_analysis' => $_POST['nlp_analysis'] ?? null,
+            'file_path' => null
         ];
-        
         $uploadResult = $fileManager->uploadFile($fileData);
-        
-        // If upload successful and file ID returned, run NLP analysis
-        if($uploadResult['status'] === 'SUCCESS' && isset($uploadResult['file_id'])) {
-            $fileId = $uploadResult['file_id'];
-            
-            // Perform NLP analysis to auto-categorize
-            $nlpResult = $fileManager->performNLPAnalysis($fileId);
-            
-            // Add NLP info to response
-            if($nlpResult['status'] === 'SUCCESS') {
-                $uploadResult['nlp_analysis'] = [
-                    'category' => $nlpResult['suggested_category'] ?? 'Uncategorized',
-                    'confidence' => $nlpResult['confidence'] ?? 0,
-                    'auto_assigned' => $nlpResult['auto_assigned'] ?? false
-                ];
-                $uploadResult['msg'] = $uploadResult['msg'] . ' File auto-categorized as "' . 
-                    ($nlpResult['suggested_category'] ?? 'Uncategorized') . '" with ' . 
-                    round($nlpResult['confidence'] ?? 0, 1) . '% confidence.';
-            }
-            
-            // Log activity with NLP info
-            $logMessage = 'Uploaded file: ' . $_FILES['file']['name'];
-            if(isset($nlpResult['suggested_category'])) {
-                $logMessage .= ' (Auto-categorized: ' . $nlpResult['suggested_category'] . ')';
-            }
-            SubadminPermission::logActivity($userId, 'upload_file', 'file_management', $logMessage);
-        } else if ($uploadResult['status'] === 'SUCCESS') {
-            // Log without NLP info
+        $result = $uploadResult;
+        if ($uploadResult['status'] === 'SUCCESS') {
             SubadminPermission::logActivity($userId, 'upload_file', 'file_management', 'Uploaded file: ' . $_FILES['file']['name']);
         }
-        
-        $result = $uploadResult;
-        
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
