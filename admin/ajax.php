@@ -1,7 +1,7 @@
 <?php
 	// Prevent any output before JSON
 	error_reporting(E_ALL);
-	ini_set('display_errors', 0); // Don't display errors in output
+	ini_set('display_errors', 1); // Don't display errors in output
 	ini_set('log_errors', 1); // Log errors instead
 	
 	// Prevent caching of AJAX responses
@@ -73,6 +73,60 @@
 
 	$call = $_POST["CALL"];
 	$result = [];
+
+	// NLP analysis before upload (for preview)
+	if($call === 'nlp_analyze') {
+		require_once '../resources/objects/google_nlp_service.php';
+		$m = new Main('file_upload_tbl');
+		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+			try {
+				//require_once '../resources/objects/nlp_helper.php'; // Helper for Google NLP
+				//$nlp = new NLPHelper();
+				$file = $_FILES['file'];
+				$tmpPath = $file['tmp_name'];
+				$mimeType = $file['type'];
+
+				$configFile = '../config/google_nlp_config.php';
+				$apiKey = '';
+				if (file_exists($configFile)) {
+					$config = include($configFile);
+					$apiKey = $config['api_key'] ?? '';
+				}
+
+				$nlp = new GoogleNLPService($apiKey);
+				$categories = $m->getFileCategories() ?: [];
+				$res = $nlp->analyzeFileAndSuggestCategory($tmpPath, $mimeType, $categories);
+
+				$result = [
+					'status' => 'SUCCESS',
+					'category' => $res['suggested_category_name'] ?? 'Uncategorized',
+					'score'=> $res['confidence_score'] ?? 0,
+					'nlp_analysis' => $res
+				];
+				/*$text = $nlp->extractTextFromFile($tmpPath, $mimeType);
+				$analysis = $nlp->analyzeText($text);
+				// Find best category from analysis
+				$suggestedCategory = $analysis['suggested_category'] ?? 'Uncategorized';
+				$categoryConfidence = $analysis['category_confidence'] ?? 0;
+				$result = [
+					'status' => 'SUCCESS',
+					'nlp_analysis' => [
+						'suggested_category' => $suggestedCategory,
+						'category_confidence' => $categoryConfidence,
+						'keywords' => $analysis['keywords'] ?? [],
+						'entities' => $analysis['entities'] ?? [],
+						'full_analysis' => $analysis
+					]
+				];*/
+			} catch(Exception $e) {
+				$result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
+			}
+		} else {
+			$result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
+		}
+		echo json_encode($result);
+		exit;
+	}
 
 	if($call == 1){
 		$data = $_POST['DATA'] ?? [];
@@ -338,57 +392,49 @@
 		echo json_encode($result);
 	}else if($call == 15){
 		// Get user permissions for sub-admin
-		$user_id = $_POST['user_id'] ?? 0;
-		
+		$user_id = $_POST['USER_ID'] ?? 0;
+		$categoryid = (isset($_POST['CATEGORY_ID']) && trim($_POST['CATEGORY_ID']) !== '') ? trim($_POST['CATEGORY_ID']) : null;
 		try {
-			$userManager = new UserManager();
-			$permissions = $userManager->getUserPermissions($user_id);
-			$result = ["status" => "SUCCESS", "data" => $permissions ?: []];
+			$fileManager = new FileManager();
+			//$result["data"] = $fileManager->getFilteredFiles($categoryId, $userId = null);
+			//$permissions = $userManager->getUserPermissions($user_id);
+			$result = ["status"=>"SUCCESS", "data"=> $fileManager->getFilteredFiles($categoryid, $user_id) ?: []];
+			//$result = ["status" => "SUCCESS", "data" => $permissions ?: []];
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => $e->getMessage(), "data" => []];
 		}
 		echo json_encode($result);
 	}else if($call == 16){
-		// Upload file with Google NLP auto-categorization
-		// Handle both old DATA format and new FormData format
+		// Upload file with Google NLP auto-categorization and user-confirmed category
+		
 		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-			// New FormData upload
 			$data = [
-				'file_category_id' => $_POST['file_category_id'] ?? null, // Optional - NLP will auto-detect
+				'file' => $_FILES['file'],
 				'uploaded_by' => $_POST['uploaded_by'] ?? ($_SESSION['user_id'] ?? 0),
-				'file' => $_FILES['file']
+				'category_tag' => $_POST['category_tag'] ?? 'Uncategorized',
+				'category_score' => $_POST['category_score'] ?? 0,
+				'nlp_analysis' => $_POST['nlp_analysis'] ?? null,
+				'file_path' => null // Will be set by FileManager
 			];
 		} else {
-			// Old DATA format
 			$data = $_POST['DATA'] ?? [];
 		}
-		
 		try {
-			$fileManager = new FileManager();
-			$uploadResult = $fileManager->uploadFile($data);
-			
-			// If upload successful and file ID returned, run NLP analysis
-			if($uploadResult['status'] === 'SUCCESS' && isset($uploadResult['file_id'])) {
-				$fileId = $uploadResult['file_id'];
-				
-				// Perform NLP analysis to auto-categorize
-				$nlpResult = $fileManager->performNLPAnalysis($fileId);
-				
-				// Add NLP info to response
-				if($nlpResult['status'] === 'SUCCESS') {
-					$uploadResult['nlp_analysis'] = [
-						'category' => $nlpResult['suggested_category'] ?? 'Uncategorized',
-						'confidence' => $nlpResult['confidence'] ?? 0,
-						'auto_assigned' => $nlpResult['auto_assigned'] ?? false
-					];
-					$uploadResult['msg'] = $uploadResult['msg'] . ' File auto-categorized with ' . 
-						round($nlpResult['confidence'] ?? 0, 1) . '% confidence.';
+			$fileManager = new Main('file_upload_tbl');
+			if (!method_exists($fileManager, 'uploadFile')) {
+				error_log('FileManager class does not have uploadFile method!');
+				$result = ["status" => "ERROR", "msg" => "Internal error: uploadFile method missing."];
+			} else {
+				$uploadResult = $fileManager->uploadFile($data);
+				$result = $uploadResult;
+				if(!$uploadResult['success']) {
+					error_log('File upload failed: ' . ($uploadResult['error'] ?? 'Unknown error'));
+					$result = ["success" => false, "msg" => "File upload failed: " . ($uploadResult['error'] ?? 'Unknown error')];
 				}
-			}
-			
-			$result = $uploadResult;
+			}		
 		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => "Failed to upload file: " . $e->getMessage()];
+			error_log('Exception during file upload: ' . $e->getMessage());
+			$result = ["success" => false, "msg" => "Failed to upload file: " . $e->getMessage()];
 		}
 		echo json_encode($result);
 	}else if($call == 39){
@@ -777,6 +823,47 @@
 				"msg" => "Test notifications prepared successfully"
 			];
 			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 40){
+		try {
+			$taskManager = new TaskManager();
+			$tasks = $taskManager->getTasks(); // fetch all tasks
+			echo json_encode(['data' => $tasks]);
+		} catch(Exception $e) {
+			echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+		}
+		exit;
+	}else if($call == 42){
+		try {
+			$taskManager = new TaskManager();
+			$taskId = $_POST['task_id'];
+			$tasks = $taskManager->getTasks(); // returns all tasks
+			$task = array_filter($tasks, fn($t) => $t['task_id'] == $taskId);
+			$task = array_values($task)[0] ?? null;
+			if (!$task) {
+				echo json_encode(['status' => 'ERROR', 'msg' => 'Task not found']);
+			} else {
+				echo json_encode(['status' => 'SUCCESS', 'data' => $task]);
+			}
+		} catch(Exception $e) {
+			echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+		}
+		exit;
+	}else if($call == 43){
+		$data = [
+			'task_id' => $_POST['task_id'] ?? null,
+			'task_category_id' => $_POST['task_category_id'] ?? null,
+			'task_title' => $_POST['task_title'] ?? null,
+			'task_description' => $_POST['task_description'] ?? null,
+			'task_deadline' => $_POST['task_deadline'] ?? null
+		];
+
+		try {
+			$taskManager = new TaskManager();
+			$result = $taskManager->updateTask($data);
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}

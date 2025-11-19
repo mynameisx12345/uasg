@@ -305,12 +305,12 @@ if (!isset($_SESSION['user_id'])) {
         ajax: {
             url: 'ajax.php',
             type: 'POST',
-            data: { CALL: 40 }, // Get all tasks
+            data: { CALL: 40 },
             dataSrc: function(json) { return json.data || []; }
         },
         columns: [
             { data: 'task_id' },
-            { data: 'category_name' },
+            { data: 'task_category' }, // changed from category_name
             { data: 'task_title' },
             { 
                 data: 'task_description',
@@ -325,7 +325,7 @@ if (!isset($_SESSION['user_id'])) {
                     const today = new Date();
                     const deadline = new Date(row.task_deadline);
                     const hasSubmissions = row.submission_count > 0;
-                    
+
                     if (deadline < today && !hasSubmissions) {
                         return '<span class="status-badge status-overdue">Overdue</span>';
                     } else if (hasSubmissions) {
@@ -391,20 +391,22 @@ if (!isset($_SESSION['user_id'])) {
     // Create task form submission
     $('#createTaskForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         const payload = {
             CALL: 22, // Create task
-            task_category_id: $('#taskCategory').val(),
-            task_title: $('#taskTitle').val(),
-            task_description: $('#taskDescription').val(),
-            task_deadline: $('#taskDeadline').val()
+            DATA: {  // wrap inside DATA
+                task_category_id: $('#taskCategory').val(),
+                task_title: $('#taskTitle').val(),
+                task_description: $('#taskDescription').val(),
+                task_deadline: $('#taskDeadline').val()
+            }
         };
-        
-        $.post('ajax.php', payload, function(resp) {
+
+         $.post('ajax.php', payload, function(resp) {
             if (resp.status === 'SUCCESS') {
                 alert('Task created successfully');
                 $('#createTaskForm')[0].reset();
-                tasksTable.ajax.reload();
+                tasksTable.ajax.reload(); // <-- reload table
             } else {
                 alert(resp.msg || 'Failed to create task');
             }
