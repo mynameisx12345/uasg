@@ -89,7 +89,24 @@ class AuthenticationManager {
         
         $_SESSION['user_id'] = $user['user_id'];
         $_SESSION['username'] = $user['user_name'];
-        $_SESSION['user_type'] = $user['user_type'];
+        $rawType = strtolower(trim($user['user_type']));
+
+        $map = [
+            'student government member' => 'student',
+            'student' => 'student',
+            'student gov member' => 'student',
+            'sgo member' => 'student',
+            's.g.o member' => 'student',
+
+            'adviser' => 'adviser',
+            'sgo adviser' => 'adviser',
+            'student gov adviser' => 'adviser',
+
+            'admin' => 'admin',
+            'administrator' => 'admin'
+        ];
+
+        $_SESSION['user_type'] = $map[$rawType] ?? 'student';
         $_SESSION['position'] = $user['position'];
         $_SESSION['position_id'] = $user['position_id'];
         $_SESSION['access_level'] = $user['access_restriction'];

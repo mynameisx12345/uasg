@@ -6,8 +6,8 @@ ini_set('display_errors', 1);
 echo "<h1>Direct Login Test</h1>";
 
 // Test the exact login process
-$username = 'admin';
-$password = 'Admin123!@#';
+$username = 'justin.abuela';
+$password = 'Cristenmabanforever22@@';
 
 echo "<p>Testing login with:</p>";
 echo "<ul>";

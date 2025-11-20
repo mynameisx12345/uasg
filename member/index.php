@@ -1,9 +1,10 @@
 <?php
+session_start();
 require_once("../resources/session.php");
 
 // Require member role
 $session = SessionManager::getInstance();
-$session->requireRole(['Member', 'member', 'Student Government Member']);
+$session->requireRole(['student']);
 
 $currentUser = $session->getUserData();
 ?>

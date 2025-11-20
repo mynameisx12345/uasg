@@ -136,14 +136,14 @@ function handleLogout() {
         
         // If it's a GET request (direct redirect), redirect to login page
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-            header('Location: login.php');
+            header('Location: index.php');
             exit;
         }
         
         echo json_encode([
             'success' => true,
             'message' => 'Logged out successfully',
-            'redirect_url' => 'login.php'
+            'redirect_url' => 'index.php'
         ]);
         
     } catch (Exception $e) {
@@ -206,10 +206,10 @@ function getRedirectUrl($userType) {
             return 'admin/index.php';
         case 'adviser':
             return 'subadmin/index.php';
-        case 'member':
+        case 'student': // <-- this now matches session
             return 'member/index.php';
         default:
-            return 'index.php';
+            return 'member/index.php';
     }
 }
 
@@ -223,7 +223,7 @@ function requireAuth($allowedTypes = []) {
             echo json_encode(['success' => false, 'message' => 'Session expired']);
             exit;
         } else {
-            header('Location: ../login.php');
+            header('Location: ../index.php');
             exit;
         }
     }
@@ -234,7 +234,7 @@ function requireAuth($allowedTypes = []) {
             echo json_encode(['success' => false, 'message' => 'Access denied']);
             exit;
         } else {
-            header('Location: ../login.php?error=access_denied');
+            header('Location: ../index.php?error=access_denied');
             exit;
         }
     }
