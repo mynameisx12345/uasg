@@ -60,7 +60,7 @@ $currentUser = $session->getUserData();
         </div>
 
         <!-- TAB CONTENT: DASHBOARD -->
-        <div class="tab-pane active" id="dashboard">
+        <div class="tab-content active" id="dashboard">
         <!-- Overview Cards -->
         <div class="card-grid">
           <div class="card stat-card">
@@ -106,93 +106,82 @@ $currentUser = $session->getUserData();
       </div>
 
       <!-- TAB CONTENT: FILE UPLOAD -->
+       
       <div class="tab-content" id="file-upload">
-        <div class="card">
-          <h2>Intelligent File Upload</h2>
-          
-          <!-- File Upload Form -->
           <div class="compact-form">
-            <h3>Upload File</h3>
+            <h3>Upload New File</h3>
+            
             <div class="form-columns">
+              <!-- Left Column -->
               <div class="form-column">
+                <!-- File Information -->
                 <div class="form-section">
-                  <h4>File Information</h4>
+                  <h4>File Details</h4>
                   <div class="form-row">
                     <div class="form-group">
                       <label for="uploadFile">Select File</label>
-                      <input type="file" id="uploadFile" name="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.zip,.rar" required>
-                      <small>Supported: PDF, DOC, XLS, PPT, Images, Archives</small>
+                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
                     </div>
                   </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="fileDescription">Description (Optional)</label>
-                      <textarea id="fileDescription" name="fileDescription" rows="3" placeholder="Brief description of the file content..."></textarea>
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="taskAssociation">Associate with Task (Optional)</label>
-                      <select id="taskAssociation" name="taskAssociation">
-                        <option value="">No Task Association</option>
-                      </select>
-                    </div>
+                  <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                    <strong>🤖 Auto-Categorization Enabled</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
                   </div>
                 </div>
               </div>
+
+              <!-- Right Column -->
               <div class="form-column">
+                <!-- Upload Information -->
                 <div class="form-section">
-                  <h4>Auto-Categorization Preview</h4>
-                  <div id="categoryPreview" class="category-preview">
-                    <div class="preview-item">
-                      <strong>Detected Category:</strong>
-                      <span id="detectedCategory">Select a file to analyze</span>
-                    </div>
-                    <div class="preview-item">
-                      <strong>Confidence:</strong>
-                      <span id="categoryConfidence">-</span>
-                    </div>
-                    <div class="preview-item">
-                      <strong>File Type:</strong>
-                      <span id="detectedFileType">-</span>
-                    </div>
-                    <div class="preview-item">
-                      <strong>Suggested Keywords:</strong>
-                      <div id="suggestedKeywords" class="keyword-tags"></div>
+                  <h4>Upload Information</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="fileName">File Name</label>
+                      <input type="text" id="fileName" placeholder="Auto-filled from selected file" readonly>
                     </div>
                   </div>
-                  
-                  <div class="form-group">
-                    <label for="manualCategory">Manual Category Override</label>
-                    <select id="manualCategory" name="manualCategory">
-                      <option value="">Use Auto-Detection</option>
-                    </select>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="fileSize">File Size</label>
+                      <input type="text" id="fileSize" placeholder="Auto-detected" readonly>
+                    </div>
                   </div>
-                  
-                  <div class="form-actions">
-                    <button type="submit" class="btn-primary" id="uploadFileBtn">Upload File</button>
-                    <button type="reset" class="btn-secondary" onclick="resetUploadForm()">Clear</button>
+                  <!-- NLP Preview Section -->
+                  <div id="nlpPreview" style="display: none; margin-top: 15px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
+                    <h5 style="margin: 0 0 10px 0; font-size: 14px; color: #555;">📊 Classification Preview</h5>
+                    <div style="font-size: 13px;">
+                      <div style="margin: 5px 0;">
+                        <strong>Suggested Category:</strong> 
+                        <span id="suggestedCategory" style="color: #2196F3;">Analyzing...</span>
+                      </div>
+                      <div style="margin: 5px 0;">
+                        <strong>Confidence:</strong> 
+                        <span id="categoryConfidence">-</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <!-- Upload Progress -->
-          <div id="uploadProgress" class="upload-progress" style="display: none;">
-            <div class="progress-header">
-              <h4>Uploading File...</h4>
-              <span id="progressPercent">0%</span>
-            </div>
-            <div class="progress-bar">
-              <div id="progressFill" class="progress-fill"></div>
-            </div>
-            <div class="progress-status">
-              <span id="progressStatus">Preparing upload...</span>
+
+            <div class="form-actions">
+              <button type="button" class="btn-primary" id="uploadBtn">Upload File</button>
+              <button type="button" class="btn-secondary" onclick="clearUploadForm()">Clear</button>
             </div>
           </div>
         </div>
+      <!-- Loading Modal -->
+      <div id="loadingModal" class="modal" style="display:none;">
+        <div class="modal-content modal-content-small">
+          <h2>Processing...</h2>
+          <div style="text-align: center; margin: 20px 0;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #2196F3;"></i>
+          </div>
+          <p style="text-align: center;">Please wait while we analyze your file.</p>
+        </div>
       </div>
+    </div>
 
       <!-- TAB CONTENT: MY FILES -->
       <div class="tab-content" id="my-files">
@@ -200,7 +189,7 @@ $currentUser = $session->getUserData();
           <h2>My Uploaded Files</h2>
           
           <!-- File Filters -->
-          <div class="compact-form">
+          <!--div class="compact-form">
             <h3>Filter Files</h3>
             <div class="form-columns">
               <div class="form-column">
@@ -235,11 +224,27 @@ $currentUser = $session->getUserData();
                 </div>
               </div>
             </div>
-          </div>
+          </div-->
           
           <br/>
           
           <!-- Files Table -->
+          <!--div class="table-container">
+            <table class='data-table' id='filesTable'>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>File Name</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Uploaded By</th>
+                  <th>Date Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div-->
           <div class="table-container">
             <table class='data-table' id='myFilesTable'>
               <thead>
@@ -251,8 +256,8 @@ $currentUser = $session->getUserData();
                   <th>Uploaded</th>
                   <th>Task Association</th>
                   <th>Actions</th>
-                    <th>NLP Category</th>
-                    <th>NLP Score</th>
+                  <th>NLP Category</th>
+                  <th>NLP Score</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -377,9 +382,10 @@ $currentUser = $session->getUserData();
   <?php include('modals.php'); ?>
 
   <script>
+    
     // GitHub-style tab switcher
     const tabBtns = document.querySelectorAll(".tab-btn");
-    const tabPanes = document.querySelectorAll(".tab-pane");
+    const tabPanes = document.querySelectorAll(".tab-content");
 
     tabBtns.forEach(btn => {
       btn.addEventListener("click", () => {
@@ -394,9 +400,11 @@ $currentUser = $session->getUserData();
 
   <script src="js/member.js"></script>
   <script>
+  $(document).ready(function() {
+
     // Initialize current user data
     window.currentUser = <?= json_encode($currentUser) ?>;
-    
+    let filesTable;
     // Initialize dashboard on page load
     document.addEventListener('DOMContentLoaded', function() {
       if (typeof refreshDashboard === 'function') {
@@ -406,9 +414,342 @@ $currentUser = $session->getUserData();
         initializeDashboardTables();
       }
     });
+      // --- File Upload Logic (Admin-style) ---
+      let nlpSuggestedCategory = null;
+      let nlpCategoryConfidence = null;
+      let nlpAnalysisData = null;
+
+      function openLoadModal(){
+        document.getElementById('loadingModal').style.display = 'flex';
+      }
+      function closeLoadModal(){
+        document.getElementById('loadingModal').style.display = 'none';
+      }
+
+      function clearUploadForm() {
+        document.getElementById('uploadFile').value = '';
+        document.getElementById('fileName').value = '';
+        document.getElementById('fileSize').value = '';
+        document.getElementById('nlpPreview').style.display = 'none';
+      }
+
+      document.getElementById('uploadFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(file) {
+          document.getElementById('fileName').value = file.name;
+          document.getElementById('fileSize').value = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+          
+          // Show NLP preview placeholder
+          document.getElementById('nlpPreview').style.display = 'block';
+          document.getElementById('suggestedCategory').textContent = 'Will be detected on upload';
+          document.getElementById('categoryConfidence').textContent = 'TBD';
+        }
+      });
+
+      $('#uploadFile').on("change",function() {
+        const fileInput = document.getElementById('uploadFile');
+        if(!fileInput.files[0]) {
+          openModal("ERROR", "Please select a file to upload");
+          return;
+        }
+        const file = fileInput.files[0];
+        // Step 1: Request NLP analysis
+        const formData = new FormData();
+        formData.append('CALL', 'nlp_analyze');
+        formData.append('file', file);
+        openLoadModal();
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          beforeSend: function() {
+            $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Analyzing...');
+          },
+          success: function(result) {
+            if(result.status === "SUCCESS") {
+              nlpSuggestedCategory = result.category;
+              nlpCategoryConfidence = result.nlp_analysis['confidence'];
+              nlpAnalysisData = result.nlp_analysis;
+              // Show NLP preview and ask for confirmation
+              $('#nlpPreview').show();
+              $('#suggestedCategory').text(nlpSuggestedCategory || 'Uncategorized');
+              $('#categoryConfidence').text(nlpCategoryConfidence ? nlpCategoryConfidence + '%' : 'N/A');
+              // Show confirmation dialog
+              //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
+            } else {
+              openModal("ERROR", "NLP analysis failed. Please try again.\n" + (result.message || result.msg));
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error('NLP error:', xhr.responseText);
+            openModal("ERROR", "NLP analysis failed. Please try again.\n" + xhr.responseText);
+          },
+          complete: function() {
+            closeLoadModal();
+            $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
+          }
+        });
+      });
+
+      const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
+
+      if ($.fn.DataTable.isDataTable('#myFilesTable')) {
+          $('#myFilesTable').DataTable().destroy();
+      }
+
+      function initFilesTable() {
+        filesTable = $("#myFilesTable").DataTable({
+            ajax: {
+                url: "ajax.php",
+                type: "POST",
+                data: {
+                    CALL: 4, // or 15 if you want filter applied
+                    USER_ID: currentUserId
+                },
+                dataType: "json",
+                dataSrc: "data",
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                }
+            },
+            responsive: true,
+            scrollY: "50vh",
+            scrollCollapse: true,
+            paging: true,
+            columns: [
+                { data: "file_upload_id" },
+                { data: "file_name" },
+                { data: "file_category" },
+                { data: "mime_type" },
+                { 
+                    data: null,
+                    render: function(data) {
+                        return data.fname && data.lname ? data.fname + " " + data.lname : "Unknown";
+                    }
+                },
+                { 
+                    data: "datetime_uploaded",
+                    render: d => d ? new Date(d).toLocaleDateString() : "N/A"
+                },
+                {
+                    data: "file_upload_id",
+                    render: function(id, type, row) {
+                        return `
+                            <button class="btn-secondary viewBtn" data-id="${id}">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn-primary deleteFileBtn" 
+                                    data-id="${id}" 
+                                    data-name="${row.file_name}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        `;
+                    }
+                },
+                { data: "category_tag"},
+                { data: "category_score" },
+            ],
+            columnDefs: [{ targets: 0, visible: false }],
+            language: {
+                emptyTable: "No files found"
+            },
+            // Update total files after every AJAX load
+            initComplete: function(settings, json) {
+                $('#totalFiles').val(json.data ? json.data.length : 0);
+            }
+        });
+
+        // Also update total files on every reload (filter apply, refresh)
+        filesTable.on('xhr', function(e, settings, json, xhr) {
+            $('#totalFiles').val(json.data ? json.data.length : 0);
+        });
+      }
+      initFilesTable();
+
+      $('#uploadBtn').click(function() {
+          const fileInput = document.getElementById('uploadFile');
+          
+          if(!fileInput.files[0]) {
+            openModal("ERROR", "Please select a file to upload");
+            return;
+          }
+
+          const file = fileInput.files[0];
+          
+          // Create FormData for actual file upload
+          const formData = new FormData();
+          formData.append('CALL', 3);
+          formData.append('file', file);
+          formData.append('uploaded_by', currentUserId);
+          // No category_id - NLP will auto-categorize
+          openLoadModal();
+          $.ajax({
+            url: 'ajax.php',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            beforeSend: function() {
+              $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+            },
+            success: function(result) {
+              let message = result.msg || result.message;
+              if(result.success === true) {
+                
+                if(result.nlp_result) {
+                  message += '\n\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
+                            '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
+                }
+                //openModal(result.status, message);
+                //clearUploadForm();
+                $('.tab-link[data-tab="files"]').click();
+              } else {
+                openModal("FAILED", message);
+              }
+            },
+            error: function(xhr, status, error) {
+              console.error('Upload error:', xhr.responseText);
+              openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+            },
+            complete: function() {
+              closeLoadModal();
+              filesTable.ajax.reload();
+              $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
+            }
+          });
+        });
+
+      // Confirmation dialog for upload
+      function confirmUploadWithCategory(file, suggestedCategory, confidence, analysisData) {
+        // Use a simple prompt for now; can be replaced with a modal for better UX
+        let userCategory = prompt(
+          `Suggested Category: ${suggestedCategory || 'Uncategorized'}\nConfidence: ${confidence || 'N/A'}%\n\nEnter category to use (or leave blank to accept suggestion):`,
+          suggestedCategory || ''
+        );
+        if(userCategory === null) {
+          // User cancelled
+          return;
+        }
+        // Step 2: Finalize upload with selected category
+        const formData = new FormData();
+        formData.append('CALL', 3); // Actual upload
+        formData.append('file', file);
+        formData.append('uploaded_by', currentUserId);
+        formData.append('category_tag', userCategory || suggestedCategory || 'Uncategorized');
+        formData.append('category_score', confidence || '0');
+        formData.append('nlp_analysis', JSON.stringify(analysisData));
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          beforeSend: function() {
+            $('#uploadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Uploading...');
+          },
+          success: function(result) {
+            let message = result.msg || result.message;
+            if(result.success === true) {
+              
+              if(result.nlp_result) {
+                message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.suggested_category || '-') +
+                           '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
+              }
+              //openModal(result.status, message);
+              //clearUploadForm();
+              filesTable.ajax.reload();
+              $('.tab-link[data-tab="files"]').click();
+            } else {
+              openModal("FAILED", message);
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error('Upload error:', xhr.responseText);
+            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+          },
+          complete: function() {
+            $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
+          }
+        });
+      }
+
+      // Upload button click: only allow after NLP analysis
+      /*document.getElementById('uploadFileBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('uploadFile');
+        if(!fileInput.files[0]) {
+          alert('Please select a file to upload');
+          return;
+        }
+        if(!nlpSuggestedCategory) {
+          alert('Please wait for category analysis to complete');
+          return;
+        }
+        const file = fileInput.files[0];
+        const description = document.getElementById('fileDescription').value;
+        const taskId = document.getElementById('taskAssociation').value;
+        const manualCategory = document.getElementById('manualCategory').value;
+        openLoadModal();
+        const formData = new FormData();
+        formData.append('CALL', 3); // Actual upload
+        formData.append('file', file);
+        formData.append('uploaded_by', window.currentUser.user_id);
+        formData.append('category_tag', manualCategory || nlpSuggestedCategory || 'Uncategorized');
+        formData.append('category_score', nlpCategoryConfidence || '0');
+        formData.append('nlp_analysis', JSON.stringify(nlpAnalysisData));
+        formData.append('description', description);
+        formData.append('task_id', taskId);
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          success: function(result) {
+            let message = result.msg || result.message;
+            if(result.success === true) {
+              alert('File uploaded successfully!');
+              document.getElementById('uploadFile').value = '';
+              document.getElementById('fileDescription').value = '';
+              document.getElementById('detectedCategory').textContent = 'Select a file to analyze';
+              document.getElementById('categoryConfidence').textContent = '-';
+              document.getElementById('detectedFileType').textContent = '-';
+              document.getElementById('suggestedKeywords').textContent = '';
+              // TODO: Reload files table if present
+            } else {
+              alert('Upload failed: ' + message);
+            }
+          },
+          error: function(xhr, status, error) {
+            alert('Upload failed. Please try again.');
+          },
+          complete: function() {
+            closeLoadModal();
+          }
+        });
+      });*/
+      // Clear form
+      window.resetUploadForm = function() {
+        document.getElementById('uploadFile').value = '';
+        document.getElementById('fileDescription').value = '';
+        document.getElementById('detectedCategory').textContent = 'Select a file to analyze';
+        document.getElementById('categoryConfidence').textContent = '-';
+        document.getElementById('detectedFileType').textContent = '-';
+        document.getElementById('suggestedKeywords').textContent = '';
+        nlpSuggestedCategory = null;
+        nlpCategoryConfidence = null;
+        nlpAnalysisData = null;
+      }
+  });
   </script>
   
   <!-- PWA Scripts -->
-  <script src="../js/pwa-helper.js"></script>
+  <!--script src="../js/pwa-helper.js"></script-->
 </body>
 </html>

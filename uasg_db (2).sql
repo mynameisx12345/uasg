@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 19, 2025 at 12:49 AM
+-- Generation Time: Nov 20, 2025 at 09:23 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -138,7 +138,20 @@ CREATE TABLE IF NOT EXISTS `file_permission_tbl` (
   PRIMARY KEY (`file_permission_id`),
   KEY `position_id` (`position_id`),
   KEY `file_category_id` (`file_category_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `file_permission_tbl`
+--
+
+INSERT INTO `file_permission_tbl` (`file_permission_id`, `position_id`, `file_category_id`) VALUES
+(1, 1, 2),
+(2, 1, 1),
+(3, 1, 4),
+(4, 2, 2),
+(5, 2, 4),
+(6, 2, 3),
+(7, 2, 1);
 
 -- --------------------------------------------------------
 
@@ -156,20 +169,23 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   `file_name` text COLLATE utf8mb4_general_ci NOT NULL,
   `file_path` text COLLATE utf8mb4_general_ci,
   `file_size` int UNSIGNED NOT NULL DEFAULT '0',
-  `drive_id` text COLLATE utf8mb4_general_ci NOT NULL,
+  `drive_id` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `datetime_uploaded` datetime NOT NULL,
   `uploaded_by` int NOT NULL,
   PRIMARY KEY (`file_upload_id`),
-  KEY `file_category_id` (`file_category_id`),
-  KEY `uploaded_by` (`uploaded_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `uploaded_by` (`uploaded_by`),
+  KEY `file_category_id` (`file_category_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_upload_tbl`
 --
 
 INSERT INTO `file_upload_tbl` (`file_upload_id`, `file_category_id`, `category_tag`, `category_score`, `mime_type`, `file_name`, `file_path`, `file_size`, `drive_id`, `datetime_uploaded`, `uploaded_by`) VALUES
-(1, NULL, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'TEST DOCUMENT.docx', 'C:\\wamp64\\www\\uasg\\resources\\objects/../../uploads/files/691c2aac24ec6_1763453612.docx', 13728, '', '2025-11-18 16:13:32', 4);
+(1, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6cf95ea7e_1763536121.docx', 'uploads/691d6cf95ea7e_1763536121.docx', 13728, NULL, '2025-11-19 07:08:45', 4),
+(2, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6d28e09c2_1763536168.docx', 'uploads/691d6d28e09c2_1763536168.docx', 13728, NULL, '2025-11-19 07:09:38', 4),
+(3, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6d8750506_1763536263.docx', 'uploads/691d6d8750506_1763536263.docx', 13728, NULL, '2025-11-19 07:11:09', 4),
+(4, 2, 'Amendments', 6.25, 'application/pdf', '691eb2f6417e2_1763619574.pdf', 'uploads/691eb2f6417e2_1763619574.pdf', 1130172, NULL, '2025-11-20 06:19:37', 5);
 
 -- --------------------------------------------------------
 
@@ -189,7 +205,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -207,7 +223,8 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (18, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:02'),
 (19, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:05'),
 (20, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:05'),
-(44, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-18 00:41:05');
+(48, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-20 00:50:46'),
+(63, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-20 02:49:06');
 
 -- --------------------------------------------------------
 
@@ -229,7 +246,14 @@ CREATE TABLE IF NOT EXISTS `notifications_tbl` (
   KEY `user_id` (`user_id`),
   KEY `is_read` (`is_read`),
   KEY `datetime_created` (`datetime_created`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notifications_tbl`
+--
+
+INSERT INTO `notifications_tbl` (`notification_id`, `user_id`, `type`, `title`, `message`, `related_id`, `is_read`, `datetime_created`) VALUES
+(1, 5, 'new_task', 'New Task Assigned', 'New task \'Resolution for Health Benefits\' has been assigned to you', 1, 0, '2025-11-19 17:02:03');
 
 -- --------------------------------------------------------
 
@@ -277,14 +301,33 @@ CREATE TABLE IF NOT EXISTS `profile_tbl` (
   `contact_number` varchar(13) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `email` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`profile_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `profile_tbl`
 --
 
 INSERT INTO `profile_tbl` (`profile_id`, `fname`, `mname`, `lname`, `auxname`, `gender`, `birthdate`, `contact_number`, `email`) VALUES
-(4, 'System', '', 'Administrator', '', 'Not specified', '1990-01-01', '', 'admin@system.local');
+(4, 'System', '', 'Administrator', '', 'Not specified', '1990-01-01', '', 'admin@system.local'),
+(5, 'Justin', 'Arnaez', 'Abuela', '', 'Male', '1991-11-05', '09812682658', 'justinabuela@gmail.com'),
+(6, 'Mika', 'Jay', 'Esparagoza', '', 'Female', '1996-07-12', '', 'mika.esparagoza@gmail.com');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `subadmin_activity_log_tbl`
+--
+
+DROP TABLE IF EXISTS `subadmin_activity_log_tbl`;
+CREATE TABLE IF NOT EXISTS `subadmin_activity_log_tbl` (
+  `log_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `action` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `related_id` int DEFAULT NULL,
+  `details` text COLLATE utf8mb4_general_ci,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -308,7 +351,17 @@ CREATE TABLE IF NOT EXISTS `subadmin_permissions_tbl` (
   UNIQUE KEY `unique_user_permission` (`user_id`,`permission_key`),
   KEY `user_id` (`user_id`),
   KEY `permission_key` (`permission_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `subadmin_permissions_tbl`
+--
+
+INSERT INTO `subadmin_permissions_tbl` (`permission_id`, `user_id`, `permission_key`, `permission_name`, `can_view`, `can_create`, `can_edit`, `can_delete`, `created_at`, `updated_at`) VALUES
+(1, 6, 'file_management', 'File Management', 1, 1, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
+(2, 6, 'user_management', 'User Management', 1, 0, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
+(3, 6, 'entry_module', 'Entry Module', 1, 0, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
+(4, 6, 'task_management', 'Task Management', 1, 1, 1, 1, '2025-11-20 00:52:38', '2025-11-20 00:52:38');
 
 -- --------------------------------------------------------
 
@@ -326,7 +379,14 @@ CREATE TABLE IF NOT EXISTS `subadmin_roles_tbl` (
   PRIMARY KEY (`role_id`),
   UNIQUE KEY `unique_user_role` (`user_id`),
   KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `subadmin_roles_tbl`
+--
+
+INSERT INTO `subadmin_roles_tbl` (`role_id`, `user_id`, `role`, `created_at`, `updated_at`) VALUES
+(1, 6, 'Adviser', '2025-11-20 00:52:38', '2025-11-20 00:52:38');
 
 -- --------------------------------------------------------
 
@@ -361,9 +421,11 @@ CREATE TABLE IF NOT EXISTS `task_submission_tbl` (
   `task_id` int NOT NULL,
   `file_upload_id` int NOT NULL,
   `check_status` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
+  `submitted_by` int DEFAULT NULL,
   PRIMARY KEY (`task_submission_id`),
   KEY `task_id` (`task_id`),
-  KEY `file_upload_id` (`file_upload_id`)
+  KEY `file_upload_id` (`file_upload_id`),
+  KEY `submitted_by` (`submitted_by`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -379,8 +441,10 @@ CREATE TABLE IF NOT EXISTS `task_tbl` (
   `task_title` text COLLATE utf8mb4_general_ci NOT NULL,
   `task_description` text COLLATE utf8mb4_general_ci NOT NULL,
   `task_deadline` date NOT NULL,
+  `assigned_to` int DEFAULT NULL,
   PRIMARY KEY (`task_id`),
-  KEY `task_category_id` (`task_category_id`)
+  KEY `task_category_id` (`task_category_id`),
+  KEY `assigned_to` (`assigned_to`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -425,14 +489,16 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
   PRIMARY KEY (`user_id`),
   KEY `position_id` (`position_id`),
   KEY `profile_id` (`profile_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user_tbl`
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '109aec84f88eec8a3a36fd826f610bbb5790bb9816e84bc6bb3c06b412f9c954', 1, NULL, NULL);
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '6d37c1b921aedd55420eaf6c79bddf0c450221a23cc31089ef7854650d148929', 1, NULL, NULL),
+(5, 'justin.abuela', '$2y$10$e4Ae3o.eXQ7QlfQmtV9BNOMa1Nn5yrANtz.tMYGnUvxX1m1zMvVLG', 2, 5, 'student', '2b5751f657e70f4ecf4eb8223c026450e263d9e300054f38dd82487a6fdb9f24', 1, NULL, NULL),
+(6, 'subadmin', '$2y$10$7bWzg2Z35BdwqNK2N3.t8uMNHnr0VhSuf22j2V4RYlXyPEhU2sy8K', 1, 6, 'subadmin', NULL, 1, NULL, NULL);
 
 --
 -- Constraints for dumped tables
@@ -461,8 +527,8 @@ ALTER TABLE `file_permission_tbl`
 -- Constraints for table `file_upload_tbl`
 --
 ALTER TABLE `file_upload_tbl`
-  ADD CONSTRAINT `file_upload_tbl_ibfk_1` FOREIGN KEY (`file_category_id`) REFERENCES `file_category_tbl` (`file_category_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `file_upload_tbl_ibfk_2` FOREIGN KEY (`uploaded_by`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `file_upload_tbl_ibfk_2` FOREIGN KEY (`uploaded_by`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `file_upload_tbl_ibfk_3` FOREIGN KEY (`file_category_id`) REFERENCES `file_category_tbl` (`file_category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `notifications_tbl`
@@ -487,13 +553,15 @@ ALTER TABLE `subadmin_roles_tbl`
 --
 ALTER TABLE `task_submission_tbl`
   ADD CONSTRAINT `task_submission_tbl_ibfk_1` FOREIGN KEY (`task_id`) REFERENCES `task_tbl` (`task_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `task_submission_tbl_ibfk_2` FOREIGN KEY (`file_upload_id`) REFERENCES `file_upload_tbl` (`file_upload_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `task_submission_tbl_ibfk_2` FOREIGN KEY (`file_upload_id`) REFERENCES `file_upload_tbl` (`file_upload_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `task_submission_tbl_ibfk_3` FOREIGN KEY (`submitted_by`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `task_tbl`
 --
 ALTER TABLE `task_tbl`
-  ADD CONSTRAINT `task_tbl_ibfk_1` FOREIGN KEY (`task_category_id`) REFERENCES `task_category_tbl` (`task_category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `task_tbl_ibfk_1` FOREIGN KEY (`task_category_id`) REFERENCES `task_category_tbl` (`task_category_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `task_tbl_ibfk_2` FOREIGN KEY (`assigned_to`) REFERENCES `user_tbl` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `user_security_tbl`

@@ -12,9 +12,9 @@
   
   <div class="header-actions">
     <!-- Quick Upload Button -->
-    <button class="header-btn primary" onclick="openQuickUpload()" title="Quick File Upload">
+    <!--button class="header-btn primary" onclick="openQuickUpload()" title="Quick File Upload">
       <span>📤</span> Upload
-    </button>
+    </button-->
     
     <!-- Notifications -->
     <button class="header-btn" onclick="openNotifications()" title="Notifications">

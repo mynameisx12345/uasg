@@ -750,7 +750,7 @@ function handleFileSelection(files) {
     if (files.length === 0) return;
     
     displaySelectedFiles(files);
-    analyzeFileContent(files);
+    //analyzeFileContent(files);
     document.getElementById('startUploadBtn').disabled = false;
 }
 
@@ -777,7 +777,7 @@ function displaySelectedFiles(files) {
     document.getElementById('selectedFiles').style.display = 'block';
 }
 
-function analyzeFileContent(files) {
+/*function analyzeFileContent(files) {
     const analysisResults = document.getElementById('analysisResults');
     analysisResults.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Analyzing content...</div>';
     document.getElementById('contentAnalysis').style.display = 'block';
@@ -807,7 +807,7 @@ function analyzeFileContent(files) {
             analysisResults.innerHTML = '<div class="error">Error analyzing content</div>';
         }
     });
-}
+}*/
 
 function displayAnalysisResults(results) {
     const analysisResults = document.getElementById('analysisResults');

@@ -45,6 +45,13 @@ class Database {
         return $stmt->fetchAll();
     }
 
+        // Secure SELECT ONE
+    public function selectOne($query, $params = []) {
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
+        return $stmt->fetch();
+    }
+
     // Secure INSERT/UPDATE/DELETE
     public function execute($query, $params = []) {
         $stmt = $this->pdo->prepare($query);
