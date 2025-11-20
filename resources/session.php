@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 class SessionManager {
     private static $instance = null;
@@ -92,14 +94,22 @@ class SessionManager {
         }
     }
     
-    public function requireRole($allowedRoles) {
-        $this->requireLogin();
-        
-        $userType = $this->getUserType();
-        $position = $this->getPosition();
-        
-        if (!in_array($userType, $allowedRoles) && !in_array($position, $allowedRoles)) {
-            header('Location: ../unauthorized.php');
+    private $roleMap = [
+        'student government member' => 'student',
+        'student' => 'student',
+        'sgo member' => 'student',
+        'member' => 'student', // add this to map old 'member'
+        'admin' => 'admin',
+        'adviser' => 'adviser'
+    ];
+
+    public function requireRole($allowedRoles = []) {
+        $userRole = strtolower($_SESSION['user_type'] ?? '');
+        $allowed = array_map('strtolower', $allowedRoles);
+
+        if (!in_array($userRole, $allowed)) {
+            // redirect to login
+            header('Location: ../index.php?error=access_denied');
             exit;
         }
     }

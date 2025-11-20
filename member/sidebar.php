@@ -11,7 +11,7 @@
       <li class="nav-section">MAIN NAVIGATION</li>
       
       <li class="nav-item">
-        <a href="#" class="nav-link active" data-tab="dashboard">
+        <a href="#" class="nav-link active" data-tab="index">
           <span class="nav-icon">📊</span>
           <span class="nav-text">Dashboard</span>
         </a>

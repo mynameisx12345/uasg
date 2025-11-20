@@ -10,7 +10,7 @@ $main = new Main();
 // Log logout activity if user is logged in
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
-    $user_type = $_SESSION['user_type'] ?? 'member';
+    $user_type = $_SESSION['user_type'] ?? 'student';
     
     // Log the logout activity
     $logout_time = date('Y-m-d H:i:s');

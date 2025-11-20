@@ -6,7 +6,7 @@
   <nav class="sidebar-nav">
     <ul class="nav-list">
       <li class="nav-item">
-        <a href="dashboard.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : '' ?>">
+        <a href="dashboard.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : '' ?>">
           <span class="nav-icon">📊</span>
           <span class="nav-text">Dashboard</span>
         </a>
