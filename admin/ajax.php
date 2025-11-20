@@ -14,6 +14,12 @@
 	session_start();
 	require_once("../resources/objects/db_config.php");
 	require_once("../resources/objects/main_class.php");
+
+	if (!isset($_SESSION['user_id'])) {
+		http_response_code(401); // Unauthorized
+		echo json_encode(['error' => 'Authentication required']);
+		exit;
+	}
 	
 	// Check if this is a download request (GET allowed for downloads)
 	if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL']) && $_GET['CALL'] === 'download') {
@@ -103,21 +109,6 @@
 					'score'=> $res['confidence_score'] ?? 0,
 					'nlp_analysis' => $res
 				];
-				/*$text = $nlp->extractTextFromFile($tmpPath, $mimeType);
-				$analysis = $nlp->analyzeText($text);
-				// Find best category from analysis
-				$suggestedCategory = $analysis['suggested_category'] ?? 'Uncategorized';
-				$categoryConfidence = $analysis['category_confidence'] ?? 0;
-				$result = [
-					'status' => 'SUCCESS',
-					'nlp_analysis' => [
-						'suggested_category' => $suggestedCategory,
-						'category_confidence' => $categoryConfidence,
-						'keywords' => $analysis['keywords'] ?? [],
-						'entities' => $analysis['entities'] ?? [],
-						'full_analysis' => $analysis
-					]
-				];*/
 			} catch(Exception $e) {
 				$result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
 			}

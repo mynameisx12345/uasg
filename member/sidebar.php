@@ -17,7 +17,7 @@
         </a>
       </li>
 
-      <li class="nav-item has-submenu">
+      <!--li class="nav-item has-submenu">
         <a href="#" class="nav-link" onclick="toggleSubmenu(this)">
           <span class="nav-icon">📁</span>
           <span class="nav-text">File Management</span>
@@ -69,9 +69,9 @@
         </a>
       </li>
 
-      <li class="nav-section">ACCOUNT</li>
+      <li class="nav-section">ACCOUNT</li-->
 
-      <li class="nav-item">
+      <!--li class="nav-item">
         <a href="#" class="nav-link" onclick="switchTab('account-management')">
           <span class="nav-icon">⚙️</span>
           <span class="nav-text">Settings</span>
@@ -84,7 +84,7 @@
           <span class="nav-text">Help & Support</span>
         </a>
       </li>
-    </ul>
+    </ul-->
     
     <div class="sidebar-footer">
       <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?')">

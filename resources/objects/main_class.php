@@ -117,12 +117,12 @@
 
     	// Optional: Add a generic select method
     	public static function selectAll($table) {
-       	 	$db = Database::getInstance();
+       	 	$db = Database::getInstance()->getConnection();
         	return $db->select("SELECT * FROM $table");
    	 	}
 
    	 	public function getAllWithidden($hidden = []) {
-    		$db = Database::getInstance();
+    		$db = Database::getInstance()->getConnection();
     		$query = "SELECT * FROM {$this->table}";
     		$rows = $db->select($query);
 
@@ -145,7 +145,7 @@
 		}
 
    	 	public function getAllRecords(){
-   	 		$db = Database::getInstance();
+   	 		$db = Database::getInstance()->getConnection();
    	 		return $db->select("SELECT * FROM $this->table");
    	 	}
 
@@ -217,7 +217,7 @@
 		}
 
 		public function getChildren($childTable, $foreignKey, $parentId, $hidden = []) {
-    		$db = Database::getInstance();
+    		$db = Database::getInstance()->getConnection();
     
     		// validate column name
     		if (!preg_match('/^[a-zA-Z0-9_]+$/', $foreignKey)) {
@@ -250,7 +250,8 @@
 			$db = Database::getInstance()->getConnection();
 			$file = $data['file'];
 			$allowedTypes = $data['allowed_types'] ?? ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-			$uploadDir = $data['upload_dir'] ?? 'uploads/';
+			//$uploadDir = $data['upload_dir'] ?? 'uploads/';
+			$uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
 			$uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
 
 			try {
@@ -275,7 +276,8 @@
 				}
 
 				// Create upload directory if it doesn't exist
-				$uploadPath = rtrim($uploadDir, '/') . '/';
+				//$uploadPath = rtrim($uploadDir, '/') . '/';
+				$uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
 				if (!is_dir($uploadPath)) {
 					if (!mkdir($uploadPath, 0755, true)) {
 						throw new Exception('Failed to create upload directory');
@@ -346,7 +348,7 @@
 		}
 
 		public function getFileCategories() {
-			$db = Database::getInstance();
+			$db = Database::getInstance()->getConnection();
 			$query = "
 				SELECT fc.file_category_id, fc.file_category, fck.keyword
 				FROM file_category_tbl fc
@@ -378,7 +380,7 @@
      * Returns array of {file_permission_id, position_id, position, file_category_id, file_category}
      */
     public function getFilePermissions() {
-        $db = Database::getInstance();
+        $db = Database::getInstance()->getConnection();
         $query = "
             SELECT fp.file_permission_id, fp.position_id, p.position, fp.file_category_id, fc.file_category
             FROM file_permission_tbl fp
@@ -527,6 +529,17 @@
 
 		public function __construct() {
 			$this->db = Database::getInstance();
+		}
+
+		public function changeMemberPassword($memberId, $data) {
+			$db = Database::getInstance()->getConnection();
+			$user = $db->selectOne("SELECT * FROM user_tbl WHERE user_id = ?", [$memberId]);
+			if (!$user) return ['success' => false, 'msg' => 'User not found'];
+			if (!password_verify($data['current_password'], $user['pass_word'])) return ['success' => false, 'msg' => 'Current password incorrect'];
+			if ($data['new_password'] !== $data['confirm_password']) return ['success' => false, 'msg' => 'Passwords do not match'];
+			$hashed = password_hash($data['new_password'], PASSWORD_DEFAULT);
+			$db->query("UPDATE user_tbl SET pass_word = ? WHERE user_id = ?", [$hashed, $memberId]);
+			return ['success' => true, 'msg' => 'Password changed'];
 		}
 
 		public function getUsersByType($userType) {
@@ -925,6 +938,7 @@
 			}
 		}
 
+
 		public static function createFileCategory($name) {
 			try {
 				$name = trim($name);
@@ -1000,7 +1014,7 @@
 
 		public static function getFileCategoryKeywords($categoryId = null) {
 			try {
-				$db = Database::getInstance();
+				$db = Database::getInstance()->getConnection();
 				if($categoryId) {
 					$query = "SELECT fck.*, fc.file_category 
 							  FROM file_category_key_tbl fck
@@ -1043,7 +1057,7 @@
 		public static function deleteFileCategoryKeyword($keywordId, $reason = "Admin deletion") {
 			try {
 				// Get keyword data before deletion for logging
-				$db = Database::getInstance();
+				$db = Database::getInstance()->getConnection();
 				$keywordData = $db->select(
 					"SELECT fck.*, fc.file_category 
 					 FROM file_category_key_tbl fck
@@ -1085,6 +1099,23 @@
 
 		public function __construct() {
 			$this->db = Database::getInstance();
+		}
+
+		public function getMemberActiveTasks($memberId) {
+			$db = Database::getInstance()->getConnection();
+			$tasks = $db->select("SELECT * FROM task_tbl WHERE assigned_to = ? AND task_deadline >= CURDATE()", [$memberId]);
+			return ['data' => $tasks];
+		}
+		public function getMemberTaskSubmissions($memberId) {
+			$db = Database::getInstance()->getConnection();
+			$subs = $db->select("SELECT * FROM task_submission_tbl WHERE submitted_by = ?", [$memberId]);
+			return ['data' => $subs];
+		}
+
+		public function getMemberTaskDetails($memberId, $taskId) {
+			$db = Database::getInstance()->getConnection();
+			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ? AND assigned_to = ?", [$taskId, $memberId]);
+			return $task ? ['success' => true, 'data' => $task] : ['success' => false, 'msg' => 'Task not found'];
 		}
 
 		public function createTask($data) {
@@ -1136,6 +1167,7 @@
 		}
 
 		public function getTasksForMember($userId) {
+			$db = Database::getInstance()->getConnection();
 			try {
 				// Get user's position to check permissions
 				$userQuery = "SELECT u.position_id FROM user_tbl u WHERE u.user_id = :user_id";
@@ -1165,6 +1197,56 @@
 				return $this->db->select($query, [':position_id' => $positionId, ':user_id' => $userId]);
 			} catch (Exception $e) {
 				return [];
+			}
+		}
+		public function submitMemberTaskFile($data) {
+			$db = Database::getInstance()->getConnection();
+
+			// Validate required fields
+			if (empty($data['task_id']) || empty($data['file_id'])) {
+				return [
+					'success' => false,
+					'msg' => 'Task ID and File ID are required.'
+				];
+			}
+
+			try {
+				// Check if file exists
+				$stmt = $db->prepare("SELECT file_upload_id FROM file_upload_tbl WHERE file_upload_id = ?");
+				$stmt->execute([$data['file_id']]);
+				if ($stmt->rowCount() == 0) {
+					return ['success' => false, 'msg' => 'File does not exist.'];
+				}
+
+				// Check if task exists
+				$stmt = $db->prepare("SELECT task_id FROM task_tbl WHERE task_id = ?");
+				$stmt->execute([$data['task_id']]);
+				if ($stmt->rowCount() == 0) {
+					return ['success' => false, 'msg' => 'Task does not exist.'];
+				}
+
+				// Optional: Prevent duplicate submission by same file for the same task
+				$stmt = $db->prepare("SELECT task_submission_id FROM task_submission_tbl WHERE task_id = ? AND file_upload_id = ?");
+				$stmt->execute([$data['task_id'], $data['file_id']]);
+				if ($stmt->rowCount() > 0) {
+					return ['success' => false, 'msg' => 'This file has already been submitted for this task.'];
+				}
+
+				// Insert submission
+				$stmt = $db->prepare("
+					INSERT INTO task_submission_tbl (task_id, file_upload_id, check_status) 
+					VALUES (?, ?, ?)
+				");
+				$stmt->execute([
+					$data['task_id'],
+					$data['file_id'],
+					'Pending' // default status
+				]);
+
+				return ['success' => true, 'msg' => 'Task file submitted successfully.'];
+
+			} catch (PDOException $e) {
+				return ['success' => false, 'msg' => $e->getMessage()];
 			}
 		}
 
@@ -1214,6 +1296,7 @@
 		}
 
 		public function reviewSubmission($data) {
+			$db = Database::getInstance()->getConnection();
 			try {
 				// Validate required fields
 				if (empty($data['task_submission_id']) || empty($data['check_status'])) {
@@ -1258,6 +1341,7 @@
 		}
 
 		public function getSubmissions($taskId = null) {
+			$db = Database::getInstance()->getConnection();
 			try {
 				$query = "SELECT ts.*, t.task_title, t.task_deadline,
 						 fu.file_name, fu.datetime_uploaded,
@@ -1283,6 +1367,7 @@
 		}
 
 		public function deleteTask($taskId, $reason) {
+			$db = Database::getInstance()->getConnection();
 			try {
 				// Get task data for deletion record
 				$taskData = $this->db->select(
@@ -1318,6 +1403,7 @@
 		}
 
 		private function notifyMembersNewTask($taskId, $taskTitle) {
+			$db = Database::getInstance()->getConnection();
 			// Get all UASG members
 			$members = $this->db->select(
 				"SELECT p.profile_id AS user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
@@ -1339,6 +1425,7 @@
 		}
 
 		private function notifyAdvisersNewSubmission($taskId, $submitterId) {
+			$db = Database::getInstance()->getConnection();
 			// Get task title and submitter name
 			$data = $this->db->select(
 				"SELECT t.task_title, CONCAT(p.fname, ' ', p.lname) AS full_name
@@ -1419,64 +1506,50 @@
 		private $db;
 
 		public function __construct() {
-			$this->db = Database::getInstance();
+			$this->db = Database::getInstance()->getConnection();
 		}
 
-		public function createNotification($data) {
-			try {
-				// Insert notification (we need a notifications table, let's create it in the notification)
-				$query = "INSERT INTO notifications_tbl (user_id, type, title, message, related_id, is_read, datetime_created) 
-						  VALUES (:user_id, :type, :title, :message, :related_id, 0, NOW())";
-				
-				$conn = $this->db->getConnection();
-				$stmt = $conn->prepare($query);
-				
-				return $stmt->execute([
-					':user_id' => $data['user_id'],
-					':type' => $data['type'],
-					':title' => $data['title'],
-					':message' => $data['message'],
-					':related_id' => $data['related_id']
-				]);
-			} catch (Exception $e) {
-				// If notifications table doesn't exist, we'll create it later
-				return true;
+		/** GET notifications */
+		public function getNotifications($userId, $unreadOnly = false, $limit = 20) {
+			$query = "SELECT * FROM notifications_tbl WHERE user_id = :user_id";
+			$params = [':user_id' => $userId];
+
+			if ($unreadOnly) {
+				$query .= " AND is_read = 0";
 			}
+
+			$query .= " ORDER BY datetime_created DESC LIMIT $limit";
+
+			return $this->db->select($query, $params);
 		}
 
-		public function getNotifications($userId, $unreadOnly = false) {
-			try {
-				$query = "SELECT * FROM notifications_tbl WHERE user_id = :user_id";
-				if ($unreadOnly) {
-					$query .= " AND is_read = 0";
-				}
-				$query .= " ORDER BY datetime_created DESC";
-				
-				return $this->db->select($query, [':user_id' => $userId]);
-			} catch (Exception $e) {
-				return [];
-			}
-		}
-
+		/** Mark single notification as read */
 		public function markAsRead($notificationId) {
-			try {
-				$query = "UPDATE notifications_tbl SET is_read = 1 WHERE notification_id = :id";
-				$conn = $this->db->getConnection();
-				$stmt = $conn->prepare($query);
-				return $stmt->execute([':id' => $notificationId]);
-			} catch (Exception $e) {
-				return false;
-			}
+			$query = "UPDATE notifications_tbl SET is_read = 1 WHERE notification_id = :id";
+			return $this->db->query($query, [':id' => $notificationId]);
 		}
 
+		/** Create notification */
+		public function createNotification($data) {
+			$query = "INSERT INTO notifications_tbl 
+						(user_id, type, title, message, related_id, is_read, datetime_created)
+					VALUES 
+						(:user_id, :type, :title, :message, :related_id, 0, NOW())";
+
+			return $this->db->query($query, [
+				':user_id' => $data['user_id'],
+				':type' => $data['type'],
+				':title' => $data['title'],
+				':message' => $data['message'],
+				':related_id' => $data['related_id']
+			]);
+		}
+
+		/** Count unread notifications */
 		public function getUnreadCount($userId) {
-			try {
-				$query = "SELECT COUNT(*) as count FROM notifications_tbl WHERE user_id = :user_id AND is_read = 0";
-				$result = $this->db->select($query, [':user_id' => $userId]);
-				return !empty($result) ? $result[0]['count'] : 0;
-			} catch (Exception $e) {
-				return 0;
-			}
+			$query = "SELECT COUNT(*) AS count FROM notifications_tbl WHERE user_id = :user_id AND is_read = 0";
+			$result = $this->db->select($query, [':user_id' => $userId]);
+			return $result[0]['count'] ?? 0;
 		}
 	}
 
@@ -1683,7 +1756,8 @@
 			$db = Database::getInstance()->getConnection();
 			$file = $data['file'];
 			$allowedTypes = $data['allowed_types'] ?? ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-			$uploadDir = $data['upload_dir'] ?? 'uploads/';
+			//$uploadDir = $data['upload_dir'] ?? 'uploads/';
+			$uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
 			$uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
 
 			try {
@@ -1708,7 +1782,8 @@
 				}
 
 				// Create upload directory if it doesn't exist
-				$uploadPath = rtrim($uploadDir, '/') . '/';
+				//$uploadPath = rtrim($uploadDir, '/') . '/';
+				$uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
 				if (!is_dir($uploadPath)) {
 					if (!mkdir($uploadPath, 0755, true)) {
 						throw new Exception('Failed to create upload directory');
@@ -1779,7 +1854,7 @@
 		}
 
 		public function getFileCategories() {
-			$db = Database::getInstance();
+			$db = Database::getInstance()->getConnection();
 			$query = "
 				SELECT fc.file_category_id, fc.file_category, fck.keyword
 				FROM file_category_tbl fc
@@ -1811,7 +1886,7 @@
 			* Returns array of {file_permission_id, position_id, position, file_category_id, file_category}
 			*/
 		public function getFilePermissions() {
-			$db = Database::getInstance();
+			$db = Database::getInstance()->getConnection();
 			$query = "
 				SELECT fp.file_permission_id, fp.position_id, p.position, fp.file_category_id, fc.file_category
 				FROM file_permission_tbl fp
@@ -1822,6 +1897,55 @@
 			return $db->select($query);
 		}
 
+		public function deleteMemberFile($memberId, $fileId) {
+			$db = Database::getInstance();
+			$file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", [$fileId, $memberId]);
+			if (!$file) return ['success' => false, 'msg' => 'File not found or unauthorized'];
+			$db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+			// Optionally delete physical file
+			return ['success' => true, 'msg' => 'File deleted'];
+		}
+		public function downloadMemberFile($memberId, $fileId) {
+			$db = Database::getInstance();
+			$file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", [$fileId, $memberId]);
+			if (!$file) return ['success' => false, 'msg' => 'File not found or unauthorized'];
+			return $file;
+		}
+		public function getMemberFileDetails($memberId, $fileId) {
+			$db = Database::getInstance();
+			$file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", [$fileId, $memberId]);
+			return $file ? ['success' => true, 'data' => $file] : ['success' => false, 'msg' => 'File not found'];
+		}
+		public function getMemberFiles($memberId, $filters = []) {
+			$db = Database::getInstance();
+			$where = "uploaded_by = ?";
+			$params = [$memberId];
+			if (!empty($filters['category'])) {
+				$where .= " AND file_category_id = ?";
+				$params[] = $filters['category'];
+			}
+			$files = $db->select("SELECT * FROM file_upload_tbl WHERE $where ORDER BY datetime_uploaded DESC", $params);
+			return ['data' => $files];
+		}
+
 	}
+
+class DashboardManager {
+    public function getMemberDashboardStats($memberId) {
+        $db = Database::getInstance();
+        $stats = [];
+        $stats['totalFiles'] = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl WHERE uploaded_by = ?", [$memberId])['count'] ?? 0;
+        $stats['activeTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE assigned_to = ? AND task_deadline >= CURDATE()", [$memberId])['count'] ?? 0;
+        //$stats['activeTasks'] = $db->select("SELECT COUNT(*) as count FROM task_tbl WHERE task_deadline >= CURDATE()")['count'] ?? 0;
+		$stats['completedTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl WHERE submitted_by = ? AND check_status = 'approved'", [$memberId])['count'] ?? 0;
+        $stats['categoryCount'] = $db->selectOne("SELECT COUNT(DISTINCT file_category_id) as count FROM file_upload_tbl WHERE uploaded_by = ?", [$memberId])['count'] ?? 0;
+        return ['success' => true, 'data' => $stats];
+    }
+    public function getMemberRecentActivity($memberId) {
+        $db = Database::getInstance();
+        $activities = $db->select("SELECT datetime_uploaded as date, file_name as action, category_tag as category, 'File Upload' as type FROM file_upload_tbl WHERE uploaded_by = ? ORDER BY datetime_uploaded DESC LIMIT 10", [$memberId]);
+        return ['success' => true, 'data' => $activities];
+    }
+}
 
 ?>
