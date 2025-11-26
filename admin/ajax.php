@@ -72,6 +72,7 @@
 		exit;
 	}	
 
+
 	if(empty($_POST["CALL"])){
 		echo json_encode(["error" => "Request invalid"]);
 		exit;
@@ -79,6 +80,49 @@
 
 	$call = $_POST["CALL"];
 	$result = [];
+
+	// NLP-based file search
+
+	if($call === 'nlp_search_files') {
+		require_once '../resources/objects/google_nlp_service.php';
+		$searchWord = $_POST['SEARCH_WORD'] ?? '';
+		$categoryId = $_POST['CATEGORY_ID'] ?? '';
+		$nlp = new GoogleNLPService();
+		$results = [];
+		// Directories to scan
+		$uploadDirs = [
+			realpath(__DIR__ . '/../uploads/files'),
+			realpath(__DIR__ . '/../admin/uploads'),
+			realpath(__DIR__ . '/../member/uploads'),
+			realpath(__DIR__ . '/../subadmin/uploads')
+		];
+		foreach($uploadDirs as $dir) {
+			if(!$dir || !is_dir($dir)) continue;
+			$rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+			foreach ($rii as $file) {
+				if ($file->isDir()) continue;
+				$filePath = $file->getPathname();
+				$mimeType = mime_content_type($filePath);
+				$fileName = $file->getFilename();
+				// Extract text
+				$textResult = $nlp->extractTextFromFile($filePath, $mimeType);
+				$text = $textResult['success'] ? $textResult['text'] : '';
+				if($searchWord && stripos($text, $searchWord) === false && stripos($fileName, $searchWord) === false) continue;
+				// Optionally, filter by category if you have a mapping (not implemented here)
+				$results[] = [
+					'file_name' => $fileName,
+					'file_path' => $filePath,
+					'mime_type' => $mimeType,
+					'file_size' => $file->getSize(),
+					'datetime_uploaded' => date('Y-m-d H:i:s', $file->getMTime()),
+					'file_category' => '', // Category detection can be added if needed
+					'file_upload_id' => $filePath // Use path as ID for browsing
+				];
+			}
+		}
+		echo json_encode(["status" => "SUCCESS", "data" => $results]);
+		exit;
+	}
 
 	// NLP analysis before upload (for preview)
 	if($call === 'nlp_analyze') {
