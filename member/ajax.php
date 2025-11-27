@@ -213,7 +213,7 @@ if($call == 1){
     echo json_encode($result);
     
 }else if($call == 9){
-    // Get active tasks
+    /*// Get active tasks
     try {
         $memberId = $_SESSION['user_id'] ?? 0;
         $taskManager = new TaskManager();
@@ -221,16 +221,29 @@ if($call == 1){
         
         // Extract data array for DataTables format
         if (isset($managerResult['data'])) {
-            $result = ["data" => $managerResult['data']];
+            $result = $managerResult;//["data" => $managerResult['data']];
         } else if (is_array($managerResult)) {
-            $result = ["data" => $managerResult];
+            $result = $managerResult;//["data" => $managerResult];
         } else {
             $result = ["data" => []];
         }
     } catch(Exception $e) {
         $result = ["data" => [], "error" => $e->getMessage()];
     }
-    echo json_encode($result);
+    echo json_encode($result);*/
+
+    $memberId = $_SESSION['user_id'] ?? 0;
+    $taskManager = new TaskManager();
+    $tasks = $taskManager->getMemberActiveTasks($memberId);
+    // Ensure output is always { data: [...] }
+    if (isset($tasks['data'])) {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    } else if (is_array($tasks)) {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    } else {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    }
+    exit;
     
 }else if($call == 10){
     // Get task submissions

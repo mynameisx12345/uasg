@@ -41,10 +41,7 @@
 			ob_end_clean();
 			$filePath = $_GET['file_path'] ?? '';
 			$allowedDirs = [
-				realpath(__DIR__ . '/../uploads/files'),
-				realpath(__DIR__ . '/../admin/uploads'),
-				realpath(__DIR__ . '/../member/uploads'),
-				realpath(__DIR__ . '/../subadmin/uploads')
+				realpath(__DIR__ . '/uploads/files')
 			];
 			$realFilePath = realpath($filePath);
 			$isAllowed = false;

@@ -1134,12 +1134,60 @@
 			];
 		}
 
-		public function getMemberActiveTasks($memberId) {
+		/*public function getMemberActiveTasks($memberId) {
 			$db = Database::getInstance()->getConnection();
 			// Remove assigned_to reference, fetch tasks for memberId if possible
 			$tasks = $db->select("SELECT * FROM task_tbl WHERE task_deadline >= CURDATE()", []);
 			return ['data' => $tasks];
+		}*/
+
+
+		
+		
+		public function getMemberActiveTasks($memberId) {
+			$db = Database::getInstance();
+
+			try {
+				$sql = "
+					SELECT 
+						t.task_id,
+						t.task_title,
+						c.task_category AS task_category,
+						t.task_deadline,
+						CASE 
+							WHEN t.task_deadline >= CURDATE() THEN 'active'
+							ELSE 'inactive'
+						END AS task_status
+					FROM task_tbl AS t
+					LEFT JOIN task_category_tbl AS c
+						ON c.task_category_id = t.task_category_id
+					WHERE 
+						(t.assigned_to = ? OR t.assigned_to IS NULL OR t.assigned_to = '')
+					ORDER BY t.task_deadline ASC
+				";
+
+				// Execute query
+				$tasks = $db->select($sql, [$memberId]) ?: [];
+
+				// Normalize keys
+				$tasks = array_map(function($t) {
+					return [
+						'task_id'       => (int)($t['task_id'] ?? 0),
+						'task_title'    => $t['task_title'] ?? '',
+						'task_category' => $t['task_category'] ?? '-',
+						'task_deadline' => $t['task_deadline'] ?? '',
+						'task_status'   => $t['task_status'] ?? 'inactive',
+					];
+				}, $tasks);
+
+				return ['data' => $tasks];
+
+			} catch (Exception $e) {
+				return ['data' => [], 'error' => $e->getMessage()];
+			}
 		}
+
+
 		public function getMemberTaskSubmissions($memberId) {
 			$db = Database::getInstance()->getConnection();
 			$subs = $db->select("SELECT * FROM task_submission_tbl WHERE submitted_by = ?", [$memberId]);
