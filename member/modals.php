@@ -1,3 +1,33 @@
+<!-- Notification/Message Modal -->
+<div id="notificationModal" class="modal">
+    <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeNotificationModal()">&times;</span>
+        <h2>Notifications</h2>
+        <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
+            <!-- Notifications/messages will be injected here -->
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeNotificationModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openNotificationModal(message) {
+    var modal = document.getElementById('notificationModal');
+    var list = document.getElementById('notificationList');
+    list.innerHTML = '';
+    if (message && typeof message === 'string') {
+        list.innerHTML = '<div style="padding:10px;">' + message + '</div>';
+    } else {
+        list.innerHTML = '<div style="padding:10px;">No notifications or messages.</div>';
+    }
+    modal.style.display = 'flex';
+}
+function closeNotificationModal() {
+    document.getElementById('notificationModal').style.display = 'none';
+}
+</script>
 <!-- View Task Modal -->
 <div id="viewTaskModal" class="modal">
     <div class="modal-content large">

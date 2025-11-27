@@ -248,12 +248,12 @@
 		public function uploadFile($data) {
     		require_once __DIR__ . '/google_nlp_service.php';
 			$db = Database::getInstance()->getConnection();
+			$systemname = 'uasg';
 			$file = $data['file'];
 			$allowedTypes = $data['allowed_types'] ?? ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-			//$uploadDir = $data['upload_dir'] ?? 'uploads/';
-			$uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
+			$uploadDir = '../uploads/files/';
 			$uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
-
+			
 			try {
 				// Validate file upload
 				if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
@@ -261,7 +261,7 @@
 				}
 
 				// Check file size (10MB limit)
-				$maxSize = 10 * 1024 * 1024; // 10MB in bytes
+				$maxSize = 50 * 1024 * 1024; // 10MB in bytes
 				if ($file['size'] > $maxSize) {
 					throw new Exception('File size exceeds 10MB limit');
 				}
@@ -277,7 +277,7 @@
 
 				// Create upload directory if it doesn't exist
 				//$uploadPath = rtrim($uploadDir, '/') . '/';
-				$uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
+				$uploadPath = '../uploads/files/';
 				if (!is_dir($uploadPath)) {
 					if (!mkdir($uploadPath, 0755, true)) {
 						throw new Exception('Failed to create upload directory');
@@ -286,7 +286,7 @@
 
 				// Generate unique filename
 				$filename = uniqid() . '_' . time() . '.' . $extension;
-				$fullPath = $uploadPath . $filename;
+				$fullPath = $uploadDir . $filename;
 
 				// Move uploaded file
 				if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
@@ -305,11 +305,14 @@
 				}
 				$nlp = new GoogleNLPService($apiKey);
 
+
 				// Run NLP on the uploaded file
 				$result = $nlp->analyzeFileAndSuggestCategory($fullPath, $file['type'], $categories);
 				$filecategory = $result['suggested_category_name'] ?? 'Uncategorized';
 				$categoryid = $result["suggested_category_id"] ?? null;
 				$score = $result['confidence'] ?? 0;
+
+				$linkpath = 'uploads/files/' . $filename;
 
 				$stmt = $db->prepare(
 					"INSERT INTO file_upload_tbl (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
@@ -321,7 +324,7 @@
 					':category_score' => $score,
 					':mime_type' => $file['type'],
 					':file_name' => $filename,
-					':file_path' => $fullPath,
+					':file_path' => $linkpath,
 					':file_size' => $file['size'],
 					':datetime_uploaded' => date('Y-m-d H:i:s'),
 					':uploaded_by' => $uploadedBy
@@ -348,7 +351,7 @@
 		}
 
 		public function getFileCategories() {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			$query = "
 				SELECT fc.file_category_id, fc.file_category, fck.keyword
 				FROM file_category_tbl fc
@@ -1082,10 +1085,53 @@
 }
 
 	class TaskManager {
+	/**
+	 * Assign a task to a specific member or all student members
+	 * @param array $taskData - Task details (title, description, deadline, etc.)
+	 * @param int|null $memberId - If set, assign to this member only; if null, assign to all student members
+	 * @return array - Result status and assigned member IDs
+	 */
+	
 		private $db;
 
 		public function __construct() {
 			$this->db = Database::getInstance();
+		}
+
+		public function assignTaskToMembers($taskData, $memberId = null) {
+			$db = Database::getInstance();
+			$assignedIds = [];
+			if ($memberId) {
+				// Assign to one member
+				$taskData['assigned_to'] = $memberId;
+				$db->execute("INSERT INTO task_tbl (task_title, task_description, task_deadline, assigned_to, task_category_id) VALUES (?, ?, ?, ?, ?)", [
+					$taskData['task_title'],
+					$taskData['task_description'],
+					$taskData['task_deadline'],
+					$taskData['assigned_to'],
+					$taskData['task_category_id'] ?? null
+				]);
+				$assignedIds[] = $memberId;
+			} else {
+				// Assign to all student members
+				$students = $db->select("SELECT user_id FROM user_tbl WHERE user_type = 'student'");
+				foreach ($students as $student) {
+					$taskData['assigned_to'] = $student['user_id'];
+					$db->execute("INSERT INTO task_tbl (task_title, task_description, task_deadline, assigned_to, task_category_id) VALUES (?, ?, ?, ?, ?)", [
+						$taskData['task_title'],
+						$taskData['task_description'],
+						$taskData['task_deadline'],
+						$taskData['assigned_to'],
+						$taskData['task_category_id'] ?? null
+					]);
+					$assignedIds[] = $student['user_id'];
+				}
+			}
+			return [
+				'status' => 'SUCCESS',
+				'assigned_member_ids' => $assignedIds,
+				'msg' => ($memberId ? 'Task assigned to member.' : 'Task assigned to all student members.')
+			];
 		}
 
 		public function getMemberActiveTasks($memberId) {
@@ -1707,7 +1753,7 @@
 
         $file = $data['file'];
         $allowedTypes = $data['allowed_types'] ?? ['jpg','jpeg','png','pdf','doc','docx','xls','xlsx','ppt','pptx'];
-        $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/files/';
+        $uploadDir = '../uploads/files/';
         $uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
 
         try {
@@ -1748,6 +1794,8 @@
             $categoryid = $result['suggested_category_id'] ?? null;
             $score = $result['confidence'] ?? 0;
 
+			$linkpath = 'uploads/files/' . $filename;
+
             $db->execute("
                 INSERT INTO file_upload_tbl 
                 (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
@@ -1758,7 +1806,7 @@
                 $score,
                 $file['type'],
                 $filename,
-                $fullPath,
+                $linkpath,
                 $file['size'],
                 date('Y-m-d H:i:s'),
                 $uploadedBy

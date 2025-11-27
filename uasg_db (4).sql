@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 20, 2025 at 09:23 AM
+-- Generation Time: Nov 27, 2025 at 07:14 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -109,9 +109,9 @@ DROP TABLE IF EXISTS `file_nlp_analysis_tbl`;
 CREATE TABLE IF NOT EXISTS `file_nlp_analysis_tbl` (
   `analysis_id` int NOT NULL AUTO_INCREMENT,
   `file_upload_id` int NOT NULL,
-  `extracted_text` longtext COLLATE utf8mb4_unicode_ci,
+  `extracted_text` longtext COLLATE utf8mb4_general_ci,
   `word_count` int DEFAULT '0',
-  `suggested_category` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `suggested_category` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `category_confidence` decimal(5,2) DEFAULT NULL COMMENT 'Confidence score 0-100',
   `keywords` json DEFAULT NULL COMMENT 'Keywords that matched from file_category_key_tbl',
   `entities` json DEFAULT NULL COMMENT 'Entities extracted by Google NLP API',
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `file_nlp_analysis_tbl` (
   KEY `idx_file_upload` (`file_upload_id`),
   KEY `idx_suggested_category` (`suggested_category`),
   KEY `idx_analyzed_at` (`analyzed_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Stores NLP analysis results from Google Cloud Natural Language API';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores NLP analysis results from Google Cloud Natural Language API';
 
 -- --------------------------------------------------------
 
@@ -175,17 +175,16 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   PRIMARY KEY (`file_upload_id`),
   KEY `uploaded_by` (`uploaded_by`),
   KEY `file_category_id` (`file_category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_upload_tbl`
 --
 
 INSERT INTO `file_upload_tbl` (`file_upload_id`, `file_category_id`, `category_tag`, `category_score`, `mime_type`, `file_name`, `file_path`, `file_size`, `drive_id`, `datetime_uploaded`, `uploaded_by`) VALUES
-(1, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6cf95ea7e_1763536121.docx', 'uploads/691d6cf95ea7e_1763536121.docx', 13728, NULL, '2025-11-19 07:08:45', 4),
-(2, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6d28e09c2_1763536168.docx', 'uploads/691d6d28e09c2_1763536168.docx', 13728, NULL, '2025-11-19 07:09:38', 4),
-(3, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '691d6d8750506_1763536263.docx', 'uploads/691d6d8750506_1763536263.docx', 13728, NULL, '2025-11-19 07:11:09', 4),
-(4, 2, 'Amendments', 6.25, 'application/pdf', '691eb2f6417e2_1763619574.pdf', 'uploads/691eb2f6417e2_1763619574.pdf', 1130172, NULL, '2025-11-20 06:19:37', 5);
+(10, 2, 'Amendments', 6.25, 'application/pdf', '6927f67d752bc_1764226685.pdf', 'uploads/files/6927f67d752bc_1764226685.pdf', 215043, NULL, '2025-11-27 06:58:08', 5),
+(11, NULL, 'Uncategorized', 0.00, 'application/pdf', '6927f6ff86acc_1764226815.pdf', 'uploads/files/6927f6ff86acc_1764226815.pdf', 144953, NULL, '2025-11-27 07:00:18', 5),
+(12, NULL, 'Uncategorized', 0.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '6927f96ecda01_1764227438.docx', 'uploads/files/6927f96ecda01_1764227438.docx', 13216105, NULL, '2025-11-27 07:10:42', 5);
 
 -- --------------------------------------------------------
 
@@ -196,16 +195,16 @@ INSERT INTO `file_upload_tbl` (`file_upload_id`, `file_category_id`, `category_t
 DROP TABLE IF EXISTS `login_attempts_tbl`;
 CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   `attempt_id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `success` tinyint(1) DEFAULT '0',
-  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `attempt_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -223,8 +222,8 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (18, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:02'),
 (19, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:05'),
 (20, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:05'),
-(48, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-20 00:50:46'),
-(63, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-20 02:49:06');
+(66, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-27 06:29:15'),
+(67, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-27 07:13:23');
 
 -- --------------------------------------------------------
 
@@ -457,16 +456,16 @@ DROP TABLE IF EXISTS `user_security_tbl`;
 CREATE TABLE IF NOT EXISTS `user_security_tbl` (
   `security_id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
-  `question1` varchar(255) DEFAULT NULL,
-  `answer1` varchar(255) DEFAULT NULL,
-  `question2` varchar(255) DEFAULT NULL,
-  `answer2` varchar(255) DEFAULT NULL,
-  `recovery_email` varchar(255) DEFAULT NULL,
+  `question1` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `answer1` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `question2` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `answer2` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `recovery_email` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`security_id`),
   UNIQUE KEY `unique_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -496,8 +495,8 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '6d37c1b921aedd55420eaf6c79bddf0c450221a23cc31089ef7854650d148929', 1, NULL, NULL),
-(5, 'justin.abuela', '$2y$10$e4Ae3o.eXQ7QlfQmtV9BNOMa1Nn5yrANtz.tMYGnUvxX1m1zMvVLG', 2, 5, 'student', '2b5751f657e70f4ecf4eb8223c026450e263d9e300054f38dd82487a6fdb9f24', 1, NULL, NULL),
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '2e13c1d68b1426bf39e36cbf57a297c03a283954a6864d2e7f181e3719950796', 1, NULL, NULL),
+(5, 'justin.abuela', '$2y$10$e4Ae3o.eXQ7QlfQmtV9BNOMa1Nn5yrANtz.tMYGnUvxX1m1zMvVLG', 2, 5, 'student', 'a14fd2bfc32cf3599716d6c89bf4be8069fa1851d8ffffa8db7fff8261d3a288', 1, NULL, NULL),
 (6, 'subadmin', '$2y$10$7bWzg2Z35BdwqNK2N3.t8uMNHnr0VhSuf22j2V4RYlXyPEhU2sy8K', 1, 6, 'subadmin', NULL, 1, NULL, NULL);
 
 --

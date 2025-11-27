@@ -379,7 +379,7 @@ $currentUser = $session->getUserData();
   </div>
 
   <!-- MODALS -->
-  <?php include('modals.php'); ?>
+  <?php require_once('modals.php'); ?>
 
   <script>
     
@@ -449,7 +449,7 @@ $currentUser = $session->getUserData();
       $('#uploadFile').on("change",function() {
         const fileInput = document.getElementById('uploadFile');
         if(!fileInput.files[0]) {
-          openModal("ERROR", "Please select a file to upload");
+          openNotificationModal("ERROR! Please select a file to upload");
           return;
         }
         const file = fileInput.files[0];
@@ -480,12 +480,12 @@ $currentUser = $session->getUserData();
               // Show confirmation dialog
               //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
             } else {
-              openModal("ERROR", "NLP analysis failed. Please try again.\n" + (result.message || result.msg));
+              openNotificationModal("ERROR! NLP analysis failed. Please try again.");
             }
           },
           error: function(xhr, status, error) {
             console.error('NLP error:', xhr.responseText);
-            openModal("ERROR", "NLP analysis failed. Please try again.\n" + xhr.responseText);
+            openNotificationModal("ERROR! NLP analysis failed. Please try again.\n" + xhr.responseText);
           },
           complete: function() {
             closeLoadModal();
@@ -573,7 +573,7 @@ $currentUser = $session->getUserData();
           const fileInput = document.getElementById('uploadFile');
           
           if(!fileInput.files[0]) {
-            openModal("ERROR", "Please select a file to upload");
+            openNotificationModal("ERROR! Please select a file to upload");
             return;
           }
 
@@ -604,16 +604,16 @@ $currentUser = $session->getUserData();
                   message += '\n\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
                             '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
                 }
-                //openModal(result.status, message);
+                openNotificationModal("SUCCESS! Successfully uploaded file!");
                 //clearUploadForm();
                 $('.tab-link[data-tab="files"]').click();
               } else {
-                openModal("FAILED", message);
+                openNotificationModal("FAILED! Failed to upload file. Please double check file size and file extension");
               }
             },
             error: function(xhr, status, error) {
               console.error('Upload error:', xhr.responseText);
-              openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+              openNotificationModal("ERROR! Upload failed. Please try again.\n" + xhr.responseText);
             },
             complete: function() {
               closeLoadModal();
@@ -654,23 +654,23 @@ $currentUser = $session->getUserData();
           },
           success: function(result) {
             let message = result.msg || result.message;
-            if(result.success === true) {
+            if(result.success == true) {
               
               if(result.nlp_result) {
                 message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.suggested_category || '-') +
                            '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
               }
-              //openModal(result.status, message);
+              openNotificationModal("SUCCESS! Successfully uploaded file!");
               //clearUploadForm();
               filesTable.ajax.reload();
               $('.tab-link[data-tab="files"]').click();
             } else {
-              openModal("FAILED", message);
+              openNotificationModal("FAILED! " + message);
             }
           },
           error: function(xhr, status, error) {
             console.error('Upload error:', xhr.responseText);
-            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+            openNotificationModal("ERROR! Upload failed. Please try again.\n" + xhr.responseText);
           },
           complete: function() {
             $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');

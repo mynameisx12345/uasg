@@ -22,20 +22,49 @@
 	}
 	
 	// Check if this is a download request (GET allowed for downloads)
-	if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL']) && $_GET['CALL'] === 'download') {
-		// Handle file download
-		ob_end_clean(); // Clear and disable buffer
-		
-		$fileId = $_GET['file_id'] ?? 0;
-		
-		try {
-			$fileManager = new FileManager();
-			$fileManager->downloadFile($fileId);
-			exit; // downloadFile handles headers and output
-		} catch(Exception $e) {
-			header("Content-Type: application/json");
-			echo json_encode(["status" => "ERROR", "msg" => "Download failed: " . $e->getMessage()]);
-			exit;
+	if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL'])) {
+		if ($_GET['CALL'] === 'download') {
+			// ...existing code...
+			$fileId = $_GET['file_id'] ?? 0;
+			try {
+				$fileManager = new FileManager();
+				$fileManager->downloadFile($fileId);
+				exit;
+			} catch(Exception $e) {
+				header("Content-Type: application/json");
+				echo json_encode(["status" => "ERROR", "msg" => "Download failed: " . $e->getMessage()]);
+				exit;
+			}
+		}
+		// Secure file view for NLP search
+		if ($_GET['CALL'] === 'view_file') {
+			ob_end_clean();
+			$filePath = $_GET['file_path'] ?? '';
+			$allowedDirs = [
+				realpath(__DIR__ . '/../uploads/files'),
+				realpath(__DIR__ . '/../admin/uploads'),
+				realpath(__DIR__ . '/../member/uploads'),
+				realpath(__DIR__ . '/../subadmin/uploads')
+			];
+			$realFilePath = realpath($filePath);
+			$isAllowed = false;
+			foreach ($allowedDirs as $dir) {
+				if ($realFilePath && strpos($realFilePath, $dir) === 0) {
+					$isAllowed = true;
+					break;
+				}
+			}
+			if ($isAllowed && file_exists($realFilePath)) {
+				$mimeType = mime_content_type($realFilePath);
+				header('Content-Type: ' . $mimeType);
+				header('Content-Disposition: inline; filename="' . basename($realFilePath) . '"');
+				readfile($realFilePath);
+				exit;
+			} else {
+				header('Content-Type: application/json');
+				echo json_encode(['status' => 'ERROR', 'msg' => 'File not found or access denied']);
+				exit;
+			}
 		}
 	}
 	
@@ -72,6 +101,7 @@
 		exit;
 	}	
 
+
 	if(empty($_POST["CALL"])){
 		echo json_encode(["error" => "Request invalid"]);
 		exit;
@@ -79,6 +109,68 @@
 
 	$call = $_POST["CALL"];
 	$result = [];
+
+	if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL']) && $_GET['CALL'] === 'view_file') {
+		$filePath = $_GET['file_path'] ?? '';
+		if ($filePath && file_exists($filePath)) {
+			$mimeType = mime_content_type($filePath);
+			header('Content-Type: ' . $mimeType);
+			header('Content-Disposition: inline; filename="' . basename($filePath) . '"');
+			readfile($filePath);
+			exit;
+		} else {
+			echo json_encode(['status' => 'ERROR', 'msg' => 'File not found']);
+			exit;
+		}
+	}
+
+	// NLP-based file search
+
+	if($call === 'nlp_search_files') {
+		require_once '../resources/objects/google_nlp_service.php';
+		$searchWord = $_POST['SEARCH_WORD'] ?? '';
+		$categoryId = $_POST['CATEGORY_ID'] ?? '';
+		$nlp = new GoogleNLPService();
+		$results = [];
+		// Directories to scan
+		$baseUrl = $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
+		$uploadDirs = [
+			realpath(__DIR__ . '/../uploads/files'),
+			realpath(__DIR__ . '/../admin/uploads'),
+			realpath(__DIR__ . '/../member/uploads'),
+			realpath(__DIR__ . '/../subadmin/uploads')
+			/*'http://'.$baseUrl.'uploads/files',
+			'http://'.$baseUrl.'admin/uploads',
+			'http://'.$baseUrl.'member/uploads',
+			'http://'.$baseUrl.'subadmin/uploads'*/
+		];
+		foreach($uploadDirs as $dir) {
+			if(!$dir || !is_dir($dir)) continue;
+			$rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+			foreach ($rii as $file) {
+				if ($file->isDir()) continue;
+				$filePath = $file->getPathname();
+				$mimeType = mime_content_type($filePath);
+				$fileName = $file->getFilename();
+				// Extract text
+				$textResult = $nlp->extractTextFromFile($filePath, $mimeType);
+				$text = $textResult['success'] ? $textResult['text'] : '';
+				if($searchWord && stripos($text, $searchWord) === false && stripos($fileName, $searchWord) === false) continue;
+				// Optionally, filter by category if you have a mapping (not implemented here)
+				$results[] = [
+					'file_name' => $fileName,
+					'file_path' => $filePath,
+					'mime_type' => $mimeType,
+					'file_size' => $file->getSize(),
+					'datetime_uploaded' => date('Y-m-d H:i:s', $file->getMTime()),
+					'file_category' => '', // Category detection can be added if needed
+					'file_upload_id' => $filePath // Use path as ID for browsing
+				];
+			}
+		}
+		echo json_encode(["status" => "SUCCESS", "data" => $results]);
+		exit;
+	}
 
 	// NLP analysis before upload (for preview)
 	if($call === 'nlp_analyze') {

@@ -1,6 +1,7 @@
 <aside class="sidebar">
   <h3>Navigation</h3>
   <ul>
+    <li><a href="nlp-search.php">🔍 NLP File Search</a></li>
     <li><a href="entry-module.php">📋 Entry Module</a></li>
     <li><a href="user-management.php">👤 User Management</a></li>
     <li><a href="task-management.php">📝 Task Management</a></li>
