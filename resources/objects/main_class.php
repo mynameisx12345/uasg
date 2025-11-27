@@ -1165,7 +1165,8 @@
 					'task_category_id' => $data['task_category_id'],
 					'task_title' => $data['task_title'],
 					'task_description' => $data['task_description'],
-					'task_deadline' => $data['task_deadline']
+					'task_deadline' => $data['task_deadline'],
+					'assigned_to' => !empty($data['assigned_to']) ? $data['assigned_to'] : null
 				]);
 
 				$taskId = $task->insertAndGetId();
@@ -1174,7 +1175,8 @@
 				}
 
 				// Create notifications for all UASG members
-				$this->notifyMembersNewTask($taskId, $data['task_title']);
+				//$this->notifyMembersNewTask($taskId, $data['task_title']);
+				$this->notifyMembersNewTask($taskId, $data['task_title'], $data['assigned_to']);
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
 			} catch (Exception $e) {
@@ -1436,15 +1438,27 @@
 			}
 		}
 
-		private function notifyMembersNewTask($taskId, $taskTitle) {
+		private function notifyMembersNewTask($taskId, $taskTitle, $assignedTo = null) {
 			$db = Database::getInstance()->getConnection();
-			// Get all UASG members
-			$members = $this->db->select(
-				"SELECT p.profile_id AS user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
-					FROM profile_tbl p
-					JOIN position_tbl pos ON p.position_id = pos.position_id
-					WHERE pos.position = 'Student Government Member'"
-			);
+
+			if ($assignedTo) {
+				// Notify only the assigned user
+				$members = $this->db->select("
+					SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
+					FROM user_tbl u
+					JOIN profile_tbl p ON u.profile_id = p.profile_id
+					WHERE u.user_id = ?
+				", [$assignedTo]);
+			} else {
+				// Notify all members
+				$members = $this->db->select("
+					SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
+					FROM user_tbl u
+					JOIN profile_tbl p ON u.profile_id = p.profile_id
+					JOIN position_tbl pos ON u.position_id = pos.position_id
+					WHERE pos.position = 'Student Government Member'
+				");
+			}
 
 			$notificationManager = new NotificationManager();
 			foreach ($members as $member) {
@@ -1554,13 +1568,16 @@
 
 			$query .= " ORDER BY datetime_created DESC LIMIT $limit";
 
-			return $this->db->select($query, $params);
+			// Uses your select() method (safe)
+			return Database::getInstance()->select($query, $params);
 		}
 
 		/** Mark single notification as read */
 		public function markAsRead($notificationId) {
 			$query = "UPDATE notifications_tbl SET is_read = 1 WHERE notification_id = :id";
-			return $this->db->query($query, [':id' => $notificationId]);
+
+			$stmt = $this->db->prepare($query);
+			return $stmt->execute([':id' => $notificationId]);
 		}
 
 		/** Create notification */
@@ -1570,7 +1587,9 @@
 					VALUES 
 						(:user_id, :type, :title, :message, :related_id, 0, NOW())";
 
-			return $this->db->query($query, [
+			$stmt = $this->db->prepare($query);
+
+			return $stmt->execute([
 				':user_id' => $data['user_id'],
 				':type' => $data['type'],
 				':title' => $data['title'],
@@ -1581,8 +1600,11 @@
 
 		/** Count unread notifications */
 		public function getUnreadCount($userId) {
-			$query = "SELECT COUNT(*) AS count FROM notifications_tbl WHERE user_id = :user_id AND is_read = 0";
-			$result = $this->db->select($query, [':user_id' => $userId]);
+			$query = "SELECT COUNT(*) AS count 
+					FROM notifications_tbl 
+					WHERE user_id = :user_id AND is_read = 0";
+
+			$result = Database::getInstance()->select($query, [':user_id' => $userId]);
 			return $result[0]['count'] ?? 0;
 		}
 	}

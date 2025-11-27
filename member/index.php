@@ -678,62 +678,6 @@ $currentUser = $session->getUserData();
         });
       }
 
-      // Upload button click: only allow after NLP analysis
-      /*document.getElementById('uploadFileBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const fileInput = document.getElementById('uploadFile');
-        if(!fileInput.files[0]) {
-          alert('Please select a file to upload');
-          return;
-        }
-        if(!nlpSuggestedCategory) {
-          alert('Please wait for category analysis to complete');
-          return;
-        }
-        const file = fileInput.files[0];
-        const description = document.getElementById('fileDescription').value;
-        const taskId = document.getElementById('taskAssociation').value;
-        const manualCategory = document.getElementById('manualCategory').value;
-        openLoadModal();
-        const formData = new FormData();
-        formData.append('CALL', 3); // Actual upload
-        formData.append('file', file);
-        formData.append('uploaded_by', window.currentUser.user_id);
-        formData.append('category_tag', manualCategory || nlpSuggestedCategory || 'Uncategorized');
-        formData.append('category_score', nlpCategoryConfidence || '0');
-        formData.append('nlp_analysis', JSON.stringify(nlpAnalysisData));
-        formData.append('description', description);
-        formData.append('task_id', taskId);
-        $.ajax({
-          url: 'ajax.php',
-          type: 'POST',
-          data: formData,
-          processData: false,
-          contentType: false,
-          dataType: 'json',
-          success: function(result) {
-            let message = result.msg || result.message;
-            if(result.success === true) {
-              alert('File uploaded successfully!');
-              document.getElementById('uploadFile').value = '';
-              document.getElementById('fileDescription').value = '';
-              document.getElementById('detectedCategory').textContent = 'Select a file to analyze';
-              document.getElementById('categoryConfidence').textContent = '-';
-              document.getElementById('detectedFileType').textContent = '-';
-              document.getElementById('suggestedKeywords').textContent = '';
-              // TODO: Reload files table if present
-            } else {
-              alert('Upload failed: ' + message);
-            }
-          },
-          error: function(xhr, status, error) {
-            alert('Upload failed. Please try again.');
-          },
-          complete: function() {
-            closeLoadModal();
-          }
-        });
-      });*/
       // Clear form
       window.resetUploadForm = function() {
         document.getElementById('uploadFile').value = '';

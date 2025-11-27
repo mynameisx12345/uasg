@@ -47,8 +47,10 @@ function closeNotificationModal() {
     </div>
 </div>
 
+
+
 <!-- Submit Task Modal -->
-<div id="submitTaskModal" class="modal">
+<!--div id="submitTaskModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Submit Task</h3>
@@ -82,6 +84,29 @@ function closeNotificationModal() {
             <button type="button" class="btn-primary" onclick="submitTask()">Submit Task</button>
         </div>
     </div>
+</div-->
+<div class="modal" id="submitTaskModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Submit Task</span>
+      <span class="close-modal" data-close>&times;</span>
+    </div>
+    <form id="submitTaskForm" enctype="multipart/form-data">
+      <input type="hidden" id="submit_task_id" name="task_id" />
+      <div class="form-group">
+        <label for="submissionFile">Select File *</label>
+        <input type="file" id="submissionFile" name="file" accept=".pdf,.doc,.docx,.zip,.jpg,.png" required>
+      </div>
+      <div class="form-group">
+        <label for="submissionNote">Notes (optional)</label>
+        <textarea id="submissionNote" name="notes" rows="3" placeholder="Remarks or explanation..."></textarea>
+      </div>
+      <div class="form-actions" style="justify-content:flex-end;margin-top:1rem;">
+        <button type="submit" class="btn-primary">Upload Submission</button>
+        <button type="button" class="btn-secondary" data-close>Cancel</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Resubmit Task Modal -->
