@@ -86,28 +86,70 @@ function closeNotificationModal() {
     </div>
 </div-->
 <div class="modal" id="submitTaskModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <span>Submit Task</span>
-      <span class="close-modal" data-close>&times;</span>
+    <div class="modal-content modal-content-large" style="max-width:480px;">
+        <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #eee;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:2rem;color:#2196F3;"><i class="fas fa-upload"></i></span>
+                <span style="font-size:1.3rem;font-weight:600;">Submit Task</span>
+            </div>
+            <span class="close-modal" data-close style="font-size:1.5rem;cursor:pointer;">&times;</span>
+        </div>
+        <form id="submitTaskForm" enctype="multipart/form-data" style="margin-top:18px;">
+            <input type="hidden" id="submit_task_id" name="task_id" />
+            <div class="form-group" style="margin-bottom:18px;">
+                <label for="submissionFile" style="font-weight:500;">File to Upload <span style="color:#f44336;">*</span></label>
+                <input type="file" id="submissionFile" name="file" accept=".pdf,.doc,.docx,.zip,.jpg,.png" required style="margin-top:6px;">
+                <small style="color:#888;font-size:12px;">Accepted: PDF, DOC, DOCX, ZIP, JPG, PNG</small>
+            </div>
+            <div class="form-group" style="margin-bottom:18px;">
+                <label for="submissionNote" style="font-weight:500;">Notes <span style="color:#888;font-size:12px;">(optional)</span></label>
+                <textarea id="submissionNote" name="notes" rows="3" placeholder="Remarks or explanation..." style="width:100%;padding:8px;border-radius:4px;border:1px solid #ddd;"></textarea>
+            </div>
+            <div id="submitProgress" style="display:none;margin-bottom:12px;">
+                <div class="progress-bar" style="height:8px;background:#e3f2fd;border-radius:4px;overflow:hidden;">
+                    <div class="progress-fill" style="width:0%;height:100%;background:#2196F3;transition:width 0.3s;"></div>
+                </div>
+                <span id="progressText" style="font-size:12px;color:#2196F3;">Uploading...</span>
+            </div>
+            <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:1rem;">
+                <button type="submit" class="btn-primary" style="min-width:120px;font-size:1rem;"><i class="fas fa-paper-plane"></i> Upload</button>
+                <button type="button" class="btn-secondary" data-close style="min-width:80px;">Cancel</button>
+            </div>
+        </form>
     </div>
-    <form id="submitTaskForm" enctype="multipart/form-data">
-      <input type="hidden" id="submit_task_id" name="task_id" />
-      <div class="form-group">
-        <label for="submissionFile">Select File *</label>
-        <input type="file" id="submissionFile" name="file" accept=".pdf,.doc,.docx,.zip,.jpg,.png" required>
-      </div>
-      <div class="form-group">
-        <label for="submissionNote">Notes (optional)</label>
-        <textarea id="submissionNote" name="notes" rows="3" placeholder="Remarks or explanation..."></textarea>
-      </div>
-      <div class="form-actions" style="justify-content:flex-end;margin-top:1rem;">
-        <button type="submit" class="btn-primary">Upload Submission</button>
-        <button type="button" class="btn-secondary" data-close>Cancel</button>
-      </div>
-    </form>
-  </div>
 </div>
+<style>
+    #submitTaskModal .modal-content-large {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 24px rgba(33,150,243,0.08);
+        padding: 32px 28px 24px 28px;
+    }
+    #submitTaskModal label {
+        display: block;
+        margin-bottom: 6px;
+        color: #333;
+    }
+    #submitTaskModal input[type="file"] {
+        width: 100%;
+        padding: 6px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background: #fafafa;
+    }
+    #submitTaskModal textarea {
+        border: 1px solid #ddd;
+        background: #fafafa;
+        resize: vertical;
+    }
+    #submitTaskModal .form-actions button {
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    #submitTaskModal .progress-bar {
+        margin-bottom: 4px;
+    }
+</style>
 
 <!-- Resubmit Task Modal -->
 <div id="resubmitTaskModal" class="modal">

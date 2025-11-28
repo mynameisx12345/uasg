@@ -1286,48 +1286,57 @@
 		public function submitMemberTaskFile($data) {
 			$db = Database::getInstance()->getConnection();
 
-			// Validate required fields
+			// Validate
 			if (empty($data['task_id']) || empty($data['file_id'])) {
-				return [
-					'success' => false,
-					'msg' => 'Task ID and File ID are required.'
-				];
+				return ['success' => false, 'msg' => 'Task ID and File ID are required.'];
+			}
+
+			if (empty($data['submitted_by'])) {
+				return ['success' => false, 'msg' => 'Submitted by is required.'];
 			}
 
 			try {
-				// Check if file exists
+				// Validate file exists
 				$stmt = $db->prepare("SELECT file_upload_id FROM file_upload_tbl WHERE file_upload_id = ?");
 				$stmt->execute([$data['file_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'File does not exist.'];
 				}
 
-				// Check if task exists
+				// Validate task exists
 				$stmt = $db->prepare("SELECT task_id FROM task_tbl WHERE task_id = ?");
 				$stmt->execute([$data['task_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'Task does not exist.'];
 				}
 
-				// Optional: Prevent duplicate submission by same file for the same task
-				$stmt = $db->prepare("SELECT task_submission_id FROM task_submission_tbl WHERE task_id = ? AND file_upload_id = ?");
+				// Prevent duplicate submission
+				$stmt = $db->prepare("SELECT task_submission_id 
+									FROM task_submission_tbl 
+									WHERE task_id = ? AND file_upload_id = ?");
 				$stmt->execute([$data['task_id'], $data['file_id']]);
 				if ($stmt->rowCount() > 0) {
 					return ['success' => false, 'msg' => 'This file has already been submitted for this task.'];
 				}
 
-				// Insert submission
+				// Insert submission correctly (NOW WITH submitted_by)
 				$stmt = $db->prepare("
-					INSERT INTO task_submission_tbl (task_id, file_upload_id, check_status) 
-					VALUES (?, ?, ?)
+					INSERT INTO task_submission_tbl 
+						(task_id, file_upload_id, check_status, submitted_by)
+					VALUES 
+						(?, ?, 'Pending', ?)
 				");
+
 				$stmt->execute([
 					$data['task_id'],
 					$data['file_id'],
-					'Pending' // default status
+					$data['submitted_by']
 				]);
 
-				return ['success' => true, 'msg' => 'Task file submitted successfully.'];
+				return [
+					'success' => true,
+					'msg' => 'Task file submitted successfully.'
+				];
 
 			} catch (PDOException $e) {
 				return ['success' => false, 'msg' => $e->getMessage()];

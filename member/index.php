@@ -55,7 +55,7 @@ $currentUser = $session->getUserData();
           <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
           <button class="tab-btn" data-tab="file-upload">File Upload</button>
           <button class="tab-btn" data-tab="my-files">My Files</button>
-          <button class="tab-btn" data-tab="pending-tasks">Pending Tasks</button>
+          <button class="tab-btn" data-tab="pending-tasks">Pending Tasks <span id="pendingTasksBadge" style="display:none;" class="badge"></span></button>
           <button class="tab-btn" data-tab="task-submissions">Task Submissions</button>
           <button class="tab-btn" data-tab="account-management">Account Management</button>
       <!-- TAB CONTENT: PENDING TASKS -->
@@ -422,6 +422,14 @@ $currentUser = $session->getUserData();
   <!-- MODALS -->
   <?php require_once('modals.php'); ?>
 
+  <!-- Floating Pending Tasks Icon -->
+  <div id="pendingTasksFloating" style="display:none; position:fixed; bottom:32px; right:32px; z-index:9999;">
+    <button id="pendingTasksFloatBtn" style="background:#2196F3; color:#fff; border:none; border-radius:50%; width:60px; height:60px; box-shadow:0 2px 8px rgba(0,0,0,0.2); font-size:28px; position:relative; cursor:pointer;">
+      <i class="fas fa-tasks"></i>
+      <span id="pendingTasksFloatBadge" style="position:absolute; top:-8px; right:-8px; background:#f44336; color:#fff; border-radius:50%; padding:4px 10px; font-size:16px; font-weight:bold; min-width:28px; text-align:center;">0</span>
+    </button>
+  </div>
+
   <script>
     
     // GitHub-style tab switcher
@@ -442,6 +450,68 @@ $currentUser = $session->getUserData();
   <script src="js/member.js"></script>
   <script>
   $(document).ready(function() {
+      // --- Floating Pending Tasks Icon ---
+      function updatePendingTasksFloating() {
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 9 },
+          dataType: 'json',
+          success: function(json) {
+            let count = 0;
+            if(json && json.data && Array.isArray(json.data)) {
+              count = json.data.filter(t => t.task_status === 'active').length;
+            } else if(Array.isArray(json)) {
+              count = json.filter(t => t.task_status === 'active').length;
+            }
+            const floatDiv = document.getElementById('pendingTasksFloating');
+            const badge = document.getElementById('pendingTasksFloatBadge');
+            if(count > 0) {
+              badge.textContent = count;
+              floatDiv.style.display = 'block';
+            } else {
+              badge.textContent = '';
+              floatDiv.style.display = 'none';
+            }
+          }
+        });
+      }
+      // Show Pending Tasks tab when floating icon is clicked
+      document.getElementById('pendingTasksFloatBtn').addEventListener('click', function() {
+        document.querySelector("[data-tab='pending-tasks']").click();
+      });
+      // Update floating icon on page load and after task actions
+      updatePendingTasksFloating();
+      // --- Pending Tasks Badge ---
+      function updatePendingTasksBadge() {
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 9 },
+          dataType: 'json',
+          success: function(json) {
+            let count = 0;
+            if(json && json.data && Array.isArray(json.data)) {
+              count = json.data.filter(t => t.task_status === 'active').length;
+            } else if(Array.isArray(json)) {
+              count = json.filter(t => t.task_status === 'active').length;
+            }
+            const badge = document.getElementById('pendingTasksBadge');
+            if(count > 0) {
+              badge.textContent = count;
+              badge.style.display = 'inline-block';
+            } else {
+              badge.textContent = '';
+              badge.style.display = 'none';
+            }
+          }
+        });
+      }
+      // Update badge on page load and when switching tabs
+      updatePendingTasksBadge();
+      document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
+        updatePendingTasksBadge();
+      });
     // --- Pending Tasks Table ---
     let pendingTasksTable;
     function loadPendingTasks() {
@@ -471,9 +541,11 @@ $currentUser = $session->getUserData();
       });
     }
     // Load pending tasks on tab show
-    document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
-      loadPendingTasks();
-    });
+      document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
+        loadPendingTasks();
+        updatePendingTasksBadge();
+          updatePendingTasksFloating();
+      });
     // --- Comply Task Modal Logic ---
     window.openComplyTaskModal = function(taskId) {
       document.getElementById('complyTaskId').value = taskId;
@@ -550,6 +622,8 @@ $currentUser = $session->getUserData();
             openNotificationModal('Task file uploaded successfully!');
             closeModal('complyTaskModal');
             loadPendingTasks();
+              updatePendingTasksBadge();
+              updatePendingTasksFloating();
           } else {
             openNotificationModal('Upload failed: ' + (result.msg || 'Unknown error'));
           }
@@ -854,6 +928,25 @@ $currentUser = $session->getUserData();
       }
   });
   </script>
+    <style>
+      #pendingTasksFloating {
+        animation: floatIn 0.4s;
+      }
+      #pendingTasksFloatBtn {
+        transition: box-shadow 0.2s;
+      }
+      #pendingTasksFloatBtn:hover {
+        box-shadow:0 4px 16px rgba(33,150,243,0.3);
+        background:#1976D2;
+      }
+      #pendingTasksFloatBadge {
+        transition: background 0.2s;
+      }
+      @keyframes floatIn {
+        from { opacity:0; transform:translateY(40px); }
+        to { opacity:1; transform:translateY(0); }
+      }
+    </style>
   
   <!-- PWA Scripts -->
   <!--script src="../js/pwa-helper.js"></script-->

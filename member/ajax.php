@@ -267,7 +267,7 @@ if($call == 1){
     
 }else if($call == 11){
     // Submit task file
-    try {
+    /*try {
         $memberId = $_SESSION['user_id'] ?? 0;
         $data = [
             'task_id' => $_POST['task_id'] ?? 0,
@@ -280,6 +280,36 @@ if($call == 1){
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
+    echo json_encode($result);*/
+    
+    try {
+
+        $memberId = $_SESSION['user_id'];
+
+        // Step 1: Upload file first
+        $fileManager = new FileManager();
+        $upload = $fileManager->uploadFile($_FILES['file'], $memberId);
+
+        if (!$upload['file_id']) {
+            throw new Exception("File upload failed.");
+        }
+
+        $file_id = $upload['file_id'];
+
+        // Step 2: Submit task
+        $data = [
+            'task_id'     => $_POST['task_id'] ?? 0,
+            'file_id'     => $file_id,
+            'submitted_by'=> $memberId,
+        ];
+
+        $taskManager = new TaskManager();
+        $result = $taskManager->submitMemberTaskFile($data);
+
+    } catch (Exception $e) {
+        $result = ['success' => false, 'msg' => $e->getMessage()];
+    }
+
     echo json_encode($result);
     
 }else if($call == 12){
