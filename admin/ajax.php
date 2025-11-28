@@ -41,10 +41,7 @@
 			ob_end_clean();
 			$filePath = $_GET['file_path'] ?? '';
 			$allowedDirs = [
-				realpath(__DIR__ . '/../uploads/files'),
-				realpath(__DIR__ . '/../admin/uploads'),
-				realpath(__DIR__ . '/../member/uploads'),
-				realpath(__DIR__ . '/../subadmin/uploads')
+				realpath(__DIR__ . '/uploads/files')
 			];
 			$realFilePath = realpath($filePath);
 			$isAllowed = false;
@@ -1508,6 +1505,20 @@
 		} catch(Exception $e) {
 			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
 		}
+	}if ($_POST['CALL'] == 100) {
+		$db = Database::getInstance();
+		$users = $db->select("
+			SELECT 
+				u.user_id,
+				CONCAT(p.fname, ' ', p.lname) AS full_name
+			FROM user_tbl u
+			JOIN profile_tbl p ON u.profile_id = p.profile_id
+			JOIN position_tbl pos ON u.position_id = pos.position_id
+			WHERE pos.position = 'Student Government Member'
+		");
+
+		echo json_encode(["status"=>"SUCCESS","data"=>$users]);
+		exit;
 	}
 
 

@@ -213,7 +213,7 @@ if($call == 1){
     echo json_encode($result);
     
 }else if($call == 9){
-    // Get active tasks
+    /*// Get active tasks
     try {
         $memberId = $_SESSION['user_id'] ?? 0;
         $taskManager = new TaskManager();
@@ -221,16 +221,29 @@ if($call == 1){
         
         // Extract data array for DataTables format
         if (isset($managerResult['data'])) {
-            $result = ["data" => $managerResult['data']];
+            $result = $managerResult;//["data" => $managerResult['data']];
         } else if (is_array($managerResult)) {
-            $result = ["data" => $managerResult];
+            $result = $managerResult;//["data" => $managerResult];
         } else {
             $result = ["data" => []];
         }
     } catch(Exception $e) {
         $result = ["data" => [], "error" => $e->getMessage()];
     }
-    echo json_encode($result);
+    echo json_encode($result);*/
+
+    $memberId = $_SESSION['user_id'] ?? 0;
+    $taskManager = new TaskManager();
+    $tasks = $taskManager->getMemberActiveTasks($memberId);
+    // Ensure output is always { data: [...] }
+    if (isset($tasks['data'])) {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    } else if (is_array($tasks)) {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    } else {
+        echo json_encode($tasks, JSON_UNESCAPED_UNICODE);
+    }
+    exit;
     
 }else if($call == 10){
     // Get task submissions
@@ -241,9 +254,9 @@ if($call == 1){
         
         // Extract data array for DataTables format
         if (isset($managerResult['data'])) {
-            $result = ["data" => $managerResult['data']];
+            $result = $managerResult;//["data" => $managerResult['data']];
         } else if (is_array($managerResult)) {
-            $result = ["data" => $managerResult];
+            $result = $managerResult;//["data" => $managerResult];
         } else {
             $result = ["data" => []];
         }
@@ -254,7 +267,7 @@ if($call == 1){
     
 }else if($call == 11){
     // Submit task file
-    try {
+    /*try {
         $memberId = $_SESSION['user_id'] ?? 0;
         $data = [
             'task_id' => $_POST['task_id'] ?? 0,
@@ -267,6 +280,40 @@ if($call == 1){
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
+    echo json_encode($result);*/
+    
+    try {
+
+        $memberId = $_SESSION['user_id'];
+
+        // Step 1: Upload file first (CORRECT FORMAT)
+        $fileManager = new FileManager();
+        $upload = $fileManager->uploadFile([
+            'file' => $_FILES['file'],
+            'uploaded_by' => $memberId
+        ]);
+
+        if (empty($upload['success']) || empty($upload['file_id'])) {
+            $err = $upload['error'] ?? 'File upload failed.';
+            throw new Exception($err);
+        }
+
+        $file_id = $upload['file_id'];
+
+        // Step 2: Submit task
+        $data = [
+            'task_id'     => $_POST['task_id'] ?? 0,
+            'file_id'     => $file_id,
+            'submitted_by'=> $memberId,
+        ];
+
+        $taskManager = new TaskManager();
+        $result = $taskManager->submitMemberTaskFile($data);
+
+    } catch (Exception $e) {
+        $result = ['success' => false, 'msg' => $e->getMessage()];
+    }
+
     echo json_encode($result);
     
 }else if($call == 12){
@@ -358,8 +405,36 @@ if($call == 1){
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
     echo json_encode($result);
-    
+}else if($call == 20){
+    // Download file (returns file as binary, not JSON)
+    $memberId = $_SESSION['user_id'] ?? 0;
+    $fileId = $_POST['file_id'] ?? 0;
+    require_once("../resources/objects/main_class.php");
+    $fileManager = new FileManager();
+    $fileInfo = $fileManager->getMemberFileDetails($memberId, $fileId);
+    if(!$fileInfo || empty($fileInfo['file_path'])){
+        http_response_code(404);
+        echo "File not found.";
+        exit;
+    }
+    $filePath = '../' . $fileInfo['file_path'];
+    if(!file_exists($filePath)){
+        http_response_code(404);
+        echo "File not found.";
+        exit;
+    }
+    header('Content-Description: File Transfer');
+    header('Content-Type: ' . ($fileInfo['mime_type'] ?? 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . ($fileInfo['file_name'] ?? basename($filePath)) . '"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Pragma: public');
+    header('Content-Length: ' . filesize($filePath));
+    readfile($filePath);
+    exit;
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }
+// Direct file download for DataTable/JS (CALL: 20)
+
 ?>

@@ -55,10 +55,51 @@ $currentUser = $session->getUserData();
           <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
           <button class="tab-btn" data-tab="file-upload">File Upload</button>
           <button class="tab-btn" data-tab="my-files">My Files</button>
+          <button class="tab-btn" data-tab="pending-tasks">Pending Tasks <span id="pendingTasksBadge" style="display:none;" class="badge"></span></button>
           <button class="tab-btn" data-tab="task-submissions">Task Submissions</button>
           <button class="tab-btn" data-tab="account-management">Account Management</button>
+      <!-- TAB CONTENT: PENDING TASKS -->
         </div>
-
+      <div class="tab-content" id="pending-tasks">
+        <div class="card">
+          <h2>Pending Tasks</h2>
+          <div class="table-container">
+            <table id="pendingTasksTable" class="display" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Category</th>
+                  <th>Deadline</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+  <!-- Comply Task Modal -->
+  <div id="complyTaskModal" class="modal">
+    <div class="modal-content modal-content-large">
+      <h2>Comply with Task</h2>
+      <form id="complyTaskForm" enctype="multipart/form-data">
+        <input type="hidden" id="complyTaskId" name="task_id" />
+        <div class="form-group">
+          <label for="complyFile">Upload File</label>
+          <input type="file" id="complyFile" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.ppt,.pptx" required />
+        </div>
+        <div id="complyNlpPreview" style="display:none; margin-top:10px;">
+          <strong>Suggested Category:</strong> <span id="complySuggestedCategory">-</span><br>
+          <strong>Confidence:</strong> <span id="complyCategoryConfidence">-</span>
+        </div>
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="button" id="complyUploadBtn">Submit</button>
+          <button type="button" onclick="closeModal('complyTaskModal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
         <!-- TAB CONTENT: DASHBOARD -->
         <div class="tab-content active" id="dashboard">
         <!-- Overview Cards -->
@@ -228,23 +269,6 @@ $currentUser = $session->getUserData();
           
           <br/>
           
-          <!-- Files Table -->
-          <!--div class="table-container">
-            <table class='data-table' id='filesTable'>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>File Name</th>
-                  <th>Category</th>
-                  <th>Type</th>
-                  <th>Uploaded By</th>
-                  <th>Date Uploaded</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div-->
           <div class="table-container">
             <table class='data-table' id='myFilesTable'>
               <thead>
@@ -254,7 +278,7 @@ $currentUser = $session->getUserData();
                   <th>Type</th>
                   <th>Size</th>
                   <th>Uploaded</th>
-                  <th>Task Association</th>
+                  <th>Date Uploaded</th>
                   <th>Actions</th>
                   <th>NLP Category</th>
                   <th>NLP Score</th>
@@ -320,13 +344,49 @@ $currentUser = $session->getUserData();
                   <th>Deadline</th>
                   <th>Submission Status</th>
                   <th>Submitted File</th>
-                  <th>Grade/Feedback</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
+            <script>
+            $(document).ready(function() {
+              // Initialize Task Submissions Table
+              if (!$.fn.DataTable.isDataTable('#taskSubmissionsTable')) {
+                window.taskSubmissionsTable = $('#taskSubmissionsTable').DataTable({
+                  ajax: {
+                    url: 'ajax.php',
+                    type: 'POST',
+                    data: { CALL: 10 },
+                    dataSrc: function(json) {
+                      return json.data || [];
+                    }
+                  },
+                  columns: [
+                    { data: 'task_title' },
+                    { data: 'task_category' },
+                    { data: 'task_deadline', render: function(data) { return data ? new Date(data).toLocaleDateString() : 'N/A'; } },
+                    { data: 'check_status', render: function(data) { return `<span class="status-badge status-${data}">${data || 'Not submitted'}</span>`; } },
+                    { data: 'file_name', render: function(data) { return data || 'No file submitted'; } },
+                    //{ data: 'grade', render: function(data) { return data || '-'; } },
+                    { data: null, render: function(data, type, row) {
+                        let actions = '';
+                        if (!row.task_submission_id || row.check_status === 'rejected') {
+                          actions += `<button class="btn-sm btn-primary" onclick="openSubmitTaskModal(${row.task_id})">Submit/Resubmit</button>`;
+                        }
+                        if (row.file_upload_id) {
+                          actions += ` <button class="btn-sm btn-secondary" onclick="downloadFile(${row.file_upload_id})">Download</button>`;
+                        }
+                        return actions || 'No actions available';
+                      }, orderable: false }
+                  ],
+                  pageLength: 10,
+                  order: [[2, 'asc']]
+                });
+              }
+            });
+            </script>
         </div>
       </div>
 
@@ -381,6 +441,14 @@ $currentUser = $session->getUserData();
   <!-- MODALS -->
   <?php require_once('modals.php'); ?>
 
+  <!-- Floating Pending Tasks Icon -->
+  <div id="pendingTasksFloating" style="display:none; position:fixed; bottom:32px; right:32px; z-index:9999;">
+    <button id="pendingTasksFloatBtn" style="background:#2196F3; color:#fff; border:none; border-radius:50%; width:60px; height:60px; box-shadow:0 2px 8px rgba(0,0,0,0.2); font-size:28px; position:relative; cursor:pointer;">
+      <i class="fas fa-tasks"></i>
+      <span id="pendingTasksFloatBadge" style="position:absolute; top:-8px; right:-8px; background:#f44336; color:#fff; border-radius:50%; padding:4px 10px; font-size:16px; font-weight:bold; min-width:28px; text-align:center;">0</span>
+    </button>
+  </div>
+
   <script>
     
     // GitHub-style tab switcher
@@ -401,6 +469,198 @@ $currentUser = $session->getUserData();
   <script src="js/member.js"></script>
   <script>
   $(document).ready(function() {
+      // --- Floating Pending Tasks Icon ---
+      function updatePendingTasksFloating() {
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 9 },
+          dataType: 'json',
+          success: function(json) {
+            let count = 0;
+            if(json && json.data && Array.isArray(json.data)) {
+              count = json.data.filter(t => t.task_status === 'active').length;
+            } else if(Array.isArray(json)) {
+              count = json.filter(t => t.task_status === 'active').length;
+            }
+            const floatDiv = document.getElementById('pendingTasksFloating');
+            const badge = document.getElementById('pendingTasksFloatBadge');
+            if(count > 0) {
+              badge.textContent = count;
+              floatDiv.style.display = 'block';
+            } else {
+              badge.textContent = '';
+              floatDiv.style.display = 'none';
+            }
+          }
+        });
+      }
+      // Show Pending Tasks tab when floating icon is clicked
+      document.getElementById('pendingTasksFloatBtn').addEventListener('click', function() {
+        document.querySelector("[data-tab='pending-tasks']").click();
+      });
+      // Update floating icon on page load and after task actions
+      updatePendingTasksFloating();
+      // --- Pending Tasks Badge ---
+      function updatePendingTasksBadge() {
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 9 },
+          dataType: 'json',
+          success: function(json) {
+            let count = 0;
+            if(json && json.data && Array.isArray(json.data)) {
+              count = json.data.filter(t => t.task_status === 'active').length;
+            } else if(Array.isArray(json)) {
+              count = json.filter(t => t.task_status === 'active').length;
+            }
+            const badge = document.getElementById('pendingTasksBadge');
+            if(count > 0) {
+              badge.textContent = count;
+              badge.style.display = 'inline-block';
+            } else {
+              badge.textContent = '';
+              badge.style.display = 'none';
+            }
+          }
+        });
+      }
+      // Update badge on page load and when switching tabs
+      updatePendingTasksBadge();
+      document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
+        updatePendingTasksBadge();
+      });
+    // --- Pending Tasks Table ---
+    let pendingTasksTable;
+    function loadPendingTasks() {
+      pendingTasksTable = $('#pendingTasksTable').DataTable({
+        ajax: {
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 9 },
+          dataSrc: function(json) { return json.data || []; }
+        },
+        destroy: true,
+        columns: [
+          { data: 'task_title' },
+          { data: 'task_category' },
+          { data: 'task_deadline' },
+          { data: 'task_status', render: function(data) { return data === 'active' ? 'Pending' : data; } },
+          { data: null, render: function(data, type, row) {
+              if(row.task_status === 'active') {
+                return `<button class='btn btn-primary btn-sm' onclick='openComplyTaskModal(${row.task_id})'>Comply</button>`;
+              } else {
+                return '-';
+              }
+            }
+          }
+        ],
+        language: { emptyTable: 'No pending tasks found' }
+      });
+    }
+    // Load pending tasks on tab show
+      document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
+        loadPendingTasks();
+        updatePendingTasksBadge();
+          updatePendingTasksFloating();
+      });
+    // --- Comply Task Modal Logic ---
+    window.openComplyTaskModal = function(taskId) {
+      document.getElementById('complyTaskId').value = taskId;
+      document.getElementById('complyFile').value = '';
+      document.getElementById('complyNlpPreview').style.display = 'none';
+      document.getElementById('complySuggestedCategory').textContent = '-';
+      document.getElementById('complyCategoryConfidence').textContent = '-';
+      openModal('complyTaskModal');
+    };
+
+    document.getElementById('complyFile').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if(file) {
+        // Step 1: Request NLP analysis
+        const formData = new FormData();
+        formData.append('CALL', 'nlp_analyze');
+        formData.append('file', file);
+        openLoadModal();
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          success: function(result) {
+            if(result.status === 'SUCCESS') {
+              document.getElementById('complyNlpPreview').style.display = 'block';
+              document.getElementById('complySuggestedCategory').textContent = result.category || 'Uncategorized';
+              document.getElementById('complyCategoryConfidence').textContent = result.nlp_analysis['confidence'] || '0';
+              // Store for upload
+              document.getElementById('complyFile').dataset.suggestedCategory = result.category || 'Uncategorized';
+              document.getElementById('complyFile').dataset.categoryScore = result.score || '0';
+              document.getElementById('complyFile').dataset.nlpAnalysis = JSON.stringify(result.nlp_analysis || {});
+            } else {
+              openNotificationModal('NLP analysis failed: ' + (result.msg || 'Unknown error'));
+            }
+          },
+          error: function(xhr) {
+            openNotificationModal('NLP analysis failed. Please try again.');
+          },complete:function(){
+            closeLoadModal();
+          }
+        });
+      }
+    });
+
+    document.getElementById('complyUploadBtn').addEventListener('click', function() {
+      const fileInput = document.getElementById('complyFile');
+      const file = fileInput.files[0];
+      if(!file) {
+        openNotificationModal('Please select a file to upload.');
+        return;
+      }
+      const taskId = document.getElementById('complyTaskId').value;
+      // Step 2: Finalize upload with NLP data
+      const formData = new FormData();
+      formData.append('CALL', 11); // Submit task file
+      formData.append('task_id', taskId);
+      formData.append('file', file);
+      formData.append('category_tag', fileInput.dataset.suggestedCategory || 'Uncategorized');
+      formData.append('category_score', fileInput.dataset.categoryScore || '0');
+      formData.append('nlp_analysis', fileInput.dataset.nlpAnalysis || '');
+      openLoadModal();
+      $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        beforeSend: function() {
+          document.getElementById('complyUploadBtn').disabled = true;
+          document.getElementById('complyUploadBtn').textContent = 'Uploading...';
+        },
+        success: function(result) {
+          if(result.status === 'SUCCESS' || result.success) {
+            openNotificationModal('Task file uploaded successfully!');
+            closeModal('complyTaskModal');
+            loadPendingTasks();
+              updatePendingTasksBadge();
+              updatePendingTasksFloating();
+          } else {
+            openNotificationModal('Upload failed: ' + (result.msg || 'Unknown error'));
+          }
+        },
+        error: function(xhr) {
+          openNotificationModal('Upload failed. Please try again.');
+        },
+        complete: function() {
+          closeLoadModal();
+          document.getElementById('complyUploadBtn').disabled = false;
+          document.getElementById('complyUploadBtn').textContent = 'Submit';
+        }
+      });
+    });
 
     // Initialize current user data
     window.currentUser = <?= json_encode($currentUser) ?>;
@@ -678,62 +938,6 @@ $currentUser = $session->getUserData();
         });
       }
 
-      // Upload button click: only allow after NLP analysis
-      /*document.getElementById('uploadFileBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const fileInput = document.getElementById('uploadFile');
-        if(!fileInput.files[0]) {
-          alert('Please select a file to upload');
-          return;
-        }
-        if(!nlpSuggestedCategory) {
-          alert('Please wait for category analysis to complete');
-          return;
-        }
-        const file = fileInput.files[0];
-        const description = document.getElementById('fileDescription').value;
-        const taskId = document.getElementById('taskAssociation').value;
-        const manualCategory = document.getElementById('manualCategory').value;
-        openLoadModal();
-        const formData = new FormData();
-        formData.append('CALL', 3); // Actual upload
-        formData.append('file', file);
-        formData.append('uploaded_by', window.currentUser.user_id);
-        formData.append('category_tag', manualCategory || nlpSuggestedCategory || 'Uncategorized');
-        formData.append('category_score', nlpCategoryConfidence || '0');
-        formData.append('nlp_analysis', JSON.stringify(nlpAnalysisData));
-        formData.append('description', description);
-        formData.append('task_id', taskId);
-        $.ajax({
-          url: 'ajax.php',
-          type: 'POST',
-          data: formData,
-          processData: false,
-          contentType: false,
-          dataType: 'json',
-          success: function(result) {
-            let message = result.msg || result.message;
-            if(result.success === true) {
-              alert('File uploaded successfully!');
-              document.getElementById('uploadFile').value = '';
-              document.getElementById('fileDescription').value = '';
-              document.getElementById('detectedCategory').textContent = 'Select a file to analyze';
-              document.getElementById('categoryConfidence').textContent = '-';
-              document.getElementById('detectedFileType').textContent = '-';
-              document.getElementById('suggestedKeywords').textContent = '';
-              // TODO: Reload files table if present
-            } else {
-              alert('Upload failed: ' + message);
-            }
-          },
-          error: function(xhr, status, error) {
-            alert('Upload failed. Please try again.');
-          },
-          complete: function() {
-            closeLoadModal();
-          }
-        });
-      });*/
       // Clear form
       window.resetUploadForm = function() {
         document.getElementById('uploadFile').value = '';
@@ -748,6 +952,25 @@ $currentUser = $session->getUserData();
       }
   });
   </script>
+    <style>
+      #pendingTasksFloating {
+        animation: floatIn 0.4s;
+      }
+      #pendingTasksFloatBtn {
+        transition: box-shadow 0.2s;
+      }
+      #pendingTasksFloatBtn:hover {
+        box-shadow:0 4px 16px rgba(33,150,243,0.3);
+        background:#1976D2;
+      }
+      #pendingTasksFloatBadge {
+        transition: background 0.2s;
+      }
+      @keyframes floatIn {
+        from { opacity:0; transform:translateY(40px); }
+        to { opacity:1; transform:translateY(0); }
+      }
+    </style>
   
   <!-- PWA Scripts -->
   <!--script src="../js/pwa-helper.js"></script-->

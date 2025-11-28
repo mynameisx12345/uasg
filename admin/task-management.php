@@ -141,6 +141,12 @@ if (!isset($_SESSION['user_id'])) {
                       <label for="taskDescription">Task Description *</label>
                       <textarea id="taskDescription" name="task_description" rows="4" placeholder="Enter task description..." required></textarea>
                     </div>
+                    <div class="form-group">
+                      <label for="assignTo">Assign To</label>
+                      <select id="assignTo" name="assigned_to">
+                          <option value="">All Student Government Members</option>
+                      </select>
+                    </div>
                     
                     <div class="form-group">
                       <label for="taskDeadline">Deadline *</label>
@@ -394,11 +400,12 @@ if (!isset($_SESSION['user_id'])) {
 
         const payload = {
             CALL: 22, // Create task
-            DATA: {  // wrap inside DATA
+            DATA: {
                 task_category_id: $('#taskCategory').val(),
                 task_title: $('#taskTitle').val(),
                 task_description: $('#taskDescription').val(),
-                task_deadline: $('#taskDeadline').val()
+                task_deadline: $('#taskDeadline').val(),
+                assigned_to: $('#assignTo').val() // NEW
             }
         };
 
@@ -412,6 +419,19 @@ if (!isset($_SESSION['user_id'])) {
             }
         }, 'json');
     });
+
+      function loadMembers() {
+          $.post('ajax.php', { CALL: 100 }, function(resp) {
+              if (resp.data) {
+                  const options = resp.data.map(m =>
+                      `<option value="${m.user_id}">${m.full_name}</option>`
+                  ).join('');
+                  $('#assignTo').append(options);
+              }
+          }, 'json');
+      }
+
+      loadMembers(); // call it
 
     // Edit task button
     $(document).on('click', '.editTaskBtn', function() {

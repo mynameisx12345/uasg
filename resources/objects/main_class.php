@@ -318,7 +318,7 @@
 					"INSERT INTO file_upload_tbl (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
 					VALUES (:categoryid, :category_tag, :category_score, :mime_type, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
 				);
-				$stmt->execute([
+				$file_id = $stmt->insert([
 					':categoryid' => $categoryid,
 					':category_tag' => $filecategory,
 					':category_score' => $score,
@@ -330,8 +330,12 @@
 					':uploaded_by' => $uploadedBy
 				]);
 
+				// Get last inserted file_upload_id
+				//$file_id = $db->pdo->lastInsertId();
+
 				return [
 					'success' => true,
+					'file_id' => $file_id,
 					'filename' => $filename,
 					'original_name' => $file['name'],
 					'path' => $fullPath,
@@ -1134,16 +1138,97 @@
 			];
 		}
 
-		public function getMemberActiveTasks($memberId) {
+		/*public function getMemberActiveTasks($memberId) {
 			$db = Database::getInstance()->getConnection();
 			// Remove assigned_to reference, fetch tasks for memberId if possible
 			$tasks = $db->select("SELECT * FROM task_tbl WHERE task_deadline >= CURDATE()", []);
 			return ['data' => $tasks];
+		}*/
+
+
+		
+		
+		public function getMemberActiveTasks($memberId) {
+			$db = Database::getInstance();
+
+			try {
+				$sql = "
+					SELECT 
+						t.task_id,
+						t.task_title,
+						c.task_category AS task_category,
+						t.task_deadline,
+						CASE 
+							WHEN t.task_deadline >= CURDATE() THEN 'active'
+							ELSE 'inactive'
+						END AS task_status
+					FROM task_tbl AS t
+					LEFT JOIN task_category_tbl AS c
+						ON c.task_category_id = t.task_category_id
+					WHERE 
+						(t.assigned_to = ? OR t.assigned_to IS NULL OR t.assigned_to = '')
+					ORDER BY t.task_deadline ASC
+				";
+
+				// Execute query
+				$tasks = $db->select($sql, [$memberId]) ?: [];
+
+				// Normalize keys
+				$tasks = array_map(function($t) {
+					return [
+						'task_id'       => (int)($t['task_id'] ?? 0),
+						'task_title'    => $t['task_title'] ?? '',
+						'task_category' => $t['task_category'] ?? '-',
+						'task_deadline' => $t['task_deadline'] ?? '',
+						'task_status'   => $t['task_status'] ?? 'inactive',
+					];
+				}, $tasks);
+
+				return ['data' => $tasks];
+
+			} catch (Exception $e) {
+				return ['data' => [], 'error' => $e->getMessage()];
+			}
 		}
-		public function getMemberTaskSubmissions($memberId) {
+
+
+		/*public function getMemberTaskSubmissions($memberId) {
 			$db = Database::getInstance()->getConnection();
 			$subs = $db->select("SELECT * FROM task_submission_tbl WHERE submitted_by = ?", [$memberId]);
 			return ['data' => $subs];
+		}*/
+		public function getMemberTaskSubmissions($memberId) 
+{
+			$db = Database::getInstance(); // <-- FIXED
+
+			$sql = "
+				SELECT 
+					t.task_id,
+					t.task_title,
+					c.task_category,
+					t.task_deadline,
+					
+					s.task_submission_id,
+					s.check_status,
+					s.file_upload_id,
+					
+					f.file_name
+
+				FROM task_tbl t
+				LEFT JOIN task_category_tbl c 
+					ON t.task_category_id = c.task_category_id
+				LEFT JOIN task_submission_tbl s 
+					ON s.task_id = t.task_id AND s.submitted_by = ?
+				LEFT JOIN file_upload_tbl f 
+					ON f.file_upload_id = s.file_upload_id
+				
+				WHERE t.assigned_to IS NULL 
+				OR FIND_IN_SET(?, t.assigned_to)
+			";
+
+			$rows = $db->select($sql, [$memberId, $memberId]);
+
+			return ['data' => $rows];
 		}
 
 		public function getMemberTaskDetails($memberId, $taskId) {
@@ -1165,7 +1250,8 @@
 					'task_category_id' => $data['task_category_id'],
 					'task_title' => $data['task_title'],
 					'task_description' => $data['task_description'],
-					'task_deadline' => $data['task_deadline']
+					'task_deadline' => $data['task_deadline'],
+					'assigned_to' => !empty($data['assigned_to']) ? $data['assigned_to'] : null
 				]);
 
 				$taskId = $task->insertAndGetId();
@@ -1174,7 +1260,8 @@
 				}
 
 				// Create notifications for all UASG members
-				$this->notifyMembersNewTask($taskId, $data['task_title']);
+				//$this->notifyMembersNewTask($taskId, $data['task_title']);
+				$this->notifyMembersNewTask($taskId, $data['task_title'], $data['assigned_to']);
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
 			} catch (Exception $e) {
@@ -1236,48 +1323,57 @@
 		public function submitMemberTaskFile($data) {
 			$db = Database::getInstance()->getConnection();
 
-			// Validate required fields
+			// Validate
 			if (empty($data['task_id']) || empty($data['file_id'])) {
-				return [
-					'success' => false,
-					'msg' => 'Task ID and File ID are required.'
-				];
+				return ['success' => false, 'msg' => 'Task ID and File ID are required.'];
+			}
+
+			if (empty($data['submitted_by'])) {
+				return ['success' => false, 'msg' => 'Submitted by is required.'];
 			}
 
 			try {
-				// Check if file exists
+				// Validate file exists
 				$stmt = $db->prepare("SELECT file_upload_id FROM file_upload_tbl WHERE file_upload_id = ?");
 				$stmt->execute([$data['file_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'File does not exist.'];
 				}
 
-				// Check if task exists
+				// Validate task exists
 				$stmt = $db->prepare("SELECT task_id FROM task_tbl WHERE task_id = ?");
 				$stmt->execute([$data['task_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'Task does not exist.'];
 				}
 
-				// Optional: Prevent duplicate submission by same file for the same task
-				$stmt = $db->prepare("SELECT task_submission_id FROM task_submission_tbl WHERE task_id = ? AND file_upload_id = ?");
+				// Prevent duplicate submission
+				$stmt = $db->prepare("SELECT task_submission_id 
+									FROM task_submission_tbl 
+									WHERE task_id = ? AND file_upload_id = ?");
 				$stmt->execute([$data['task_id'], $data['file_id']]);
 				if ($stmt->rowCount() > 0) {
 					return ['success' => false, 'msg' => 'This file has already been submitted for this task.'];
 				}
 
-				// Insert submission
+				// Insert submission correctly (NOW WITH submitted_by)
 				$stmt = $db->prepare("
-					INSERT INTO task_submission_tbl (task_id, file_upload_id, check_status) 
-					VALUES (?, ?, ?)
+					INSERT INTO task_submission_tbl 
+						(task_id, file_upload_id, check_status, submitted_by)
+					VALUES 
+						(?, ?, 'Pending', ?)
 				");
+
 				$stmt->execute([
 					$data['task_id'],
 					$data['file_id'],
-					'Pending' // default status
+					$data['submitted_by']
 				]);
 
-				return ['success' => true, 'msg' => 'Task file submitted successfully.'];
+				return [
+					'success' => true,
+					'msg' => 'Task file submitted successfully.'
+				];
 
 			} catch (PDOException $e) {
 				return ['success' => false, 'msg' => $e->getMessage()];
@@ -1436,15 +1532,27 @@
 			}
 		}
 
-		private function notifyMembersNewTask($taskId, $taskTitle) {
+		private function notifyMembersNewTask($taskId, $taskTitle, $assignedTo = null) {
 			$db = Database::getInstance()->getConnection();
-			// Get all UASG members
-			$members = $this->db->select(
-				"SELECT p.profile_id AS user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
-					FROM profile_tbl p
-					JOIN position_tbl pos ON p.position_id = pos.position_id
-					WHERE pos.position = 'Student Government Member'"
-			);
+
+			if ($assignedTo) {
+				// Notify only the assigned user
+				$members = $this->db->select("
+					SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
+					FROM user_tbl u
+					JOIN profile_tbl p ON u.profile_id = p.profile_id
+					WHERE u.user_id = ?
+				", [$assignedTo]);
+			} else {
+				// Notify all members
+				$members = $this->db->select("
+					SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) AS full_name
+					FROM user_tbl u
+					JOIN profile_tbl p ON u.profile_id = p.profile_id
+					JOIN position_tbl pos ON u.position_id = pos.position_id
+					WHERE pos.position = 'Student Government Member'
+				");
+			}
 
 			$notificationManager = new NotificationManager();
 			foreach ($members as $member) {
@@ -1554,13 +1662,16 @@
 
 			$query .= " ORDER BY datetime_created DESC LIMIT $limit";
 
-			return $this->db->select($query, $params);
+			// Uses your select() method (safe)
+			return Database::getInstance()->select($query, $params);
 		}
 
 		/** Mark single notification as read */
 		public function markAsRead($notificationId) {
 			$query = "UPDATE notifications_tbl SET is_read = 1 WHERE notification_id = :id";
-			return $this->db->query($query, [':id' => $notificationId]);
+
+			$stmt = $this->db->prepare($query);
+			return $stmt->execute([':id' => $notificationId]);
 		}
 
 		/** Create notification */
@@ -1570,7 +1681,9 @@
 					VALUES 
 						(:user_id, :type, :title, :message, :related_id, 0, NOW())";
 
-			return $this->db->query($query, [
+			$stmt = $this->db->prepare($query);
+
+			return $stmt->execute([
 				':user_id' => $data['user_id'],
 				':type' => $data['type'],
 				':title' => $data['title'],
@@ -1581,8 +1694,11 @@
 
 		/** Count unread notifications */
 		public function getUnreadCount($userId) {
-			$query = "SELECT COUNT(*) AS count FROM notifications_tbl WHERE user_id = :user_id AND is_read = 0";
-			$result = $this->db->select($query, [':user_id' => $userId]);
+			$query = "SELECT COUNT(*) AS count 
+					FROM notifications_tbl 
+					WHERE user_id = :user_id AND is_read = 0";
+
+			$result = Database::getInstance()->select($query, [':user_id' => $userId]);
 			return $result[0]['count'] ?? 0;
 		}
 	}
@@ -1796,33 +1912,34 @@
 
 			$linkpath = 'uploads/files/' . $filename;
 
-            $db->execute("
-                INSERT INTO file_upload_tbl 
-                (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ", [
-                $categoryid,
-                $filecategory,
-                $score,
-                $file['type'],
-                $filename,
-                $linkpath,
-                $file['size'],
-                date('Y-m-d H:i:s'),
-                $uploadedBy
-            ]);
+            $fileId = $db->insert("
+				INSERT INTO file_upload_tbl 
+				(file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			", [
+				$categoryid,
+				$filecategory,
+				$score,
+				$file['type'],
+				$filename,
+				$linkpath,
+				$file['size'],
+				date('Y-m-d H:i:s'),
+				$uploadedBy
+			]);
 
-            return [
-                'success' => true,
-                'filename' => $filename,
-                'original_name' => $file['name'],
-                'path' => $fullPath,
-                'size' => $file['size'],
-                'type' => $file['type'],
-                'extension' => $extension,
-                'upload_time' => date('Y-m-d H:i:s'),
-                'nlp_result' => $result
-            ];
+			return [
+				'success' => true,
+				'file_id' => $fileId,        // 🔥 IMPORTANT
+				'filename' => $filename,
+				'original_name' => $file['name'],
+				'path' => $fullPath,
+				'size' => $file['size'],
+				'type' => $file['type'],
+				'extension' => $extension,
+				'upload_time' => date('Y-m-d H:i:s'),
+				'nlp_result' => $result
+			];
 
         } catch (Exception $e) {
             return [

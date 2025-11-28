@@ -532,7 +532,7 @@ function downloadFile(fileId) {
         url: 'ajax.php',
         type: 'POST',
         data: {
-            CALL: 9,
+            CALL: 19,
             file_id: fileId
         },
         xhrFields: { responseType: 'blob' },
