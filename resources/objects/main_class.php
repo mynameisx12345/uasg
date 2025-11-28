@@ -318,7 +318,7 @@
 					"INSERT INTO file_upload_tbl (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
 					VALUES (:categoryid, :category_tag, :category_score, :mime_type, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
 				);
-				$stmt->execute([
+				$file_id = $stmt->insert([
 					':categoryid' => $categoryid,
 					':category_tag' => $filecategory,
 					':category_score' => $score,
@@ -330,8 +330,12 @@
 					':uploaded_by' => $uploadedBy
 				]);
 
+				// Get last inserted file_upload_id
+				//$file_id = $db->pdo->lastInsertId();
+
 				return [
 					'success' => true,
+					'file_id' => $file_id,
 					'filename' => $filename,
 					'original_name' => $file['name'],
 					'path' => $fullPath,
@@ -1188,10 +1192,43 @@
 		}
 
 
-		public function getMemberTaskSubmissions($memberId) {
+		/*public function getMemberTaskSubmissions($memberId) {
 			$db = Database::getInstance()->getConnection();
 			$subs = $db->select("SELECT * FROM task_submission_tbl WHERE submitted_by = ?", [$memberId]);
 			return ['data' => $subs];
+		}*/
+		public function getMemberTaskSubmissions($memberId) 
+{
+			$db = Database::getInstance(); // <-- FIXED
+
+			$sql = "
+				SELECT 
+					t.task_id,
+					t.task_title,
+					c.task_category,
+					t.task_deadline,
+					
+					s.task_submission_id,
+					s.check_status,
+					s.file_upload_id,
+					
+					f.file_name
+
+				FROM task_tbl t
+				LEFT JOIN task_category_tbl c 
+					ON t.task_category_id = c.task_category_id
+				LEFT JOIN task_submission_tbl s 
+					ON s.task_id = t.task_id AND s.submitted_by = ?
+				LEFT JOIN file_upload_tbl f 
+					ON f.file_upload_id = s.file_upload_id
+				
+				WHERE t.assigned_to IS NULL 
+				OR FIND_IN_SET(?, t.assigned_to)
+			";
+
+			$rows = $db->select($sql, [$memberId, $memberId]);
+
+			return ['data' => $rows];
 		}
 
 		public function getMemberTaskDetails($memberId, $taskId) {
@@ -1875,33 +1912,34 @@
 
 			$linkpath = 'uploads/files/' . $filename;
 
-            $db->execute("
-                INSERT INTO file_upload_tbl 
-                (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ", [
-                $categoryid,
-                $filecategory,
-                $score,
-                $file['type'],
-                $filename,
-                $linkpath,
-                $file['size'],
-                date('Y-m-d H:i:s'),
-                $uploadedBy
-            ]);
+            $fileId = $db->insert("
+				INSERT INTO file_upload_tbl 
+				(file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			", [
+				$categoryid,
+				$filecategory,
+				$score,
+				$file['type'],
+				$filename,
+				$linkpath,
+				$file['size'],
+				date('Y-m-d H:i:s'),
+				$uploadedBy
+			]);
 
-            return [
-                'success' => true,
-                'filename' => $filename,
-                'original_name' => $file['name'],
-                'path' => $fullPath,
-                'size' => $file['size'],
-                'type' => $file['type'],
-                'extension' => $extension,
-                'upload_time' => date('Y-m-d H:i:s'),
-                'nlp_result' => $result
-            ];
+			return [
+				'success' => true,
+				'file_id' => $fileId,        // 🔥 IMPORTANT
+				'filename' => $filename,
+				'original_name' => $file['name'],
+				'path' => $fullPath,
+				'size' => $file['size'],
+				'type' => $file['type'],
+				'extension' => $extension,
+				'upload_time' => date('Y-m-d H:i:s'),
+				'nlp_result' => $result
+			];
 
         } catch (Exception $e) {
             return [

@@ -47,44 +47,18 @@ function closeNotificationModal() {
     </div>
 </div>
 
-
+<!-- Loading modal -->
+ <div id='loadingModal' class='modal'>
+      <div class='modal-content modal-content-small'>
+        <h2>Processing...</h2>
+        <div style='text-align: center; margin: 20px 0;'>
+          <i class='fas fa-spinner fa-spin' style='font-size: 48px; color: #2196F3;'></i>
+        </div>
+        <p style='text-align: center;'>Please wait while we process your request.</p>
+      </div>
+</div>
 
 <!-- Submit Task Modal -->
-<!--div id="submitTaskModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Submit Task</h3>
-            <span class="close" onclick="closeModal('submitTaskModal')">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="submitTaskForm" enctype="multipart/form-data">
-                <input type="hidden" id="submitTaskId" name="task_id">
-                
-                <div class="form-group">
-                    <label for="submitFile">Upload File *</label>
-                    <input type="file" id="submitFile" name="file" required>
-                    <small class="form-text">Maximum file size: 50MB</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="submissionNotes">Notes (Optional)</label>
-                    <textarea id="submissionNotes" name="submission_notes" rows="4" placeholder="Add any notes about your submission..."></textarea>
-                </div>
-            </form>
-            
-            <div id="submitProgress" class="progress-container" style="display: none;">
-                <div class="progress-bar">
-                    <div id="submitProgressBar" class="progress-fill"></div>
-                </div>
-                <div id="submitProgressText" class="progress-text">0%</div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn-secondary" onclick="closeModal('submitTaskModal')">Cancel</button>
-            <button type="button" class="btn-primary" onclick="submitTask()">Submit Task</button>
-        </div>
-    </div>
-</div-->
 <div class="modal" id="submitTaskModal">
     <div class="modal-content modal-content-large" style="max-width:480px;">
         <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #eee;">
@@ -424,6 +398,16 @@ function closeNotificationModal() {
 </div>
 
 <script>
+
+function openLoadModal(){
+    document.getElementById('loadingModal').style.display = 'flex';
+}
+
+function closeLoadModal(){
+    document.getElementById('loadingModal').style.display = 'none';
+}
+
+
 // Modal management functions
 function openModal(modalId) {
     document.getElementById(modalId).style.display = 'block';

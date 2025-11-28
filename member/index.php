@@ -269,23 +269,6 @@ $currentUser = $session->getUserData();
           
           <br/>
           
-          <!-- Files Table -->
-          <!--div class="table-container">
-            <table class='data-table' id='filesTable'>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>File Name</th>
-                  <th>Category</th>
-                  <th>Type</th>
-                  <th>Uploaded By</th>
-                  <th>Date Uploaded</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div-->
           <div class="table-container">
             <table class='data-table' id='myFilesTable'>
               <thead>
@@ -295,7 +278,7 @@ $currentUser = $session->getUserData();
                   <th>Type</th>
                   <th>Size</th>
                   <th>Uploaded</th>
-                  <th>Task Association</th>
+                  <th>Date Uploaded</th>
                   <th>Actions</th>
                   <th>NLP Category</th>
                   <th>NLP Score</th>
@@ -361,13 +344,49 @@ $currentUser = $session->getUserData();
                   <th>Deadline</th>
                   <th>Submission Status</th>
                   <th>Submitted File</th>
-                  <th>Grade/Feedback</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
+            <script>
+            $(document).ready(function() {
+              // Initialize Task Submissions Table
+              if (!$.fn.DataTable.isDataTable('#taskSubmissionsTable')) {
+                window.taskSubmissionsTable = $('#taskSubmissionsTable').DataTable({
+                  ajax: {
+                    url: 'ajax.php',
+                    type: 'POST',
+                    data: { CALL: 10 },
+                    dataSrc: function(json) {
+                      return json.data || [];
+                    }
+                  },
+                  columns: [
+                    { data: 'task_title' },
+                    { data: 'task_category' },
+                    { data: 'task_deadline', render: function(data) { return data ? new Date(data).toLocaleDateString() : 'N/A'; } },
+                    { data: 'check_status', render: function(data) { return `<span class="status-badge status-${data}">${data || 'Not submitted'}</span>`; } },
+                    { data: 'file_name', render: function(data) { return data || 'No file submitted'; } },
+                    //{ data: 'grade', render: function(data) { return data || '-'; } },
+                    { data: null, render: function(data, type, row) {
+                        let actions = '';
+                        if (!row.task_submission_id || row.check_status === 'rejected') {
+                          actions += `<button class="btn-sm btn-primary" onclick="openSubmitTaskModal(${row.task_id})">Submit/Resubmit</button>`;
+                        }
+                        if (row.file_upload_id) {
+                          actions += ` <button class="btn-sm btn-secondary" onclick="downloadFile(${row.file_upload_id})">Download</button>`;
+                        }
+                        return actions || 'No actions available';
+                      }, orderable: false }
+                  ],
+                  pageLength: 10,
+                  order: [[2, 'asc']]
+                });
+              }
+            });
+            </script>
         </div>
       </div>
 
@@ -563,6 +582,7 @@ $currentUser = $session->getUserData();
         const formData = new FormData();
         formData.append('CALL', 'nlp_analyze');
         formData.append('file', file);
+        openLoadModal();
         $.ajax({
           url: 'ajax.php',
           type: 'POST',
@@ -574,7 +594,7 @@ $currentUser = $session->getUserData();
             if(result.status === 'SUCCESS') {
               document.getElementById('complyNlpPreview').style.display = 'block';
               document.getElementById('complySuggestedCategory').textContent = result.category || 'Uncategorized';
-              document.getElementById('complyCategoryConfidence').textContent = result.score || '0';
+              document.getElementById('complyCategoryConfidence').textContent = result.nlp_analysis['confidence'] || '0';
               // Store for upload
               document.getElementById('complyFile').dataset.suggestedCategory = result.category || 'Uncategorized';
               document.getElementById('complyFile').dataset.categoryScore = result.score || '0';
@@ -585,6 +605,8 @@ $currentUser = $session->getUserData();
           },
           error: function(xhr) {
             openNotificationModal('NLP analysis failed. Please try again.');
+          },complete:function(){
+            closeLoadModal();
           }
         });
       }
@@ -606,6 +628,7 @@ $currentUser = $session->getUserData();
       formData.append('category_tag', fileInput.dataset.suggestedCategory || 'Uncategorized');
       formData.append('category_score', fileInput.dataset.categoryScore || '0');
       formData.append('nlp_analysis', fileInput.dataset.nlpAnalysis || '');
+      openLoadModal();
       $.ajax({
         url: 'ajax.php',
         type: 'POST',
@@ -632,6 +655,7 @@ $currentUser = $session->getUserData();
           openNotificationModal('Upload failed. Please try again.');
         },
         complete: function() {
+          closeLoadModal();
           document.getElementById('complyUploadBtn').disabled = false;
           document.getElementById('complyUploadBtn').textContent = 'Submit';
         }

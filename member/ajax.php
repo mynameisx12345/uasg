@@ -254,9 +254,9 @@ if($call == 1){
         
         // Extract data array for DataTables format
         if (isset($managerResult['data'])) {
-            $result = ["data" => $managerResult['data']];
+            $result = $managerResult;//["data" => $managerResult['data']];
         } else if (is_array($managerResult)) {
-            $result = ["data" => $managerResult];
+            $result = $managerResult;//["data" => $managerResult];
         } else {
             $result = ["data" => []];
         }
@@ -286,12 +286,16 @@ if($call == 1){
 
         $memberId = $_SESSION['user_id'];
 
-        // Step 1: Upload file first
+        // Step 1: Upload file first (CORRECT FORMAT)
         $fileManager = new FileManager();
-        $upload = $fileManager->uploadFile($_FILES['file'], $memberId);
+        $upload = $fileManager->uploadFile([
+            'file' => $_FILES['file'],
+            'uploaded_by' => $memberId
+        ]);
 
-        if (!$upload['file_id']) {
-            throw new Exception("File upload failed.");
+        if (empty($upload['success']) || empty($upload['file_id'])) {
+            $err = $upload['error'] ?? 'File upload failed.';
+            throw new Exception($err);
         }
 
         $file_id = $upload['file_id'];
@@ -401,8 +405,36 @@ if($call == 1){
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
     echo json_encode($result);
-    
+}else if($call == 20){
+    // Download file (returns file as binary, not JSON)
+    $memberId = $_SESSION['user_id'] ?? 0;
+    $fileId = $_POST['file_id'] ?? 0;
+    require_once("../resources/objects/main_class.php");
+    $fileManager = new FileManager();
+    $fileInfo = $fileManager->getMemberFileDetails($memberId, $fileId);
+    if(!$fileInfo || empty($fileInfo['file_path'])){
+        http_response_code(404);
+        echo "File not found.";
+        exit;
+    }
+    $filePath = '../' . $fileInfo['file_path'];
+    if(!file_exists($filePath)){
+        http_response_code(404);
+        echo "File not found.";
+        exit;
+    }
+    header('Content-Description: File Transfer');
+    header('Content-Type: ' . ($fileInfo['mime_type'] ?? 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . ($fileInfo['file_name'] ?? basename($filePath)) . '"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Pragma: public');
+    header('Content-Length: ' . filesize($filePath));
+    readfile($filePath);
+    exit;
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }
+// Direct file download for DataTable/JS (CALL: 20)
+
 ?>
