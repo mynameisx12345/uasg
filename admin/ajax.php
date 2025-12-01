@@ -41,12 +41,15 @@
 			ob_end_clean();
 			$filePath = $_GET['file_path'] ?? '';
 			$allowedDirs = [
-				realpath(__DIR__ . '/uploads/files')
+				realpath(__DIR__ . '/../uploads/files'),
+				realpath(__DIR__ . '/uploads'),
+				realpath(__DIR__ . '/../member/uploads'),
+				realpath(__DIR__ . '/../subadmin/uploads')
 			];
 			$realFilePath = realpath($filePath);
 			$isAllowed = false;
 			foreach ($allowedDirs as $dir) {
-				if ($realFilePath && strpos($realFilePath, $dir) === 0) {
+				if ($realFilePath && $dir && strpos($realFilePath, $dir) === 0) {
 					$isAllowed = true;
 					break;
 				}
@@ -55,6 +58,38 @@
 				$mimeType = mime_content_type($realFilePath);
 				header('Content-Type: ' . $mimeType);
 				header('Content-Disposition: inline; filename="' . basename($realFilePath) . '"');
+				readfile($realFilePath);
+				exit;
+			} else {
+				header('Content-Type: application/json');
+				echo json_encode(['status' => 'ERROR', 'msg' => 'File not found or access denied']);
+				exit;
+			}
+		}
+		
+		// Download file by path for NLP search results
+		if ($_GET['CALL'] === 'download_by_path') {
+			ob_end_clean();
+			$filePath = $_GET['file_path'] ?? '';
+			$allowedDirs = [
+				realpath(__DIR__ . '/../uploads/files'),
+				realpath(__DIR__ . '/uploads'),
+				realpath(__DIR__ . '/../member/uploads'),
+				realpath(__DIR__ . '/../subadmin/uploads')
+			];
+			$realFilePath = realpath($filePath);
+			$isAllowed = false;
+			foreach ($allowedDirs as $dir) {
+				if ($realFilePath && $dir && strpos($realFilePath, $dir) === 0) {
+					$isAllowed = true;
+					break;
+				}
+			}
+			if ($isAllowed && file_exists($realFilePath)) {
+				$mimeType = mime_content_type($realFilePath);
+				header('Content-Type: ' . $mimeType);
+				header('Content-Disposition: attachment; filename="' . basename($realFilePath) . '"');
+				header('Content-Length: ' . filesize($realFilePath));
 				readfile($realFilePath);
 				exit;
 			} else {
@@ -233,23 +268,40 @@
 	// NLP-based file search
 
 	if($call === 'nlp_search_files') {
-		require_once '../resources/objects/google_nlp_service.php';
-		$searchWord = $_POST['SEARCH_WORD'] ?? '';
-		$categoryId = $_POST['CATEGORY_ID'] ?? '';
-		$nlp = new GoogleNLPService();
+		try {
+			// Clean output buffer before processing
+			if (ob_get_level()) ob_clean();
+			
+			require_once '../resources/objects/google_nlp_service.php';
+			$searchWord = $_POST['SEARCH_WORD'] ?? '';
+			$categoryId = $_POST['CATEGORY_ID'] ?? '';
+			$nlp = new GoogleNLPService();
 		$results = [];
+		
+		// Get database file records for matching
+		$db = Database::getInstance();
+		$conn = $db->getConnection();
+		$stmt = $conn->prepare("SELECT file_upload_id, file_name, file_path, file_category_id FROM file_upload_tbl");
+		$stmt->execute();
+		$dbFiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		
+		// Create lookup map: file_name => file_upload_id
+		$fileIdMap = [];
+		foreach($dbFiles as $dbFile) {
+			$fileIdMap[$dbFile['file_name']] = [
+				'id' => $dbFile['file_upload_id'],
+				'category_id' => $dbFile['file_category_id']
+			];
+		}
+		
 		// Directories to scan
-		$baseUrl = $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
 		$uploadDirs = [
 			realpath(__DIR__ . '/../uploads/files'),
 			realpath(__DIR__ . '/../admin/uploads'),
 			realpath(__DIR__ . '/../member/uploads'),
 			realpath(__DIR__ . '/../subadmin/uploads')
-			/*'http://'.$baseUrl.'uploads/files',
-			'http://'.$baseUrl.'admin/uploads',
-			'http://'.$baseUrl.'member/uploads',
-			'http://'.$baseUrl.'subadmin/uploads'*/
 		];
+		
 		foreach($uploadDirs as $dir) {
 			if(!$dir || !is_dir($dir)) continue;
 			$rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
@@ -258,24 +310,61 @@
 				$filePath = $file->getPathname();
 				$mimeType = mime_content_type($filePath);
 				$fileName = $file->getFilename();
+				
 				// Extract text
 				$textResult = $nlp->extractTextFromFile($filePath, $mimeType);
 				$text = $textResult['success'] ? $textResult['text'] : '';
 				if($searchWord && stripos($text, $searchWord) === false && stripos($fileName, $searchWord) === false) continue;
-				// Optionally, filter by category if you have a mapping (not implemented here)
+				
+				// Get file_upload_id from database if exists
+				$fileUploadId = isset($fileIdMap[$fileName]) ? $fileIdMap[$fileName]['id'] : null;
+				$fileCategoryId = isset($fileIdMap[$fileName]) ? $fileIdMap[$fileName]['category_id'] : null;
+				
+				// Get category name if category_id exists
+				$categoryName = '';
+				if($fileCategoryId) {
+					$catStmt = $conn->prepare("SELECT file_category FROM file_category_tbl WHERE file_category_id = ?");
+					$catStmt->execute([$fileCategoryId]);
+					$cat = $catStmt->fetch(PDO::FETCH_ASSOC);
+					$categoryName = $cat ? $cat['file_category'] : '';
+				}
+				
+				// Get uploader info from database if file exists in DB
+				$uploaderName = 'Unknown';
+				if($fileUploadId) {
+					$userStmt = $conn->prepare("SELECT p.fname, p.lname FROM file_upload_tbl f 
+						INNER JOIN user_tbl u ON f.uploaded_by = u.user_id 
+						INNER JOIN profile_tbl p ON u.profile_id = p.profile_id 
+						WHERE f.file_upload_id = ?");
+					$userStmt->execute([$fileUploadId]);
+					$user = $userStmt->fetch(PDO::FETCH_ASSOC);
+					if($user) {
+						$uploaderName = $user['fname'] . ' ' . $user['lname'];
+					}
+				}
+				
 				$results[] = [
 					'file_name' => $fileName,
 					'file_path' => $filePath,
 					'mime_type' => $mimeType,
 					'file_size' => $file->getSize(),
 					'datetime_uploaded' => date('Y-m-d H:i:s', $file->getMTime()),
-					'file_category' => '', // Category detection can be added if needed
-					'file_upload_id' => $filePath // Use path as ID for browsing
+					'file_category' => $categoryName,
+					'file_upload_id' => $fileUploadId, // Actual DB ID or null
+					'fname' => $uploaderName ? explode(' ', $uploaderName)[0] : null,
+					'lname' => $uploaderName ? explode(' ', $uploaderName)[1] ?? '' : null
 				];
 			}
 		}
+		header('Content-Type: application/json');
 		echo json_encode(["status" => "SUCCESS", "data" => $results]);
 		exit;
+		} catch (Exception $e) {
+			if (ob_get_level()) ob_clean();
+			header('Content-Type: application/json');
+			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage(), "data" => []]);
+			exit;
+		}
 	}
 
 	// NLP analysis before upload (for preview)
@@ -568,12 +657,11 @@
 
 		echo json_encode($result);
 	}else if($call == 14){
-		// Get all files
-		$user_id = $_POST['USER_ID'] ?? null;
-		
+		// Get all files - Admin sees ALL files regardless of uploader
 		try {
 			$fileManager = new FileManager();
-			$files = $fileManager->getAllFiles($user_id);
+			// Pass null to get all files (no user filter for admin)
+			$files = $fileManager->getAllFiles(null);
 			$result = ["data" => $files ?: []];
 		} catch(Exception $e) {
 			$result = ["data" => [], "status" => "ERROR", "msg" => $e->getMessage()];
@@ -1628,6 +1716,120 @@
 
 		echo json_encode(["status"=>"SUCCESS","data"=>$users]);
 		exit;
+	}else if($call == 63){
+		// Get all Student Government Members for task assignment
+		try {
+			$db = Database::getInstance();
+			$members = $db->select("
+				SELECT 
+					u.user_id,
+					CONCAT(p.fname, ' ', p.lname) as full_name,
+					pos.position
+				FROM user_tbl u
+				INNER JOIN profile_tbl p ON u.profile_id = p.profile_id
+				INNER JOIN position_tbl pos ON u.position_id = pos.position_id
+				WHERE u.user_type = 'student'
+				ORDER BY p.fname, p.lname
+			") ?: [];
+			
+			$result = ["status" => "SUCCESS", "data" => $members];
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage(), "data" => []];
+		}
+		echo json_encode($result);
+	}else if($call == 41){
+		// Get all task submissions for admin
+		try {
+			$db = Database::getInstance();
+			$submissions = $db->select("
+				SELECT 
+					ts.task_submission_id,
+					t.task_title,
+					CONCAT(p.fname, ' ', p.lname) as student_name,
+					f.file_name,
+					f.file_upload_id,
+					ts.check_status,
+					f.datetime_uploaded as submitted_at,
+					ts.submitted_by
+				FROM task_submission_tbl ts
+				INNER JOIN task_tbl t ON ts.task_id = t.task_id
+				INNER JOIN file_upload_tbl f ON ts.file_upload_id = f.file_upload_id
+				INNER JOIN user_tbl u ON ts.submitted_by = u.user_id
+				INNER JOIN profile_tbl p ON u.profile_id = p.profile_id
+				ORDER BY f.datetime_uploaded DESC
+			") ?: [];
+			
+			echo json_encode(["data" => $submissions]);
+		} catch(Exception $e) {
+			echo json_encode(["data" => [], "error" => $e->getMessage()]);
+		}
+	}else if($call == 45){
+		// Get single submission details
+		$submissionId = $_POST['submission_id'] ?? 0;
+		
+		try {
+			$db = Database::getInstance();
+			$submission = $db->selectOne("
+				SELECT 
+					ts.task_submission_id,
+					t.task_title,
+					CONCAT(p.fname, ' ', p.lname) as student_name,
+					f.file_name,
+					f.file_upload_id,
+					ts.check_status,
+					f.datetime_uploaded as submitted_at
+				FROM task_submission_tbl ts
+				INNER JOIN task_tbl t ON ts.task_id = t.task_id
+				INNER JOIN file_upload_tbl f ON ts.file_upload_id = f.file_upload_id
+				INNER JOIN user_tbl u ON ts.submitted_by = u.user_id
+				INNER JOIN profile_tbl p ON u.profile_id = p.profile_id
+				WHERE ts.task_submission_id = ?
+			", [$submissionId]);
+			
+			if($submission) {
+				$result = ["status" => "SUCCESS", "data" => $submission];
+			} else {
+				$result = ["status" => "ERROR", "msg" => "Submission not found"];
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 46){
+		// Approve submission by updating status to "Approved"
+		$submissionId = $_POST['submission_id'] ?? 0;
+		
+		try {
+			$db = Database::getInstance();
+			
+			// Get submission details before updating
+			$submission = $db->selectOne("
+				SELECT ts.*, t.task_title 
+				FROM task_submission_tbl ts
+				INNER JOIN task_tbl t ON ts.task_id = t.task_id
+				WHERE ts.task_submission_id = ?
+			", [$submissionId]);
+			
+			if(!$submission) {
+				throw new Exception("Submission not found");
+			}
+			
+			// Update check_status to "Approved" instead of deleting
+			$updated = $db->execute("
+				UPDATE task_submission_tbl 
+				SET check_status = 'Approved' 
+				WHERE task_submission_id = ?
+			", [$submissionId]);
+			
+			if($updated) {
+				$result = ["status" => "SUCCESS", "msg" => "Submission approved successfully"];
+			} else {
+				throw new Exception("Failed to approve submission");
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
 	}
 
 

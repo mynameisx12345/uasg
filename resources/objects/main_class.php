@@ -1747,7 +1747,7 @@
             throw new Exception("File not found.");
         }
 
-        $fullPath = $file['file_path'];
+        $fullPath = '../'.$file['file_path'];
 
         if (!file_exists($fullPath)) {
             throw new Exception("File does not exist on server.");
@@ -1992,6 +1992,18 @@
         $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", [$fileId, $memberId]);
         if (!$file) return ['success' => false, 'msg' => 'File not found or unauthorized'];
 
+        // Check if file is linked to an approved task submission
+        $approvedSubmission = $db->selectOne("
+            SELECT ts.task_submission_id 
+            FROM task_submission_tbl ts
+            WHERE ts.file_upload_id = ? AND ts.check_status = 'Approved'
+            LIMIT 1
+        ", [$fileId]);
+        
+        if ($approvedSubmission) {
+            return ['success' => false, 'msg' => 'Cannot delete file: This file is linked to an approved task submission'];
+        }
+
         // Delete physical file if exists
         $filePath = '../' . $file['file_path'];
         if (file_exists($filePath)) {
@@ -2003,6 +2015,94 @@
         // Delete database record
         $db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
         return ['success' => true, 'msg' => 'File deleted successfully'];
+    }
+
+    // Admin delete file with protection check
+    public function deleteFile($fileId, $userId, $reason = '') {
+        $db = Database::getInstance();
+        
+        // Get file details
+        $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+        if (!$file) {
+            return ['status' => 'ERROR', 'msg' => 'File not found'];
+        }
+
+        // Check if file is linked to an approved task submission (only admin can delete these)
+        $approvedSubmission = $db->selectOne("
+            SELECT ts.task_submission_id 
+            FROM task_submission_tbl ts
+            WHERE ts.file_upload_id = ? AND ts.check_status = 'Approved'
+            LIMIT 1
+        ", [$fileId]);
+        
+        // Get user type from session
+        session_start();
+        $userType = $_SESSION['user_type'] ?? '';
+        
+        if ($approvedSubmission && $userType !== 'admin') {
+            return ['status' => 'ERROR', 'msg' => 'Only administrators can delete files linked to approved task submissions'];
+        }
+
+        // Delete physical file if exists
+        $filePath = $file['file_path'];
+        if (file_exists($filePath)) {
+            if (!unlink($filePath)) {
+                return ['status' => 'ERROR', 'msg' => 'Failed to delete physical file'];
+            }
+        }
+
+        // Delete database record
+        $db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+        
+        // Log deletion if reason provided
+        if (!empty($reason)) {
+            error_log("File deleted - ID: $fileId, Reason: $reason, User: $userId");
+        }
+        
+        return ['status' => 'SUCCESS', 'msg' => 'File deleted successfully'];
+    }
+
+    // Subadmin/Adviser delete file with protection check
+    public function deleteAdviserFile($adviserId, $data) {
+        $db = Database::getInstance();
+        $fileId = $data['file_id'] ?? 0;
+        $reason = $data['reason'] ?? '';
+        
+        // Get file details
+        $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+        if (!$file) {
+            return ['status' => 'ERROR', 'msg' => 'File not found'];
+        }
+
+        // Check if file is linked to an approved task submission
+        $approvedSubmission = $db->selectOne("
+            SELECT ts.task_submission_id 
+            FROM task_submission_tbl ts
+            WHERE ts.file_upload_id = ? AND ts.check_status = 'Approved'
+            LIMIT 1
+        ", [$fileId]);
+        
+        if ($approvedSubmission) {
+            return ['status' => 'ERROR', 'msg' => 'Cannot delete file: This file is linked to an approved task submission. Only administrators can delete approved task files.'];
+        }
+
+        // Delete physical file if exists
+        $filePath = $file['file_path'];
+        if (file_exists($filePath)) {
+            if (!unlink($filePath)) {
+                return ['status' => 'ERROR', 'msg' => 'Failed to delete physical file'];
+            }
+        }
+
+        // Delete database record
+        $db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+        
+        // Log deletion
+        if (!empty($reason)) {
+            error_log("File deleted by adviser - ID: $fileId, Reason: $reason, Adviser: $adviserId");
+        }
+        
+        return ['status' => 'SUCCESS', 'msg' => 'File deleted successfully'];
     }
 
     public function downloadMemberFile($memberId, $fileId) {

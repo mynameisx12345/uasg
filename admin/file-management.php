@@ -453,7 +453,7 @@ header("Expires: 0");
       $('#uploadFile').on("change",function() {
         const fileInput = document.getElementById('uploadFile');
         if(!fileInput.files[0]) {
-          openModal("ERROR", "Please select a file to upload");
+          showNotification("Please select a file to upload", 'warning', 'No File Selected');
           return;
         }
         const file = fileInput.files[0];
@@ -484,12 +484,12 @@ header("Expires: 0");
               // Show confirmation dialog
               //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
             } else {
-              openModal("ERROR", "NLP analysis failed. Please try again.\n" + (result.message || result.msg));
+              showNotification("NLP analysis failed: " + (result.message || result.msg || 'Unknown error'), 'error', 'Analysis Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('NLP error:', xhr.responseText);
-            openModal("ERROR", "NLP analysis failed. Please try again.\n" + xhr.responseText);
+            showNotification("NLP analysis failed. Please try again.", 'error', 'Analysis Error');
           },
           complete: function() {
             closeLoadModal();
@@ -530,22 +530,21 @@ header("Expires: 0");
           success: function(result) {
             let message = result.msg || result.message;
             if(result.success === true) {
-              
+              let notificationMsg = 'File uploaded successfully';
               if(result.nlp_result) {
-                message += '\n\nAuto-categorized as: ' + (result.nlp_analysis.suggested_category || '-') +
+                notificationMsg += '\nAuto-categorized as: ' + (result.nlp_analysis.suggested_category || '-') +
                            '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
               }
-              //openModal(result.status, message);
-              //clearUploadForm();
+              showNotification(notificationMsg, 'success', 'Upload Complete');
               filesTable.ajax.reload();
               $('.tab-link[data-tab="files"]').click();
             } else {
-              openModal("FAILED", message);
+              showNotification(message || 'Upload failed', 'error', 'Upload Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Upload error:', xhr.responseText);
-            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+            showNotification("Upload failed. Please try again.", 'error', 'Upload Error');
           },
           complete: function() {
             $('#uploadBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload File');
@@ -561,8 +560,7 @@ header("Expires: 0");
                 url: "ajax.php",
                 type: "POST",
                 data: {
-                    CALL: 14, // or 15 if you want filter applied
-                    USER_ID: currentUserId
+                    CALL: 14 // Admin sees all files
                 },
                 dataType: "json",
                 dataSrc: "data",
@@ -590,17 +588,33 @@ header("Expires: 0");
                     render: d => d ? new Date(d).toLocaleDateString() : "N/A"
                 },
                 {
-                    data: "file_upload_id",
-                    render: function(id, type, row) {
+                    data: null,
+                    render: function(data, type, row) {
                         return `
-                            <button class="btn-secondary viewBtn" data-id="${id}">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn-primary deleteFileBtn" 
-                                    data-id="${id}" 
-                                    data-name="${row.file_name}">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+                            <div style="display: flex; gap: 5px; justify-content: center;">
+                                <button class="btn-secondary viewBtn" 
+                                        data-id="${row.file_upload_id}"
+                                        data-name="${row.file_name}"
+                                        data-category="${row.file_category || 'N/A'}"
+                                        data-type="${row.mime_type}"
+                                        data-uploaded="${row.datetime_uploaded}"
+                                        data-uploader="${row.fname && row.lname ? row.fname + ' ' + row.lname : 'Unknown'}"
+                                        title="View Details">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button class="btn-success downloadBtn" 
+                                        data-id="${row.file_upload_id}"
+                                        data-name="${row.file_name}"
+                                        title="Download File">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                                <button class="btn-danger deleteFileBtn" 
+                                        data-id="${row.file_upload_id}" 
+                                        data-name="${row.file_name}"
+                                        title="Delete File">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
                         `;
                     }
                 }
@@ -744,12 +758,17 @@ header("Expires: 0");
                         orderable: false,
                         render: function(data, type, row) {
                             return `
-                                <button class="btn-secondary viewBtn" data-id="${data}" title="View/Download">
-                                    <i class="fas fa-eye"></i> View
-                                </button>
-                                <button class="btn-primary deleteFileBtn" data-id="${data}" data-name="${escapeHtml(row.file_name)}" title="Delete File">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
+                                <div class="dropdown-container">
+                                    <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                                    <div class="dropdown-menu">
+                                        <button class="dropdown-item view viewBtn" data-id="${data}">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                        <button class="dropdown-item delete deleteFileBtn" data-id="${data}" data-name="${escapeHtml(row.file_name)}">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
                             `;
                         }
                     }
@@ -772,7 +791,7 @@ header("Expires: 0");
         const fileInput = document.getElementById('uploadFile');
         
         if(!fileInput.files[0]) {
-          openModal("ERROR", "Please select a file to upload");
+          showNotification("Please select a file to upload", 'warning', 'No File Selected');
           return;
         }
 
@@ -798,21 +817,20 @@ header("Expires: 0");
           success: function(result) {
             let message = result.msg || result.message;
             if(result.success === true) {
-              
+              let notificationMsg = 'File uploaded successfully';
               if(result.nlp_result) {
-                message += '\n\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
+                notificationMsg += '\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
                            '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
               }
-              //openModal(result.status, message);
-              //clearUploadForm();
+              showNotification(notificationMsg, 'success', 'Upload Complete');
               $('.tab-link[data-tab="files"]').click();
             } else {
-              openModal("FAILED", message);
+              showNotification(message || 'Upload failed', 'error', 'Upload Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Upload error:', xhr.responseText);
-            openModal("ERROR", "Upload failed. Please try again.\n" + xhr.responseText);
+            showNotification("Upload failed. Please try again.", 'error', 'Upload Error');
           },
           complete: function() {
             closeLoadModal();
@@ -825,20 +843,30 @@ header("Expires: 0");
       // View file button
       $(document).on("click", ".viewBtn", function() {
         const fileId = $(this).data('id');
-        const row = $(this).closest("tr");
-        const rowData = filesTable.row(row).data();
+        const fileName = $(this).data('name');
+        const category = $(this).data('category');
+        const type = $(this).data('type');
+        const uploaded = $(this).data('uploaded');
+        const uploader = $(this).data('uploader');
         
-        if(!rowData) {
-          openModal("ERROR", "Could not load file data");
-          return;
+        // Populate modal with file details
+        $('#viewFileName').val(fileName || 'N/A');
+        $('#viewFileCategory').val(category || 'Uncategorized');
+        $('#viewFileUploader').val(uploader || 'Unknown');
+        
+        // Format the date
+        if(uploaded) {
+          const date = new Date(uploaded);
+          $('#viewFileDate').val(date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }));
+        } else {
+          $('#viewFileDate').val('N/A');
         }
-        
-        $('#viewFileName').val(rowData.file_name || '');
-        $('#viewFileCategory').val(rowData.file_category || 'Uncategorized');
-        const fname = rowData.fname || '';
-        const lname = rowData.lname || '';
-        $('#viewFileUploader').val(fname && lname ? `${fname} ${lname}` : 'Unknown');
-        $('#viewFileDate').val(rowData.datetime_uploaded ? new Date(rowData.datetime_uploaded).toLocaleDateString() : 'N/A');
         
         // Store file ID for download
         $('#downloadFile').data('file-id', fileId);
@@ -850,6 +878,19 @@ header("Expires: 0");
       $('#downloadFile').click(function() {
         const fileId = $(this).data('file-id');
         if(fileId) {
+          // Redirect to download endpoint
+          window.location.href = 'ajax.php?CALL=download&file_id=' + fileId;
+        }
+      });
+
+      // Download file button from table
+      $(document).on("click", ".downloadBtn", function() {
+        const fileId = $(this).data('id');
+        const fileName = $(this).data('name');
+        
+        if(fileId) {
+          // Show download notification
+          showNotification(`Downloading file: ${fileName}`, 'info', 'Download Started');
           // Redirect to download endpoint
           window.location.href = 'ajax.php?CALL=download&file_id=' + fileId;
         }
@@ -874,7 +915,7 @@ header("Expires: 0");
         };
 
         if(!deleteData.reason.trim()) {
-          openModal("ERROR", "Please provide a reason for deletion");
+          showNotification("Please provide a reason for deletion", 'warning', 'Missing Information');
           return;
         }
 
@@ -887,16 +928,18 @@ header("Expires: 0");
           },
           dataType: 'json',
           success: function(result) {
-            openModal(result.status, result.message || result.msg);
             if(result.status === "SUCCESS") {
+              showNotification(result.message || result.msg || 'File deleted successfully', 'success', 'File Deleted');
               closeDeleteFileModal();
               $('#deleteReason').val('');
               filesTable.ajax.reload();
+            } else {
+              showNotification(result.message || result.msg || 'Failed to delete file', 'error', 'Delete Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Delete error:', xhr.responseText);
-            openModal("ERROR", "Failed to delete file. Please try again.");
+            showNotification("Failed to delete file. Please try again.", 'error', 'Error');
           }
         });
       });
@@ -907,7 +950,7 @@ header("Expires: 0");
         const categoryId = $('#permissionCategory').val();
         
         if(!positionId || !categoryId) {
-          openModal("ERROR", "Please select both position and category");
+          showNotification("Please select both position and category", 'warning', 'Missing Information');
           return;
         }
 
@@ -923,16 +966,18 @@ header("Expires: 0");
           },
           dataType: 'json',
           success: function(result) {
-            openModal(result.status, result.message || result.msg);
             if(result.status === "SUCCESS") {
+              showNotification(result.message || result.msg || 'Permission granted successfully', 'success', 'Permission Granted');
               $('#permissionPosition').val('');
               $('#permissionCategory').val('');
               permissionsTable.ajax.reload();
+            } else {
+              showNotification(result.message || result.msg || 'Failed to grant permission', 'error', 'Grant Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Grant error:', xhr.responseText);
-            openModal("ERROR", "Failed to grant permission. Please try again.");
+            showNotification("Failed to grant permission. Please try again.", 'error', 'Error');
           }
         });
       });
@@ -958,14 +1003,16 @@ header("Expires: 0");
           },
           dataType: 'json',
           success: function(result) {
-            openModal(result.status, result.message || result.msg);
             if(result.status === "SUCCESS") {
+              showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
               permissionsTable.ajax.reload();
+            } else {
+              showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Revoke error:', xhr.responseText);
-            openModal("ERROR", "Failed to revoke permission. Please try again.");
+            showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
           }
         });
       });
@@ -976,7 +1023,7 @@ header("Expires: 0");
         const categoryId = $('#permissionCategory').val();
         
         if(!positionId || !categoryId) {
-          openModal("ERROR", "Please select both position and category");
+          showNotification("Please select both position and category", 'warning', 'Missing Information');
           return;
         }
         
@@ -996,20 +1043,277 @@ header("Expires: 0");
           },
           dataType: 'json',
           success: function(result) {
-            openModal(result.status, result.message || result.msg);
             if(result.status === "SUCCESS") {
+              showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
               $('#permissionPosition').val('');
               $('#permissionCategory').val('');
               permissionsTable.ajax.reload();
+            } else {
+              showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
             }
           },
           error: function(xhr, status, error) {
             console.error('Revoke error:', xhr.responseText);
-            openModal("ERROR", "Failed to revoke permission. Please try again.");
+            showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
           }
         });
       });
   });
+
+  // Notification Modal System
+  function showNotification(message, type = 'info', title = '') {
+    const modal = document.getElementById('notificationModal');
+    const modalTitle = document.getElementById('notificationTitle');
+    const modalMessage = document.getElementById('notificationMessage');
+    const modalIcon = document.getElementById('notificationIcon');
+    
+    // Set icon and title based on type
+    const config = {
+      success: { icon: 'fa-check-circle', defaultTitle: 'Success', color: '#10b981' },
+      error: { icon: 'fa-exclamation-circle', defaultTitle: 'Error', color: '#ef4444' },
+      warning: { icon: 'fa-exclamation-triangle', defaultTitle: 'Warning', color: '#f59e0b' },
+      info: { icon: 'fa-info-circle', defaultTitle: 'Information', color: '#3b82f6' }
+    };
+    
+    const typeConfig = config[type] || config.info;
+    modalIcon.className = `fas ${typeConfig.icon}`;
+    modalIcon.style.color = typeConfig.color;
+    modalTitle.textContent = title || typeConfig.defaultTitle;
+    modalMessage.textContent = message;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    modal.classList.add('notification-show');
+    
+    // Auto-close after 3 seconds
+    setTimeout(() => {
+      closeNotification();
+    }, 3000);
+  }
+  
+  function closeNotification() {
+    const modal = document.getElementById('notificationModal');
+    modal.classList.remove('notification-show');
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+  }
+  </script>
+
+  <!-- Notification Modal -->
+  <div id="notificationModal" class="notification-modal">
+    <div class="notification-content">
+      <i id="notificationIcon" class="fas fa-info-circle"></i>
+      <div class="notification-text">
+        <h3 id="notificationTitle">Notification</h3>
+        <p id="notificationMessage"></p>
+      </div>
+      <button class="notification-close" onclick="closeNotification()">&times;</button>
+    </div>
+  </div>
+
+  <style>
+    /* Dropdown Menu Styles */
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.6rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .dropdown-btn:hover {
+      background: #5a6268;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: white;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      z-index: 1000;
+      margin-top: 4px;
+    }
+    .dropdown-menu.show {
+      display: block;
+    }
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+    .dropdown-item.view { color: #007bff; }
+    .dropdown-item.delete { color: #dc3545; }
+    
+    /* Notification Modal Styles */
+    .notification-modal {
+      display: none;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .notification-modal.notification-show .notification-content {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    .notification-content {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background: white;
+      padding: 20px 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      min-width: 350px;
+      max-width: 500px;
+      border-left: 5px solid #3b82f6;
+    }
+    
+    .notification-content i {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    
+    .notification-text {
+      flex: 1;
+    }
+    
+    .notification-text h3 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .notification-text p {
+      margin: 0;
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .notification-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .notification-close:hover {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    /* Success button style */
+    .btn-success {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-success:hover {
+      background: #059669;
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+  </style>
+  
+  <script>
+    // Dropdown menu toggle function (global scope)
+    function toggleDropdown(event) {
+        event.stopPropagation();
+        const btn = event.target;
+        const menu = btn.nextElementSibling;
+        const allMenus = document.querySelectorAll('.dropdown-menu');
+        
+        // Close all other dropdowns
+        allMenus.forEach(m => {
+            if (m !== menu) m.classList.remove('show');
+        });
+        
+        // Toggle current dropdown
+        menu.classList.toggle('show');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.matches('.dropdown-btn')) {
+            const dropdowns = document.querySelectorAll('.dropdown-menu');
+            dropdowns.forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+        }
+    });
   </script>
 </body>
 </html>
