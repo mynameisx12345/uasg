@@ -441,14 +441,6 @@ $currentUser = $session->getUserData();
   <!-- MODALS -->
   <?php require_once('modals.php'); ?>
 
-  <!-- Floating Pending Tasks Icon -->
-  <div id="pendingTasksFloating" style="display:none; position:fixed; bottom:32px; right:32px; z-index:9999;">
-    <button id="pendingTasksFloatBtn" style="background:#2196F3; color:#fff; border:none; border-radius:50%; width:60px; height:60px; box-shadow:0 2px 8px rgba(0,0,0,0.2); font-size:28px; position:relative; cursor:pointer;">
-      <i class="fas fa-tasks"></i>
-      <span id="pendingTasksFloatBadge" style="position:absolute; top:-8px; right:-8px; background:#f44336; color:#fff; border-radius:50%; padding:4px 10px; font-size:16px; font-weight:bold; min-width:28px; text-align:center;">0</span>
-    </button>
-  </div>
-
   <script>
     
     // GitHub-style tab switcher
@@ -469,8 +461,8 @@ $currentUser = $session->getUserData();
   <script src="js/member.js"></script>
   <script>
   $(document).ready(function() {
-      // --- Floating Pending Tasks Icon ---
-      function updatePendingTasksFloating() {
+      // --- Update Header Notification Count for Pending Tasks ---
+      window.updatePendingTasksNotification = function() {
         $.ajax({
           url: 'ajax.php',
           type: 'POST',
@@ -483,24 +475,24 @@ $currentUser = $session->getUserData();
             } else if(Array.isArray(json)) {
               count = json.filter(t => t.task_status === 'active').length;
             }
-            const floatDiv = document.getElementById('pendingTasksFloating');
-            const badge = document.getElementById('pendingTasksFloatBadge');
+            const notificationBadge = document.getElementById('headerNotificationCount');
             if(count > 0) {
-              badge.textContent = count;
-              floatDiv.style.display = 'block';
+              notificationBadge.textContent = count;
+              notificationBadge.style.display = 'inline-block';
             } else {
-              badge.textContent = '';
-              floatDiv.style.display = 'none';
+              notificationBadge.textContent = '';
+              notificationBadge.style.display = 'none';
             }
           }
         });
       }
-      // Show Pending Tasks tab when floating icon is clicked
-      document.getElementById('pendingTasksFloatBtn').addEventListener('click', function() {
-        document.querySelector("[data-tab='pending-tasks']").click();
-      });
-      // Update floating icon on page load and after task actions
-      updatePendingTasksFloating();
+      
+      // Update notification count on page load
+      updatePendingTasksNotification();
+      
+      // Refresh notification count every 30 seconds
+      setInterval(updatePendingTasksNotification, 30000);
+      
       // --- Pending Tasks Badge ---
       function updatePendingTasksBadge() {
         $.ajax({
@@ -563,7 +555,7 @@ $currentUser = $session->getUserData();
       document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
         loadPendingTasks();
         updatePendingTasksBadge();
-          updatePendingTasksFloating();
+        updatePendingTasksNotification();
       });
     // --- Comply Task Modal Logic ---
     window.openComplyTaskModal = function(taskId) {
@@ -645,8 +637,8 @@ $currentUser = $session->getUserData();
             openNotificationModal('Task file uploaded successfully!');
             closeModal('complyTaskModal');
             loadPendingTasks();
-              updatePendingTasksBadge();
-              updatePendingTasksFloating();
+            updatePendingTasksBadge();
+            updatePendingTasksNotification();
           } else {
             openNotificationModal('Upload failed: ' + (result.msg || 'Unknown error'));
           }
@@ -829,6 +821,67 @@ $currentUser = $session->getUserData();
       }
       initFilesTable();
 
+      // View File Button Handler
+      $(document).on('click', '.viewBtn', function() {
+        const fileId = $(this).data('id');
+        const row = filesTable.row($(this).closest('tr')).data();
+        
+        if(row && row.file_path) {
+          // Open file in new tab for viewing
+          const fileUrl = '../' + row.file_path;
+          window.open(fileUrl, '_blank');
+        } else {
+          openNotificationModal('File path not found. Cannot view file.');
+        }
+      });
+
+      // Delete File Button Handler
+      $(document).on('click', '.deleteFileBtn', function() {
+        const fileId = $(this).data('id');
+        const fileName = $(this).data('name');
+        
+        // Open delete confirmation modal
+        $('#deleteFileName').text(fileName);
+        $('#confirmDeleteBtn').data('file-id', fileId);
+        openModal('deleteFileModal');
+      });
+
+      // Confirm Delete Button Handler
+      $(document).on('click', '#confirmDeleteBtn', function() {
+        const fileId = $(this).data('file-id');
+        
+        // Send delete request
+        $.ajax({
+          url: 'ajax.php',
+          type: 'POST',
+          data: {
+            CALL: 7,
+            file_id: fileId
+          },
+          dataType: 'json',
+          beforeSend: function() {
+            closeModal('deleteFileModal');
+            openLoadModal();
+          },
+          success: function(result) {
+            if(result.status === 'SUCCESS' || result.success) {
+              openNotificationModal('File deleted successfully!');
+              filesTable.ajax.reload(); // Reload table data
+              updatePendingTasksNotification(); // Update notification count if needed
+            } else {
+              openNotificationModal('Failed to delete file: ' + (result.msg || result.message || 'Unknown error'));
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error('Delete error:', xhr.responseText);
+            openNotificationModal('Error deleting file. Please try again.');
+          },
+          complete: function() {
+            closeLoadModal();
+          }
+        });
+      });
+
       $('#uploadBtn').click(function() {
           const fileInput = document.getElementById('uploadFile');
           
@@ -952,25 +1005,6 @@ $currentUser = $session->getUserData();
       }
   });
   </script>
-    <style>
-      #pendingTasksFloating {
-        animation: floatIn 0.4s;
-      }
-      #pendingTasksFloatBtn {
-        transition: box-shadow 0.2s;
-      }
-      #pendingTasksFloatBtn:hover {
-        box-shadow:0 4px 16px rgba(33,150,243,0.3);
-        background:#1976D2;
-      }
-      #pendingTasksFloatBadge {
-        transition: background 0.2s;
-      }
-      @keyframes floatIn {
-        from { opacity:0; transform:translateY(40px); }
-        to { opacity:1; transform:translateY(0); }
-      }
-    </style>
   
   <!-- PWA Scripts -->
   <!--script src="../js/pwa-helper.js"></script-->

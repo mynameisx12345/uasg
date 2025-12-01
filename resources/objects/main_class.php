@@ -1992,8 +1992,17 @@
         $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ? AND uploaded_by = ?", [$fileId, $memberId]);
         if (!$file) return ['success' => false, 'msg' => 'File not found or unauthorized'];
 
+        // Delete physical file if exists
+        $filePath = '../' . $file['file_path'];
+        if (file_exists($filePath)) {
+            if (!unlink($filePath)) {
+                return ['success' => false, 'msg' => 'Failed to delete physical file'];
+            }
+        }
+
+        // Delete database record
         $db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
-        return ['success' => true, 'msg' => 'File deleted'];
+        return ['success' => true, 'msg' => 'File deleted successfully'];
     }
 
     public function downloadMemberFile($memberId, $fileId) {

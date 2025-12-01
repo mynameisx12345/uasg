@@ -87,7 +87,7 @@
     </ul-->
     
     <div class="sidebar-footer">
-      <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?')">
+      <a href="#" class="logout-link" onclick="openModal('logoutModal'); return false;">
         <span class="nav-icon">🚪</span>
         <span class="nav-text">Logout</span>
       </a>

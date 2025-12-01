@@ -407,29 +407,39 @@ if($call == 1){
     echo json_encode($result);
 }else if($call == 20){
     // Download file (returns file as binary, not JSON)
+    ob_clean(); // Clear any previous output
     $memberId = $_SESSION['user_id'] ?? 0;
     $fileId = $_POST['file_id'] ?? 0;
-    require_once("../resources/objects/main_class.php");
+    
     $fileManager = new FileManager();
-    $fileInfo = $fileManager->getMemberFileDetails($memberId, $fileId);
-    if(!$fileInfo || empty($fileInfo['file_path'])){
+    $result = $fileManager->getMemberFileDetails($memberId, $fileId);
+    
+    if(!$result['success'] || empty($result['data'])){
         http_response_code(404);
-        echo "File not found.";
+        echo "File not found or unauthorized.";
         exit;
     }
+    
+    $fileInfo = $result['data'];
     $filePath = '../' . $fileInfo['file_path'];
+    
     if(!file_exists($filePath)){
         http_response_code(404);
-        echo "File not found.";
+        echo "Physical file not found at: " . htmlspecialchars($filePath);
         exit;
     }
+    
+    // Clear all previous headers and output
+    header_remove();
     header('Content-Description: File Transfer');
     header('Content-Type: ' . ($fileInfo['mime_type'] ?? 'application/octet-stream'));
-    header('Content-Disposition: attachment; filename="' . ($fileInfo['file_name'] ?? basename($filePath)) . '"');
+    header('Content-Disposition: attachment; filename="' . basename($fileInfo['file_name']) . '"');
     header('Expires: 0');
     header('Cache-Control: must-revalidate');
     header('Pragma: public');
     header('Content-Length: ' . filesize($filePath));
+    
+    // Output file
     readfile($filePath);
     exit;
 }else{

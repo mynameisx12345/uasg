@@ -532,23 +532,41 @@ function downloadFile(fileId) {
         url: 'ajax.php',
         type: 'POST',
         data: {
-            CALL: 19,
+            CALL: 20,
             file_id: fileId
         },
         xhrFields: { responseType: 'blob' },
         success: function(data, status, xhr) {
             const blob = new Blob([data]);
             const url = URL.createObjectURL(blob);
+            
+            // Get filename from Content-Disposition header if available
+            const disposition = xhr.getResponseHeader('Content-Disposition');
+            let filename = 'download';
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) { 
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+            
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = '';
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         },
-        error: function() {
-            showAlert('Failed to download file', 'error');
+        error: function(xhr) {
+            console.error('Download failed:', xhr);
+            if(typeof openNotificationModal === 'function') {
+                openNotificationModal('Failed to download file. Please try again.');
+            } else {
+                alert('Failed to download file. Please try again.');
+            }
         }
     });
 }
