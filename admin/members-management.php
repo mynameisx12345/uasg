@@ -26,6 +26,64 @@ if (!isset($_SESSION['user_id'])) {
       padding: 0.25rem 0.5rem;
       font-size: 0.85rem;
     }
+    
+    /* Dropdown Menu Styles */
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.6rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .dropdown-btn:hover {
+      background: #5a6268;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: white;
+      min-width: 160px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      z-index: 1000;
+      margin-top: 4px;
+    }
+    .dropdown-menu.show {
+      display: block;
+    }
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+    .dropdown-item.view { color: #007bff; }
+    .dropdown-item.submissions { color: #17a2b8; }
+    .dropdown-item.uploads { color: #6c757d; }
+    .dropdown-item.deactivate { color: #dc3545; }
+    .dropdown-item.reactivate { color: #28a745; }
+    
     .modal {
       display: none;
       position: fixed;
@@ -312,12 +370,25 @@ if (!isset($_SESSION['user_id'])) {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
-                    return `<div class='actions'>
-                        <button class='btn-sm btn-primary viewMemberBtn' data-id='${row.user_id}'>View</button>
-                        <button class='btn-sm btn-secondary viewSubmissionsBtn' data-id='${row.user_id}' data-name='${row.fname} ${row.lname}'>Submissions</button>
-                        <button class='btn-sm btn-secondary viewUploadsBtn' data-id='${row.user_id}' data-name='${row.fname} ${row.lname}'>Uploads</button>
-                        <button class='btn-sm btn-danger deactivateBtn' data-id='${row.user_id}'>Deactivate</button>
-                    </div>`;
+                    return `
+                        <div class="dropdown-container">
+                            <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item view viewMemberBtn" data-id="${row.user_id}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button class="dropdown-item submissions viewSubmissionsBtn" data-id="${row.user_id}" data-name="${row.fname} ${row.lname}">
+                                    <i class="fas fa-tasks"></i> Submissions
+                                </button>
+                                <button class="dropdown-item uploads viewUploadsBtn" data-id="${row.user_id}" data-name="${row.fname} ${row.lname}">
+                                    <i class="fas fa-file-upload"></i> Uploads
+                                </button>
+                                <button class="dropdown-item deactivate deactivateBtn" data-id="${row.user_id}">
+                                    <i class="fas fa-user-slash"></i> Deactivate
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
             }
         ]
@@ -350,10 +421,19 @@ if (!isset($_SESSION['user_id'])) {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
-                    return `<div class='actions'>
-                        <button class='btn-sm btn-primary viewMemberBtn' data-id='${row.user_id}'>View</button>
-                        <button class='btn-sm btn-success reactivateBtn' data-id='${row.user_id}'>Reactivate</button>
-                    </div>`;
+                    return `
+                        <div class="dropdown-container">
+                            <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item view viewMemberBtn" data-id="${row.user_id}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button class="dropdown-item reactivate reactivateBtn" data-id="${row.user_id}">
+                                    <i class="fas fa-user-check"></i> Reactivate
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
             }
         ]
@@ -543,6 +623,32 @@ if (!isset($_SESSION['user_id'])) {
     });
 
 })(jQuery);
+
+// Dropdown menu toggle function (global scope)
+function toggleDropdown(event) {
+    event.stopPropagation();
+    const btn = event.target;
+    const menu = btn.nextElementSibling;
+    const allMenus = document.querySelectorAll('.dropdown-menu');
+    
+    // Close all other dropdowns
+    allMenus.forEach(m => {
+        if (m !== menu) m.classList.remove('show');
+    });
+    
+    // Toggle current dropdown
+    menu.classList.toggle('show');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.matches('.dropdown-btn')) {
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+});
 </script>
 </body>
 </html>

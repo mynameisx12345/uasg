@@ -2,8 +2,8 @@
 // Permission Management AJAX Endpoints
 // This file is included by ajax.php
 
-// CALL 39: Get Permission Definitions
-if($call == 39) {
+// CALL 69: Get Permission Definitions
+if($call == 69) {
 	try {
 		$groupedPermissions = PermissionDefinition::getGroupedByCategory();
 		
@@ -19,8 +19,8 @@ if($call == 39) {
 	echo json_encode($result);
 }
 
-// CALL 40: Get Subadmin Permissions
-else if($call == 40) {
+// CALL 70: Get Subadmin Permissions
+else if($call == 70) {
 		try {
 			$data = $_POST['DATA'] ?? [];
 			$userId = intval($data['USER_ID'] ?? 0);
@@ -43,8 +43,8 @@ else if($call == 40) {
 		echo json_encode($result);
 	}
 	
-	// CALL 41: Set Subadmin Permissions
-	else if($call == 41) {
+	// CALL 71: Set Subadmin Permissions
+	else if($call == 71) {
 		try {
 			$data = $_POST['DATA'] ?? [];
 			$userId = intval($data['USER_ID'] ?? 0);
@@ -85,8 +85,8 @@ else if($call == 40) {
 		echo json_encode($result);
 	}
 	
-	// CALL 42: Check Subadmin Permission
-	else if($call == 42) {
+	// CALL 72: Check Subadmin Permission
+	else if($call == 72) {
 		try {
 			$data = $_POST['DATA'] ?? [];
 			$userId = intval($data['USER_ID'] ?? $_SESSION['user_id']);
@@ -116,8 +116,8 @@ else if($call == 40) {
 		echo json_encode($result);
 	}
 	
-	// CALL 43: Get Subadmin Activity Log
-	else if($call == 43) {
+	// CALL 73: Get Subadmin Activity Log
+	else if($call == 73) {
 		try {
 			$data = $_POST['DATA'] ?? [];
 			$userId = intval($data['USER_ID'] ?? 0);

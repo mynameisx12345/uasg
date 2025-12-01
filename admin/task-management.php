@@ -26,6 +26,68 @@ if (!isset($_SESSION['user_id'])) {
       padding: 0.25rem 0.5rem;
       font-size: 0.85rem;
     }
+    
+    /* Dropdown Menu Styles */
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.6rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .dropdown-btn:hover {
+      background: #5a6268;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: white;
+      min-width: 160px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      z-index: 1000;
+      margin-top: 4px;
+    }
+    .dropdown-menu.show {
+      display: block;
+    }
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+    .dropdown-item:hover {
+      background: #f8f9fa;
+    }
+    .dropdown-item.view { color: #007bff; }
+    .dropdown-item.edit { color: #28a745; }
+    .dropdown-item.approve { color: #28a745; }
+    .dropdown-item.delete { color: #dc3545; }
+    .dropdown-item.deactivate { color: #dc3545; }
+    .dropdown-item:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
     .modal {
       display: none;
       position: fixed;
@@ -281,9 +343,169 @@ if (!isset($_SESSION['user_id'])) {
     </div>
   </div>
 
+  <!-- APPROVE SUBMISSION MODAL -->
+  <div class="modal" id="approveSubmissionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Approve Submission</span>
+        <span class="close-modal" data-close>&times;</span>
+      </div>
+      <div id="approveSubmissionMessage">
+        <p>Are you sure you want to approve this submission?</p>
+        <p style="margin-top: 10px; color: #666;">
+          <i class="fas fa-info-circle"></i> 
+          The submission will be marked as "Approved" and the linked file will be protected from deletion by non-admin users.
+        </p>
+      </div>
+      <div class="form-actions" style="justify-content:flex-end;margin-top:1.5rem;">
+        <button id="confirmApproveSubmission" class="btn-success">Approve</button>
+        <button class="btn-secondary" data-close>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION MODAL -->
+  <div id="notificationModal" class="notification-modal">
+    <div class="notification-content">
+      <i id="notificationIcon" class="fas fa-info-circle"></i>
+      <div class="notification-text">
+        <h3 id="notificationTitle">Notification</h3>
+        <p id="notificationMessage"></p>
+      </div>
+      <button class="notification-close" onclick="closeNotification()">&times;</button>
+    </div>
+  </div>
+
+<script>
+// Notification Modal System
+function showNotification(message, type = 'info', title = '') {
+    const modal = document.getElementById('notificationModal');
+    const modalTitle = document.getElementById('notificationTitle');
+    const modalMessage = document.getElementById('notificationMessage');
+    const modalIcon = document.getElementById('notificationIcon');
+    
+    // Set icon and title based on type
+    const config = {
+      success: { icon: 'fa-check-circle', defaultTitle: 'Success', color: '#10b981' },
+      error: { icon: 'fa-exclamation-circle', defaultTitle: 'Error', color: '#ef4444' },
+      warning: { icon: 'fa-exclamation-triangle', defaultTitle: 'Warning', color: '#f59e0b' },
+      info: { icon: 'fa-info-circle', defaultTitle: 'Information', color: '#3b82f6' }
+    };
+    
+    const typeConfig = config[type] || config.info;
+    modalIcon.className = `fas ${typeConfig.icon}`;
+    modalIcon.style.color = typeConfig.color;
+    modalTitle.textContent = title || typeConfig.defaultTitle;
+    modalMessage.textContent = message;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    modal.classList.add('notification-show');
+    
+    // Auto-close after 3 seconds
+    setTimeout(() => {
+      closeNotification();
+    }, 3000);
+  }
+  
+  function closeNotification() {
+    const modal = document.getElementById('notificationModal');
+    modal.classList.remove('notification-show');
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+  }
+</script>
+
+<style>
+  /* Notification Modal Styles */
+  .notification-modal {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .notification-modal.notification-show .notification-content {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .notification-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: white;
+    padding: 20px 25px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    min-width: 350px;
+    max-width: 500px;
+    border-left: 5px solid #3b82f6;
+  }
+  
+  .notification-content i {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  
+  .notification-text {
+    flex: 1;
+  }
+  
+  .notification-text h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  
+  .notification-text p {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  
+  .notification-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  
+  .notification-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+</style>
+
 <script>
 (function($) {
     let deleteTaskId = null;
+    let approveSubmissionId = null;
     
     // Tab switching
     $('.tab-link').on('click', function() {
@@ -345,10 +567,19 @@ if (!isset($_SESSION['user_id'])) {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
-                    return `<div class='actions'>
-                        <button class='btn-sm btn-secondary editTaskBtn' data-id='${row.task_id}'>Edit</button>
-                        <button class='btn-sm btn-danger deleteTaskBtn' data-id='${row.task_id}'>Delete</button>
-                    </div>`;
+                    return `
+                        <div class="dropdown-container">
+                            <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item edit editTaskBtn" data-id="${row.task_id}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="dropdown-item delete deleteTaskBtn" data-id="${row.task_id}">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
             }
         ]
@@ -379,10 +610,21 @@ if (!isset($_SESSION['user_id'])) {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
-                    return `<div class='actions'>
-                        <button class='btn-sm btn-primary viewSubmissionBtn' data-id='${row.task_submission_id}'>View</button>
-                        <button class='btn-sm btn-success approveBtn' data-id='${row.task_submission_id}'>Approve</button>
-                    </div>`;
+                    const isApproved = row.check_status === 'Approved';
+                    
+                    return `
+                        <div class="dropdown-container">
+                            <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item view viewSubmissionBtn" data-id="${row.task_submission_id}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                <button class="dropdown-item approve approveBtn" data-id="${row.task_submission_id}" ${isApproved ? 'disabled' : ''}>
+                                    <i class="fas fa-check-circle"></i> ${isApproved ? 'Approved ✓' : 'Approve'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
             }
         ]
@@ -411,24 +653,28 @@ if (!isset($_SESSION['user_id'])) {
 
          $.post('ajax.php', payload, function(resp) {
             if (resp.status === 'SUCCESS') {
-                alert('Task created successfully');
+                showNotification('Task created successfully', 'success', 'Task Created');
                 $('#createTaskForm')[0].reset();
                 tasksTable.ajax.reload(); // <-- reload table
             } else {
-                alert(resp.msg || 'Failed to create task');
+                showNotification(resp.msg || 'Failed to create task', 'error', 'Creation Failed');
             }
         }, 'json');
     });
 
       function loadMembers() {
-          $.post('ajax.php', { CALL: 100 }, function(resp) {
-              if (resp.data) {
+          $.post('ajax.php', { CALL: 63 }, function(resp) {
+              if (resp.status === 'SUCCESS' && resp.data && Array.isArray(resp.data)) {
                   const options = resp.data.map(m =>
-                      `<option value="${m.user_id}">${m.full_name}</option>`
+                      `<option value="${m.user_id}">${m.full_name} - ${m.position}</option>`
                   ).join('');
                   $('#assignTo').append(options);
+              } else {
+                  console.error('Failed to load members:', resp.msg || 'Unknown error');
               }
-          }, 'json');
+          }, 'json').fail(function(xhr, status, error) {
+              console.error('AJAX error loading members:', error);
+          });
       }
 
       loadMembers(); // call it
@@ -447,7 +693,7 @@ if (!isset($_SESSION['user_id'])) {
                 $('#editTaskDeadline').val(task.task_deadline);
                 openModal('editTaskModal');
             } else {
-                alert('Unable to fetch task data');
+                showNotification('Unable to fetch task data', 'error', 'Error');
             }
         }, 'json');
     });
@@ -467,11 +713,11 @@ if (!isset($_SESSION['user_id'])) {
         
         $.post('ajax.php', payload, function(resp) {
             if (resp.status === 'SUCCESS') {
-                alert('Task updated successfully');
+                showNotification('Task updated successfully', 'success', 'Task Updated');
                 closeModal();
                 tasksTable.ajax.reload();
             } else {
-                alert(resp.msg || 'Failed to update task');
+                showNotification(resp.msg || 'Failed to update task', 'error', 'Update Failed');
             }
         }, 'json');
     });
@@ -489,12 +735,12 @@ if (!isset($_SESSION['user_id'])) {
         
         $.post('ajax.php', { CALL: 44, task_id: deleteTaskId }, function(resp) {
             if (resp.status === 'SUCCESS') {
-                alert('Task deleted successfully');
+                showNotification('Task deleted successfully', 'success', 'Task Deleted');
                 closeModal();
                 tasksTable.ajax.reload();
                 submissionsTable.ajax.reload();
             } else {
-                alert(resp.msg || 'Failed to delete task');
+                showNotification(resp.msg || 'Failed to delete task', 'error', 'Deletion Failed');
             }
         }, 'json');
     });
@@ -512,40 +758,72 @@ if (!isset($_SESSION['user_id'])) {
                         <p><strong>Student:</strong> ${sub.student_name}</p>
                         <p><strong>Submitted:</strong> ${sub.submitted_at}</p>
                         <p><strong>File:</strong> ${sub.file_name}</p>
-                        <p><strong>Status:</strong> <span class="status-badge">${sub.check_status}</span></p>
+                        <p><strong>Status:</strong> <span class="status-badge ${sub.check_status === 'Approved' ? 'status-completed' : 'status-pending'}">${sub.check_status}</span></p>
                         <div style="margin-top:1rem;">
-                            <a href="ajax.php?CALL=download&file_id=${sub.file_upload_id}" class="btn-primary" download>Download File</a>
+                            <a href="ajax.php?CALL=download&file_id=${sub.file_upload_id}" class="btn-primary" target="_blank">Download File</a>
                         </div>
                     </div>
                 `;
                 $('#submissionContent').html(content);
                 openModal('viewSubmissionModal');
             } else {
-                alert('Unable to fetch submission data');
+                showNotification('Unable to fetch submission data', 'error', 'Error');
             }
         }, 'json');
     });
 
     // Approve submission button
     $(document).on('click', '.approveBtn', function() {
-        const submissionId = $(this).data('id');
+        approveSubmissionId = $(this).data('id');
+        openModal('approveSubmissionModal');
+    });
+
+    // Confirm approve submission
+    $('#confirmApproveSubmission').on('click', function() {
+        if (!approveSubmissionId) return;
         
-        if (confirm('Approve this submission?')) {
-            $.post('ajax.php', { CALL: 46, submission_id: submissionId }, function(resp) {
-                if (resp.status === 'SUCCESS') {
-                    alert('Submission approved');
-                    submissionsTable.ajax.reload();
-                } else {
-                    alert(resp.msg || 'Failed to approve submission');
-                }
-            }, 'json');
-        }
+        $.post('ajax.php', { CALL: 46, submission_id: approveSubmissionId }, function(resp) {
+            if (resp.status === 'SUCCESS') {
+                showNotification('Submission has been approved successfully', 'success', 'Approved');
+                closeModal();
+                submissionsTable.ajax.reload();
+                approveSubmissionId = null;
+            } else {
+                showNotification(resp.msg || 'Failed to approve submission', 'error', 'Approval Failed');
+            }
+        }, 'json');
     });
 
     // Initialize
     loadTaskCategories();
 
 })(jQuery);
+
+// Dropdown menu toggle function (global scope)
+function toggleDropdown(event) {
+    event.stopPropagation();
+    const btn = event.target;
+    const menu = btn.nextElementSibling;
+    const allMenus = document.querySelectorAll('.dropdown-menu');
+    
+    // Close all other dropdowns
+    allMenus.forEach(m => {
+        if (m !== menu) m.classList.remove('show');
+    });
+    
+    // Toggle current dropdown
+    menu.classList.toggle('show');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.matches('.dropdown-btn')) {
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+});
 </script>
 </body>
 </html>
