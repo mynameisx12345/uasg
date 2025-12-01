@@ -96,9 +96,118 @@
 	if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
 		echo json_encode(["error" => "Authentication required. Please login as admin."]);
 		exit;
-	}	
+	}
 
+	// Dashboard Statistics (CALL: 100)
+	if (isset($_POST['CALL']) && $_POST['CALL'] == 100) {
+		try {
+			$db = Database::getInstance();
+			
+			// Total Files
+			$totalFiles = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl")['count'] ?? 0;
+			
+			// Total Categories
+			$totalCategories = $db->selectOne("SELECT COUNT(*) as count FROM file_category_tbl")['count'] ?? 0;
+			
+			// Total Users (excluding admin)
+			$totalUsers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type != 'admin'")['count'] ?? 0;
+			
+			// Pending Tasks
+			$pendingTasks = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE task_id NOT IN (SELECT task_id FROM task_submission_tbl)")['count'] ?? 0;
+			
+			// Active Members (students)
+			$activeMembers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type = 'student' AND is_active = 1")['count'] ?? 0;
+			
+			// Total Advisers/Subadmins
+			$totalAdvisers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type = 'subadmin' AND is_active = 1")['count'] ?? 0;
+			
+			// Task Submissions
+			$totalSubmissions = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl")['count'] ?? 0;
+			
+			// Recent Activity (last 10)
+			$recentActivity = $db->select("
+				SELECT 
+					'file_upload' as type,
+					fu.datetime_uploaded as date,
+					CONCAT(p.fname, ' ', p.lname) as user_name,
+					'Uploaded' as action,
+					fu.file_name as item,
+					fc.file_category as category
+				FROM file_upload_tbl fu
+				LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+				LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+				LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+				ORDER BY fu.datetime_uploaded DESC
+				LIMIT 10
+			") ?? [];
+			
+			echo json_encode([
+				'success' => true,
+				'data' => [
+					'totalFiles' => $totalFiles,
+					'totalCategories' => $totalCategories,
+					'totalUsers' => $totalUsers,
+					'pendingTasks' => $pendingTasks,
+					'activeMembers' => $activeMembers,
+					'totalAdvisers' => $totalAdvisers,
+					'totalSubmissions' => $totalSubmissions,
+					'recentActivity' => $recentActivity
+				]
+			]);
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'msg' => 'Error fetching dashboard data: ' . $e->getMessage()]);
+		}
+		exit;
+	}
 
+	// File Statistics by Category (CALL: 101)
+	if (isset($_POST['CALL']) && $_POST['CALL'] == 101) {
+		try {
+			$db = Database::getInstance();
+			$stats = $db->select("
+				SELECT 
+					fc.file_category as category,
+					COUNT(fu.file_upload_id) as count,
+					SUM(fu.file_size) as total_size
+				FROM file_category_tbl fc
+				LEFT JOIN file_upload_tbl fu ON fc.file_category_id = fu.file_category_id
+				GROUP BY fc.file_category_id, fc.file_category
+				ORDER BY count DESC
+			") ?? [];
+			
+			echo json_encode(['success' => true, 'data' => $stats]);
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
+		}
+		exit;
+	}
+
+	// User Activity Statistics (CALL: 102)
+	if (isset($_POST['CALL']) && $_POST['CALL'] == 102) {
+		try {
+			$db = Database::getInstance();
+			$stats = $db->select("
+				SELECT 
+					CONCAT(p.fname, ' ', p.lname) as user_name,
+					u.user_type,
+					COUNT(fu.file_upload_id) as uploads,
+					MAX(fu.datetime_uploaded) as last_upload
+				FROM user_tbl u
+				LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+				LEFT JOIN file_upload_tbl fu ON u.user_id = fu.uploaded_by
+				WHERE u.user_type != 'admin' AND u.is_active = 1
+				GROUP BY u.user_id, p.fname, p.lname, u.user_type
+				ORDER BY uploads DESC
+				LIMIT 10
+			") ?? [];
+			
+			echo json_encode(['success' => true, 'data' => $stats]);
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
+		}
+		exit;
+	}
+	
 	if(empty($_POST["CALL"])){
 		echo json_encode(["error" => "Request invalid"]);
 		exit;

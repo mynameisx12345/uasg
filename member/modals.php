@@ -1,3 +1,44 @@
+<!-- Logout Confirmation Modal -->
+<div id="logoutModal" class="modal">
+    <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeModal('logoutModal')">&times;</span>
+        <h2><i class="fas fa-sign-out-alt" style="color: #2196F3;"></i> Confirm Logout</h2>
+        <div style="padding: 20px 0;">
+            <p>Are you sure you want to logout?</p>
+            <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <strong>Note:</strong> You will need to login again to access your account.
+            </p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+            <button type="button" class="btn-primary" id="confirmLogoutBtn" onclick="window.location.href='logout.php'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete File Confirmation Modal -->
+<div id="deleteFileModal" class="modal">
+    <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeModal('deleteFileModal')">&times;</span>
+        <h2><i class="fas fa-exclamation-triangle" style="color: #ff9800;"></i> Confirm Delete</h2>
+        <div style="padding: 20px 0;">
+            <p>Are you sure you want to delete this file?</p>
+            <p style="margin-top: 10px;"><strong>File Name:</strong> <span id="deleteFileName" style="color: #2196F3;"></span></p>
+            <p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ff9800; border-radius: 4px;">
+                <strong>Warning:</strong> This action cannot be undone and will permanently remove the file from both the database and storage.
+            </p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal('deleteFileModal')">Cancel</button>
+            <button type="button" class="btn-danger" id="confirmDeleteBtn" style="background-color: #f44336;">
+                <i class="fas fa-trash"></i> Delete File
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Notification/Message Modal -->
 <div id="notificationModal" class="modal">
     <div class="modal-content modal-content-small">

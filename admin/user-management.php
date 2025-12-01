@@ -93,6 +93,188 @@ if (!isset($_SESSION['user_id'])) {
     .role-vice-president { background: #fd7e14; color: white; }
     .role-secretary { background: #6f42c1; color: white; }
     .role-student { background: #17a2b8; color: white; }
+    
+    .password-field-wrapper {
+      position: relative;
+    }
+    
+    .password-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #666;
+      background: none;
+      border: none;
+      padding: 5px;
+      font-size: 16px;
+    }
+    
+    .password-toggle:hover {
+      color: #2196f3;
+    }
+    
+    .btn-generate {
+      padding: 8px 12px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    
+    .btn-generate:hover {
+      background: #45a049;
+    }
+    
+    .btn-copy {
+      padding: 8px 12px;
+      background: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    
+    .btn-copy:hover {
+      background: #0b7dda;
+    }
+    
+    /* Notification Modal Styles */
+    .notification-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .notification-modal.show {
+      display: flex;
+    }
+    
+    .notification-content {
+      background: white;
+      border-radius: 12px;
+      padding: 0;
+      min-width: 400px;
+      max-width: 500px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: slideIn 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .notification-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .notification-header.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .notification-header.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .notification-header.warning {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+    
+    .notification-header.info {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    .notification-icon {
+      font-size: 28px;
+    }
+    
+    .notification-title {
+      font-size: 18px;
+      font-weight: 600;
+      flex: 1;
+    }
+    
+    .notification-body {
+      padding: 24px;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #333;
+      white-space: pre-wrap;
+    }
+    
+    .notification-footer {
+      padding: 16px 24px;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    
+    .notification-btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .notification-btn.primary {
+      background: #2196f3;
+      color: white;
+    }
+    
+    .notification-btn.primary:hover {
+      background: #1976d2;
+    }
+    
+    .notification-btn.secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    
+    .notification-btn.secondary:hover {
+      background: #bdbdbd;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideIn {
+      from { 
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to { 
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
   </style>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>
@@ -214,7 +396,20 @@ if (!isset($_SESSION['user_id'])) {
         
         <div class="form-group">
           <label for="password">Password *</label>
-          <input type="password" id="password" name="password" required />
+          <div class="password-field-wrapper">
+            <input type="password" id="password" name="password" required style="padding-right: 40px;" />
+            <button type="button" class="password-toggle" onclick="togglePassword()" title="Show/Hide Password">
+              <i class="fas fa-eye" id="passwordToggleIcon"></i>
+            </button>
+          </div>
+          <div class="password-controls">
+            <button type="button" class="btn-generate" onclick="generatePassword()">
+              <i class="fas fa-key"></i> Auto Generate
+            </button>
+            <button type="button" class="btn-copy" onclick="copyPassword()" title="Copy password to clipboard">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+          </div>
         </div>
         
         <div class="form-row">
@@ -384,6 +579,20 @@ if (!isset($_SESSION['user_id'])) {
     </div>
   </div>
 
+  <!-- NOTIFICATION MODAL -->
+  <div class="notification-modal" id="notificationModal">
+    <div class="notification-content">
+      <div class="notification-header" id="notificationHeader">
+        <span class="notification-icon" id="notificationIcon"></span>
+        <span class="notification-title" id="notificationTitle"></span>
+      </div>
+      <div class="notification-body" id="notificationBody"></div>
+      <div class="notification-footer">
+        <button class="notification-btn primary" onclick="closeNotification()">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PERMISSION MODAL -->
   <div class="modal" id="permissionModal">
     <div class="modal-content">
@@ -403,6 +612,144 @@ if (!isset($_SESSION['user_id'])) {
   </div>
 
 <script>
+// Global Notification System
+function showNotification(message, type = 'info', title = '') {
+    const modal = document.getElementById('notificationModal');
+    const header = document.getElementById('notificationHeader');
+    const icon = document.getElementById('notificationIcon');
+    const titleEl = document.getElementById('notificationTitle');
+    const body = document.getElementById('notificationBody');
+    
+    // Reset classes
+    header.className = 'notification-header';
+    
+    // Set type-specific styling and icon
+    let iconHtml = '';
+    let defaultTitle = '';
+    
+    switch(type) {
+        case 'success':
+            header.classList.add('success');
+            iconHtml = '✓';
+            defaultTitle = 'Success';
+            break;
+        case 'error':
+            header.classList.add('error');
+            iconHtml = '✕';
+            defaultTitle = 'Error';
+            break;
+        case 'warning':
+            header.classList.add('warning');
+            iconHtml = '⚠';
+            defaultTitle = 'Warning';
+            break;
+        case 'info':
+        default:
+            header.classList.add('info');
+            iconHtml = 'ℹ';
+            defaultTitle = 'Information';
+            break;
+    }
+    
+    icon.innerHTML = iconHtml;
+    titleEl.textContent = title || defaultTitle;
+    body.textContent = message;
+    
+    modal.classList.add('show');
+}
+
+function closeNotification() {
+    const modal = document.getElementById('notificationModal');
+    modal.classList.remove('show');
+}
+
+// Close on outside click
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('notificationModal');
+    if (e.target === modal) {
+        closeNotification();
+    }
+});
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeNotification();
+    }
+});
+
+// Global Password Management Functions (must be outside jQuery closure for inline onclick)
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+    }
+}
+
+function generatePassword() {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    
+    // Ensure at least one of each type
+    password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]; // uppercase
+    password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]; // lowercase
+    password += '0123456789'[Math.floor(Math.random() * 10)]; // number
+    password += '!@#$%^&*'[Math.floor(Math.random() * 8)]; // special char
+    
+    // Fill remaining length
+    for (let i = password.length; i < length; i++) {
+        password += charset[Math.floor(Math.random() * charset.length)];
+    }
+    
+    // Shuffle the password
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+    
+    // Set password and show it
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+    
+    passwordInput.value = password;
+    passwordInput.type = 'text';
+    toggleIcon.classList.remove('fa-eye');
+    toggleIcon.classList.add('fa-eye-slash');
+    
+    // Show success notification
+    showNotification(
+        'Password generated successfully!\n\nPassword: ' + password + '\n\nMake sure to copy it before saving.',
+        'success',
+        'Password Generated'
+    );
+}
+
+function copyPassword() {
+    const passwordInput = document.getElementById('password');
+    
+    if (!passwordInput.value) {
+        showNotification('Please enter or generate a password first.', 'warning', 'No Password');
+        return;
+    }
+    
+    // Create temporary input to copy
+    const tempInput = document.createElement('input');
+    tempInput.value = passwordInput.value;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    
+    // Show feedback
+    showNotification('Password copied to clipboard!', 'success', 'Copied');
+}
+
 (function($) {
     let currentUserType = 'admin';
     let deleteTarget = { id: null, type: null };
@@ -591,7 +938,7 @@ if (!isset($_SESSION['user_id'])) {
                 $('#modalTitle').text(`Edit ${type === 'subadmin' ? 'Sub-admin' : (type === 'admin' ? 'Admin' : 'Member')}`);
                 openModal('userModal');
             } else {
-                alert(resp.message || 'Unable to fetch user data');
+                showNotification(resp.message || 'Unable to fetch user data', 'error', 'Error');
             }
         }, 'json');
     });
@@ -637,9 +984,9 @@ if (!isset($_SESSION['user_id'])) {
             if (resp.status === 'SUCCESS') {
                 closeModal();
                 reloadTables();
-                alert(resp.message || `User ${action}d successfully`);
+                showNotification(resp.message || `User ${action}d successfully`, 'success', 'Success');
             } else {
-                alert(resp.message || `Failed to ${action} user`);
+                showNotification(resp.message || `Failed to ${action} user`, 'error', 'Error');
             }
         }, 'json');
     });
@@ -664,9 +1011,9 @@ if (!isset($_SESSION['user_id'])) {
             if (resp.status === 'SUCCESS') {
                 closeModal();
                 reloadTables();
-                alert(resp.message || 'User deleted successfully');
+                showNotification(resp.message || 'User deleted successfully', 'success', 'Deleted');
             } else {
-                alert(resp.message || 'Failed to delete user');
+                showNotification(resp.message || 'Failed to delete user', 'error', 'Error');
             }
         }, 'json');
     });
@@ -762,9 +1109,9 @@ if (!isset($_SESSION['user_id'])) {
         }, function(resp) {
             if (resp.status === 'SUCCESS') {
                 closeModal();
-                alert('Permissions updated successfully');
+                showNotification('Permissions updated successfully', 'success', 'Success');
             } else {
-                alert(resp.message || 'Failed to update permissions');
+                showNotification(resp.message || 'Failed to update permissions', 'error', 'Error');
             }
         }, 'json');
     });
