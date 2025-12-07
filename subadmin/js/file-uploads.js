@@ -105,13 +105,17 @@ $(document).ready(function(){
                     }
                 },
                 { 
-                    data: "category_name",
+                    data: "file_category",
                     defaultContent: "Uncategorized"
                 },
                 { 
-                    data: "file_type",
+                    data: "mime_type",
                     render: function(data) {
-                        return data ? data.toUpperCase() : 'N/A';
+                        if (!data) return 'N/A';
+                        // Extract the main type from mime type (e.g., "application/pdf" -> "PDF")
+                        const parts = data.split('/');
+                        const subtype = parts[1] || parts[0];
+                        return subtype.toUpperCase();
                     }
                 },
                 { 
@@ -121,8 +125,13 @@ $(document).ready(function(){
                     }
                 },
                 { 
-                    data: "uploaded_by_name",
-                    defaultContent: "Unknown"
+                    data: null,
+                    render: function(data, type, row) {
+                        if (row.fname && row.lname) {
+                            return row.fname + ' ' + row.lname;
+                        }
+                        return 'Unknown';
+                    }
                 },
                 { 
                     data: "datetime_uploaded",
@@ -161,6 +170,25 @@ $(document).ready(function(){
                         
                         actions += '</div>';
                         return actions;
+                    }
+                },
+                {
+                    data: "category_tag",
+                    defaultContent: "N/A",
+                    render: function(data) {
+                        return data ? escapeHtml(data) : 'N/A';
+                    }
+                },
+                {
+                    data: "category_score",
+                    defaultContent: "N/A",
+                    render: function(data) {
+                        if (!data || data == 0) return 'N/A';
+                        const score = parseFloat(data);
+                        let color = '#dc3545'; // red
+                        if (score >= 80) color = '#10b981'; // green
+                        else if (score >= 50) color = '#f59e0b'; // orange
+                        return '<span style="color: ' + color + '; font-weight: 600;">' + score.toFixed(1) + '%</span>';
                     }
                 }
             ],
@@ -237,27 +265,101 @@ $(document).ready(function(){
             fileInput.addEventListener('change', (e) => {
                 if (e.target.files.length > 0) {
                     displayFilePreview(e.target.files[0]);
-                    // Show NLP preview
-                    $('#nlpPreview').show();
+                    // Trigger NLP analysis immediately on file selection
+                    analyzeFileWithNLP(e.target.files[0]);
                 }
             });
         }
         
-        // Upload form submission with Google NLP auto-categorization
+        // NLP Analysis function (matching admin algorithm)
+        function analyzeFileWithNLP(file) {
+            const formData = new FormData();
+            formData.append('CALL', 'nlp_analyze');
+            formData.append('file', file);
+            
+            $.ajax({
+                url: 'ajax.php',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                beforeSend: function() {
+                    $('#suggestedCategory').html('<i class="fa fa-spinner fa-spin"></i> Analyzing...');
+                    $('#categoryConfidence').text('Analyzing...');
+                    $('#nlpPreview').show();
+                },
+                success: function(result) {
+                    if (result.status === 'SUCCESS') {
+                        const category = result.category || 'Uncategorized';
+                        const score = result.score || 0;
+                        
+                        $('#suggestedCategory').html('<strong style="color: #2196F3;">' + escapeHtml(category) + '</strong>');
+                        $('#categoryConfidence').html(getConfidenceBadge(score));
+                        
+                        // Store NLP data for upload
+                        $('#uploadForm').data('nlp-category', category);
+                        $('#uploadForm').data('nlp-score', score);
+                        $('#uploadForm').data('nlp-analysis', JSON.stringify(result.nlp_analysis || {}));
+                    } else {
+                        $('#suggestedCategory').html('<span style="color: #dc3545;">Analysis failed</span>');
+                        $('#categoryConfidence').html('<span style="color: #dc3545;">N/A</span>');
+                        console.error('NLP Error:', result.msg);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#suggestedCategory').html('<span style="color: #dc3545;">Error</span>');
+                    $('#categoryConfidence').html('<span style="color: #dc3545;">Failed</span>');
+                    console.error('NLP AJAX Error:', error);
+                }
+            });
+        }
+        
+        function getConfidenceBadge(score) {
+            let color = '#dc3545'; // red for low confidence
+            let label = 'Low';
+            
+            if (score >= 80) {
+                color = '#10b981'; // green
+                label = 'High';
+            } else if (score >= 50) {
+                color = '#f59e0b'; // orange
+                label = 'Medium';
+            }
+            
+            return '<span style="color: ' + color + '; font-weight: 600;">' + 
+                   score.toFixed(1) + '% (' + label + ')</span>';
+        }
+        
+        // Upload form submission with Google NLP auto-categorization (matching admin algorithm)
         $('#uploadForm').on('submit', function(e) {
             e.preventDefault();
             
-            const formData = new FormData(this);
-            formData.append('CALL', 21); // Upload file call
-            formData.append('uploaded_by', window.userPermissions.userId);
-            // No category_id - NLP will auto-categorize
-            
-            // Validate file size (10MB max)
             const file = fileInput.files[0];
-            if (file && file.size > 10 * 1024 * 1024) {
-                alert('File size exceeds 10MB limit!');
+            if (!file) {
+                openModal('ERROR', 'Please select a file to upload');
                 return;
             }
+            
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                openModal('ERROR', 'File size exceeds 10MB limit!');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('CALL', 21); // Upload file call (was 16 in admin)
+            formData.append('file', file);
+            formData.append('uploaded_by', window.userPermissions.userId);
+            
+            // Include NLP analysis data
+            const nlpCategory = $(this).data('nlp-category') || 'Uncategorized';
+            const nlpScore = $(this).data('nlp-score') || 0;
+            const nlpAnalysis = $(this).data('nlp-analysis') || '{}';
+            
+            formData.append('category_tag', nlpCategory);
+            formData.append('category_score', nlpScore);
+            formData.append('nlp_analysis', nlpAnalysis);
             
             $.ajax({
                 url: 'ajax.php',
@@ -266,38 +368,32 @@ $(document).ready(function(){
                 processData: false,
                 contentType: false,
                 beforeSend: function() {
-                    $('button[type="submit"]').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Uploading & Analyzing...');
+                    $('button[type="submit"]').prop('disabled', true)
+                        .html('<i class="fa fa-spinner fa-spin"></i> Uploading...');
                 },
                 success: function(response) {
                     if (response.status === 'SUCCESS') {
-                        let message = 'File uploaded successfully!';
+                        openModal('SUCCESS', 
+                              'File uploaded successfully!<br><br>' +
+                              '<strong>🤖 Auto-categorized as:</strong> ' + nlpCategory + '<br>' +
+                              '<strong>📊 Confidence:</strong> ' + nlpScore.toFixed(1) + '%');
                         
-                        // Show NLP analysis results if available
-                        if (response.nlp_analysis) {
-                            message += '\n\n🤖 Auto-categorized as: ' + response.nlp_analysis.category +
-                                      '\n📊 Confidence: ' + response.nlp_analysis.confidence.toFixed(1) + '%';
-                            
-                            if (response.nlp_analysis.auto_assigned) {
-                                message += '\n✅ Category automatically assigned';
-                            }
-                        }
-                        
-                        alert(message);
                         resetUploadForm();
                         filesTable.ajax.reload();
                         
                         // Switch to file list tab
                         $('.tab-link[data-tab="file-list"]').click();
                     } else {
-                        alert('Upload failed: ' + (response.msg || 'Unknown error'));
+                        openModal('ERROR', 'Upload failed: ' + (response.msg || 'Unknown error'));
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Upload error:', error);
-                    alert('Upload failed. Please try again.');
+                    openModal('ERROR', 'Upload failed. Please try again.');
                 },
                 complete: function() {
-                    $('button[type="submit"]').prop('disabled', false).html('<i class="fa fa-upload"></i> Upload File');
+                    $('button[type="submit"]').prop('disabled', false)
+                        .html('<i class="fa fa-upload"></i> Upload File');
                 }
             });
         });
@@ -323,16 +419,16 @@ $(document).ready(function(){
                 dataType: 'json',
                 success: function(response) {
                     if (response.status === 'SUCCESS') {
-                        alert('File updated successfully!');
+                        openModal('SUCCESS', 'File updated successfully!');
                         closeEditModal();
                         filesTable.ajax.reload();
                     } else {
-                        alert('Update failed: ' + (response.msg || 'Unknown error'));
+                        openModal('ERROR', 'Update failed: ' + (response.msg || 'Unknown error'));
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Update error:', error);
-                    alert('Update failed. Please try again.');
+                    openModal('ERROR', 'Update failed. Please try again.');
                 }
             });
         });
@@ -377,19 +473,19 @@ $(document).ready(function(){
                     $('#fileDetails').html(details);
                     $('#viewFileModal').show();
                 } else {
-                    alert('Failed to load file details');
+                    openModal('ERROR', 'Failed to load file details');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error loading file details:', error);
-                alert('Failed to load file details');
+                openModal('ERROR', 'Failed to load file details');
             }
         });
     };
     
     window.editFile = function(fileId) {
         if (!window.userPermissions.canEdit) {
-            alert('You do not have permission to edit files');
+            openModal('ERROR', 'You do not have permission to edit files');
             return;
         }
         
@@ -412,19 +508,19 @@ $(document).ready(function(){
                     
                     $('#editFileModal').show();
                 } else {
-                    alert('Failed to load file details');
+                    openModal('ERROR', 'Failed to load file details');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error loading file details:', error);
-                alert('Failed to load file details');
+                openModal('ERROR', 'Failed to load file details');
             }
         });
     };
     
     window.deleteFile = function(fileId, fileName) {
         if (!window.userPermissions.canDelete) {
-            alert('You do not have permission to delete files');
+            openModal('ERROR', 'You do not have permission to delete files');
             return;
         }
         
@@ -440,7 +536,7 @@ $(document).ready(function(){
         const reason = $('#deleteReason').val().trim();
         
         if (!reason) {
-            alert('Please provide a reason for deletion');
+            openModal('ERROR', 'Please provide a reason for deletion');
             return;
         }
         
@@ -458,27 +554,27 @@ $(document).ready(function(){
             dataType: 'json',
             success: function(response) {
                 if (response.status === 'SUCCESS') {
-                    alert('File deleted successfully');
+                    openModal('SUCCESS', 'File deleted successfully');
                     closeDeleteModal();
                     filesTable.ajax.reload();
                 } else {
-                    alert('Delete failed: ' + (response.msg || 'Unknown error'));
+                    openModal('ERROR', 'Delete failed: ' + (response.msg || 'Unknown error'));
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Delete error:', error);
-                alert('Delete failed. Please try again.');
+                openModal('ERROR', 'Delete failed. Please try again.');
             }
         });
     };
     
     window.downloadFileById = function(fileId) {
-        window.location.href = 'ajax.php?CALL=25&file_id=' + fileId;
+        window.location.href = 'ajax.php?CALL=download&file_id=' + fileId;
     };
     
     window.downloadFile = function() {
         if (currentFileId) {
-            window.location.href = 'ajax.php?CALL=25&file_id=' + currentFileId;
+            window.location.href = 'ajax.php?CALL=download&file_id=' + currentFileId;
         }
     };
     

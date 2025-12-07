@@ -122,34 +122,46 @@ $(document).ready(function(){
                 ajax: {
                     url: 'ajax.php',
                     type: 'post',
-                    data: function(d) {
-                        return {
-                            CALL: 8, // Get all tasks
-                            category: $('#taskCategory').val(),
-                            status: $('#taskStatusFilter').val(),
-                            date_from: $('#taskDateFrom').val(),
-                            date_to: $('#taskDateTo').val()
-                        };
+                    data: {
+                        CALL: 40 // Get all tasks
                     },
                     dataSrc: 'data'
                 },
+                destroy: true,
                 responsive: true,
                 paging: true,
                 pageLength: 10,
                 columns: [
-                    { data: "task_id", visible: false },
+                    { data: "task_id" },
                     { data: "task_title" },
                     { data: "task_category" },
                     { data: "task_description" },
                     { data: "task_deadline" },
-                    { data: "submission_count", defaultContent: "0" },
-                    { data: "approved_count", defaultContent: "0" },
-                    { data: "pending_count", defaultContent: "0" },
+                    { 
+                        data: null,
+                        render: function(data, type, row) {
+                            return (row.submission_count || 0) + ' / ' + (row.approved_count || 0);
+                        }
+                    },
+                    { 
+                        data: "task_status",
+                        render: function(data) {
+                            return data === 'active' ? '<span class="status-badge status-pending">Active</span>' : 
+                                   '<span class="status-badge status-completed">Completed</span>';
+                        }
+                    },
                     {
                         data: 'task_id',
                         render: function(id) {
-                            return '<button class="btn-primary editTaskBtn" data-id="'+id+'" title="Edit Task">Edit</button> ' +
-                                   '<button class="btn-secondary deleteTaskBtn" data-id="'+id+'" title="Delete Task">Delete</button>';
+                            return `
+                                <div class="dropdown-container">
+                                    <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                                    <div class="dropdown-menu">
+                                        <button class="dropdown-item edit editTaskBtn" data-id="${id}">Edit</button>
+                                        <button class="dropdown-item delete deleteTaskBtn" data-id="${id}">Delete</button>
+                                    </div>
+                                </div>
+                            `;
                         }
                     }
                 ],
@@ -170,7 +182,7 @@ $(document).ready(function(){
                     type: 'post',
                     data: function(d) {
                         return {
-                            CALL: 11, // Get all submissions
+                            CALL: 41, // Get all submissions
                             task_id: $('#reportTaskFilter').val(),
                             status: $('#reportStatusFilter').val()
                         };
@@ -181,21 +193,36 @@ $(document).ready(function(){
                 paging: true,
                 pageLength: 10,
                 columns: [
-                    { data: "task_submission_id", visible: false },
+                    { data: "task_submission_id" },
                     { data: "task_title" },
-                    { data: function(row) { return row.fname + ' ' + row.lname; } },
+                    { data: "student_name" },
                     { data: "file_name" },
-                    { data: "datetime_uploaded" },
-                    { data: "check_status" },
+                    { data: "submitted_at" },
+                    { 
+                        data: "check_status",
+                        render: function(status) {
+                            const statusMap = {
+                                'Pending': '<span class="status-badge status-pending">Pending</span>',
+                                'Approved': '<span class="status-badge status-completed">Approved</span>',
+                                'Rejected': '<span class="status-badge status-overdue">Rejected</span>'
+                            };
+                            return statusMap[status] || status;
+                        }
+                    },
                     {
                         data: 'task_submission_id',
                         render: function(id, type, row) {
-                            let buttons = '<button class="btn-primary viewSubmissionBtn" data-id="'+id+'" title="View Submission">View</button> ';
-                            if(row.check_status === 'pending') {
-                                buttons += '<button class="btn-success approveBtn" data-id="'+id+'" title="Approve">Approve</button> ';
-                                buttons += '<button class="btn-danger rejectBtn" data-id="'+id+'" title="Reject">Reject</button>';
-                            }
-                            return buttons;
+                            return `
+                                <div class="dropdown-container">
+                                    <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
+                                    <div class="dropdown-menu">
+                                        <button class="dropdown-item view viewSubmissionBtn" data-id="${id}">View Details</button>
+                                        ${row.check_status === 'Pending' ? `
+                                            <button class="dropdown-item approve approveBtn" data-id="${id}">Approve</button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
                         }
                     }
                 ],
@@ -228,7 +255,29 @@ $(document).ready(function(){
                 task_deadline: taskDeadline
             };
             
-            saveData(7, taskData); // Create task
+            $.ajax({
+                url: 'ajax.php',
+                type: 'post',
+                data: {
+                    CALL: 'create_task',
+                    DATA: taskData
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if(response.status === 'SUCCESS') {
+                        showNotification('Task created successfully', 'success');
+                        $('#createTaskForm')[0].reset();
+                        if(tasksTable) {
+                            tasksTable.ajax.reload();
+                        }
+                    } else {
+                        showNotification(response.msg || 'Failed to create task', 'error');
+                    }
+                },
+                error: function() {
+                    showNotification('Error creating task', 'error');
+                }
+            });
         });
         
         // Password Change Form
@@ -264,32 +313,122 @@ $(document).ready(function(){
         // Task Action Handlers
         $(document).on('click', '.editTaskBtn', function() {
             const taskId = $(this).data('id');
-            openEditTaskModal(taskId);
+            
+            $.ajax({
+                url: 'ajax.php',
+                type: 'post',
+                data: {
+                    CALL: 42,
+                    task_id: taskId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if(response.status === 'SUCCESS') {
+                        // Populate edit form (you can create an edit modal)
+                        showNotification('Edit functionality coming soon', 'info');
+                    } else {
+                        showNotification(response.msg || 'Failed to load task', 'error');
+                    }
+                },
+                error: function() {
+                    showNotification('Error loading task details', 'error');
+                }
+            });
         });
         
         $(document).on('click', '.deleteTaskBtn', function() {
             const taskId = $(this).data('id');
-            if(confirm('Are you sure you want to delete this task?')) {
-                deleteTask(taskId);
+            if(confirm('Are you sure you want to delete this task? All submissions will also be deleted.')) {
+                $.ajax({
+                    url: 'ajax.php',
+                    type: 'post',
+                    data: {
+                        CALL: 44,
+                        task_id: taskId
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if(response.status === 'SUCCESS') {
+                            showNotification('Task deleted successfully', 'success');
+                            if(tasksTable) {
+                                tasksTable.ajax.reload();
+                            }
+                            if(reportsTable) {
+                                reportsTable.ajax.reload();
+                            }
+                        } else {
+                            showNotification(response.msg || 'Failed to delete task', 'error');
+                        }
+                    },
+                    error: function() {
+                        showNotification('Error deleting task', 'error');
+                    }
+                });
             }
         });
         
         // Submission Action Handlers
         $(document).on('click', '.viewSubmissionBtn', function() {
             const submissionId = $(this).data('id');
-            openViewSubmissionModal(submissionId);
+            
+            $.ajax({
+                url: 'ajax.php',
+                type: 'post',
+                data: {
+                    CALL: 45,
+                    submission_id: submissionId
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if(response.status === 'SUCCESS') {
+                        const data = response.data;
+                        const content = `
+                            <div class="submission-details">
+                                <p><strong>Task:</strong> ${data.task_title}</p>
+                                <p><strong>Student:</strong> ${data.student_name}</p>
+                                <p><strong>File:</strong> ${data.file_name}</p>
+                                <p><strong>Submitted:</strong> ${data.submitted_at}</p>
+                                <p><strong>Status:</strong> ${data.check_status}</p>
+                                ${data.file_path ? `<p><a href="../${data.file_path}" target="_blank" class="btn-primary">Download File</a></p>` : ''}
+                            </div>
+                        `;
+                        showNotification('View Details: Check console for data', 'info');
+                        console.log(data);
+                    } else {
+                        showNotification(response.msg || 'Failed to load submission', 'error');
+                    }
+                },
+                error: function() {
+                    showNotification('Error loading submission details', 'error');
+                }
+            });
         });
         
         $(document).on('click', '.approveBtn', function() {
             const submissionId = $(this).data('id');
-            reviewSubmission(submissionId, 'approved');
-        });
-        
-        $(document).on('click', '.rejectBtn', function() {
-            const submissionId = $(this).data('id');
-            const reason = prompt('Please provide a reason for rejection:');
-            if(reason) {
-                reviewSubmission(submissionId, 'rejected', reason);
+            if(confirm('Are you sure you want to approve this submission?')) {
+                $.ajax({
+                    url: 'ajax.php',
+                    type: 'post',
+                    data: {
+                        CALL: 46,
+                        submission_id: submissionId
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if(response.status === 'SUCCESS') {
+                            showNotification('Submission approved successfully', 'success');
+                            if(reportsTable) {
+                                reportsTable.ajax.reload();
+                            }
+                        } else {
+                            showNotification(response.msg || 'Failed to approve submission', 'error');
+                        }
+                    },
+                    error: function() {
+                        showNotification('Error approving submission', 'error');
+                    }
+                });
             }
         });
     }
@@ -562,10 +701,80 @@ $(document).ready(function(){
         if(typeof window.openModal === 'function') {
             window.openModal(status, message);
         } else {
-            alert(status + ': ' + message);
+            // Fallback to console if modal not available
+            console.log(status + ': ' + message);
         }
     }
     
     // Initialize notifications on page load
     loadNotifications();
+});
+
+// Global notification function
+function showNotification(message, type = 'info', title = '') {
+    const modal = document.getElementById('notificationModal');
+    if (!modal) return;
+    
+    const modalTitle = document.getElementById('notificationTitle');
+    const modalMessage = document.getElementById('notificationMessage');
+    const modalIcon = document.getElementById('notificationIcon');
+    
+    // Set icon and title based on type
+    const config = {
+        success: { icon: 'fa-check-circle', defaultTitle: 'Success', color: '#10b981' },
+        error: { icon: 'fa-exclamation-circle', defaultTitle: 'Error', color: '#ef4444' },
+        warning: { icon: 'fa-exclamation-triangle', defaultTitle: 'Warning', color: '#f59e0b' },
+        info: { icon: 'fa-info-circle', defaultTitle: 'Information', color: '#3b82f6' }
+    };
+    
+    const typeConfig = config[type] || config.info;
+    modalIcon.className = `fas ${typeConfig.icon}`;
+    modalIcon.style.color = typeConfig.color;
+    if (modalTitle) modalTitle.textContent = title || typeConfig.defaultTitle;
+    if (modalMessage) modalMessage.textContent = message;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    modal.classList.add('notification-show');
+    
+    // Auto-close after 3 seconds
+    setTimeout(() => {
+        closeNotification();
+    }, 3000);
+}
+
+function closeNotification() {
+    const modal = document.getElementById('notificationModal');
+    if (!modal) return;
+    
+    modal.classList.remove('notification-show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+}
+
+// Global dropdown toggle function
+function toggleDropdown(event) {
+    event.stopPropagation();
+    const btn = event.target;
+    const menu = btn.nextElementSibling;
+    const allMenus = document.querySelectorAll('.dropdown-menu');
+    
+    // Close all other dropdowns
+    allMenus.forEach(m => {
+        if (m !== menu) m.classList.remove('show');
+    });
+    
+    // Toggle current dropdown
+    menu.classList.toggle('show');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.matches('.dropdown-btn')) {
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
 });

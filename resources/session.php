@@ -42,7 +42,10 @@ class SessionManager {
     }
     
     public function isLoggedIn() {
-        return isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+        // Check multiple indicators of logged-in status
+        return (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) ||
+               (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) ||
+               (isset($_SESSION['auth_token']) && !empty($_SESSION['auth_token']));
     }
     
     public function getUserId() {
@@ -62,18 +65,28 @@ class SessionManager {
     }
     
     public function getUserName() {
-        return $_SESSION['user_name'] ?? null;
+        // Support both 'user_name' and 'username'
+        return $_SESSION['user_name'] ?? $_SESSION['username'] ?? null;
     }
     
     public function getFullName() {
+        // Check if full_name is already set (from auth system)
+        if (isset($_SESSION['full_name']) && !empty($_SESSION['full_name'])) {
+            return $_SESSION['full_name'];
+        }
+        
+        // Fallback to building from fname and lname
         $fname = $_SESSION['fname'] ?? '';
         $lname = $_SESSION['lname'] ?? '';
-        return trim($fname . ' ' . $lname);
+        $fullName = trim($fname . ' ' . $lname);
+        
+        // If still empty, return a default
+        return !empty($fullName) ? $fullName : 'User';
     }
     
     public function getUserData() {
         if (!$this->isLoggedIn()) {
-            return null;
+            return [];
         }
         
         return [

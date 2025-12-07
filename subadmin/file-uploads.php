@@ -1,4 +1,5 @@
 <?php
+session_start(); // Start session first
 require_once("../resources/session.php");
 
 // Require subadmin role
@@ -6,7 +7,12 @@ $session = SessionManager::getInstance();
 $session->requireRole(['Adviser', 'adviser', 'Subadmin', 'subadmin']);
 
 $currentUser = $session->getUserData();
-$userId = $currentUser['user_id'];
+$userId = $currentUser['user_id'] ?? null;
+
+if (!$userId) {
+    header("Location: ../index.php");
+    exit;
+}
 
 // Check if user has permission to view file uploads
 require_once("../resources/objects/permission_class.php");
@@ -16,7 +22,7 @@ $canEdit = SubadminPermission::hasPermission($userId, 'file_management', 'edit')
 $canDelete = SubadminPermission::hasPermission($userId, 'file_management', 'delete');
 
 if (!$canView) {
-    header("Location: dashboard.php");
+    header("Location: index.php");
     exit;
 }
 ?>
@@ -36,7 +42,7 @@ if (!$canView) {
   <meta name="msapplication-TileColor" content="#2196F3">
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="../manifest.json">
+  <!--link rel="manifest" href="../manifest.json"-->
   
   <!-- Favicon and Icons -->
   <link rel="icon" type="image/png" sizes="32x32" href="../resources/icons/icon-32x32.png">
@@ -92,48 +98,30 @@ if (!$canView) {
   </style>
 </head>
 <body>
-  <!-- HEADER -->
-  <?php require_once("header.php");?>
-  <header class="topbar">
-    <h1>File Upload Management</h1>
-    <div class="user-info">
-      <span>Welcome, <?= htmlspecialchars($currentUser['full_name']) ?></span>
-      <div class="permission-badges">
-        <?php if ($canView): ?>
-          <span class="permission-badge badge-view">View</span>
-        <?php endif; ?>
-        <?php if ($canCreate): ?>
-          <span class="permission-badge badge-create">Create</span>
-        <?php endif; ?>
-        <?php if ($canEdit): ?>
-          <span class="permission-badge badge-edit">Edit</span>
-        <?php endif; ?>
-        <?php if ($canDelete): ?>
-          <span class="permission-badge badge-delete">Delete</span>
-        <?php endif; ?>
-      </div>
-    </div>
-  </header>
-  
-  <!-- MAIN -->
-  <main class="main">
+  <!-- MAIN LAYOUT -->
+  <div class="dashboard-container">
     <!-- SIDEBAR -->
     <?php require_once("sidebar.php");?>
 
-    <!-- CONTENT -->
-    <section class="content">
-      <!-- TABS -->
-      <div class="tabs">
-        <button class="tab-link active" data-tab="file-list">File List</button>
-        <?php if ($canCreate): ?>
-        <button class="tab-link" data-tab="upload-files">Upload Files</button>
-        <?php endif; ?>
-      </div>
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      <!-- HEADER -->
+      <?php require_once("header.php");?>
+      
+      <!-- CONTENT -->
+      <div class="dashboard-content">
+        <!-- NAVIGATION TABS -->
+        <div class="tab-nav">
+          <button class="tab-link active" data-tab="file-list">File List</button>
+          <?php if ($canCreate): ?>
+          <button class="tab-link" data-tab="upload-files">Upload Files</button>
+          <?php endif; ?>
+        </div>
 
-      <!-- TAB CONTENT: FILE LIST -->
-      <div class="tab-content active" id="file-list">
-        <div class="card">
-          <h2>Uploaded Files</h2>
+        <!-- TAB CONTENT: FILE LIST -->
+        <div class="tab-content active" id="file-list">
+          <div class="card">
+            <h2>Uploaded Files</h2>
           
           <!-- Filters -->
           <div class="compact-form">
@@ -268,8 +256,8 @@ if (!$canView) {
         </div>
       </div>
       <?php endif; ?>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <!-- MODALS -->
   
@@ -385,9 +373,75 @@ if (!$canView) {
     }
   </script>
 
+  <script>
+    // Tab switcher (matching index.php style)
+    const tabLinks = document.querySelectorAll(".tab-link");
+    const tabContents = document.querySelectorAll(".tab-content");
+
+    tabLinks.forEach(link => {
+      link.addEventListener("click", () => {
+        tabLinks.forEach(l => l.classList.remove("active"));
+        tabContents.forEach(c => c.classList.remove("active"));
+
+        link.classList.add("active");
+        document.getElementById(link.dataset.tab).classList.add("active");
+      });
+    });
+  </script>
+
   <script src="js/file-uploads.js"></script>
   
+  <!-- Notification Modal -->
+  <div id="notificationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="notificationTitle">Notification</h2>
+        <span class="close" onclick="closeNotificationModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p id="notificationMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" onclick="closeNotificationModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Notification Modal Functions
+    function openNotificationModal(title, message, type = 'info') {
+      document.getElementById('notificationTitle').textContent = title;
+      document.getElementById('notificationMessage').innerHTML = message;
+      
+      // Add type-based styling
+      const modal = document.getElementById('notificationModal');
+      modal.className = 'modal ' + type;
+      modal.style.display = 'flex';
+    }
+
+    function closeNotificationModal() {
+      document.getElementById('notificationModal').style.display = 'none';
+    }
+
+    // Global openModal function for compatibility
+    window.openModal = function(status, message) {
+      const title = status === 'SUCCESS' ? 'Success' : 
+                    status === 'ERROR' ? 'Error' : 
+                    status === 'WARNING' ? 'Warning' : 'Information';
+      const type = status.toLowerCase();
+      openNotificationModal(title, message, type);
+    };
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('notificationModal');
+      if (event.target == modal) {
+        closeNotificationModal();
+      }
+    };
+  </script>
+  
   <!-- PWA Scripts -->
-  <script src="../js/pwa-helper.js"></script>
+  <!--script src="../js/pwa-helper.js"></script-->
 </body>
 </html>

@@ -485,7 +485,8 @@
 				'task_category_id' => $params["task_category_id"] ?? null,
 				'task_title' => $params["task_title"] ?? null,
 				'task_description' => $params["task_description"] ?? null,
-				'task_deadline' => $params["task_deadline"] ?? null
+				'task_deadline' => $params["task_deadline"] ?? null,
+				'assigned_to' => $params["assigned_to"] ?? null
 			]);
 		}
 
@@ -1245,13 +1246,19 @@
 					throw new Exception("All task fields are required");
 				}
 
+				// Handle assigned_to - convert empty string to null
+				$assignedTo = null;
+				if (!empty($data['assigned_to']) && is_numeric($data['assigned_to'])) {
+					$assignedTo = (int)$data['assigned_to'];
+				}
+
 				// Create task
 				$task = new Task([
 					'task_category_id' => $data['task_category_id'],
 					'task_title' => $data['task_title'],
 					'task_description' => $data['task_description'],
 					'task_deadline' => $data['task_deadline'],
-					'assigned_to' => !empty($data['assigned_to']) ? $data['assigned_to'] : null
+					'assigned_to' => $assignedTo
 				]);
 
 				$taskId = $task->insertAndGetId();
@@ -1261,7 +1268,7 @@
 
 				// Create notifications for all UASG members
 				//$this->notifyMembersNewTask($taskId, $data['task_title']);
-				$this->notifyMembersNewTask($taskId, $data['task_title'], $data['assigned_to']);
+				$this->notifyMembersNewTask($taskId, $data['task_title'], $assignedTo);
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
 			} catch (Exception $e) {
@@ -1274,10 +1281,13 @@
 				$query = "SELECT t.*, tc.task_category, 
 						 COUNT(ts.task_submission_id) as submission_count,
 						 COUNT(CASE WHEN ts.check_status = 'approved' THEN 1 END) as approved_count,
-						 COUNT(CASE WHEN ts.check_status = 'pending' THEN 1 END) as pending_count
+						 COUNT(CASE WHEN ts.check_status = 'pending' THEN 1 END) as pending_count,
+						 CONCAT(p.fname, ' ', p.lname) as assigned_member_name
 						 FROM task_tbl t 
 						 LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
 						 LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id
+						 LEFT JOIN user_tbl u ON t.assigned_to = u.user_id
+						 LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
 						 GROUP BY t.task_id
 						 ORDER BY t.task_deadline ASC";
 				
@@ -1860,6 +1870,97 @@
         $query .= " ORDER BY fu.datetime_uploaded DESC";
 
         return $db->select($query, $params);
+    }
+
+    // Get files accessible to subadmin/adviser based on their permissions
+    public function getAdviserAccessibleFiles($userId, $filters = []) {
+        $db = Database::getInstance();
+        
+        // Get user's type to check if they're a subadmin
+        $user = $db->selectOne("SELECT user_type, position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+        if (!$user) {
+            return ['data' => []];
+        }
+        
+        $isSubadmin = ($user['user_type'] === 'subadmin');
+        
+        // Base query
+        $query = "
+            SELECT 
+                fu.file_upload_id,
+                fu.file_name,
+                fu.mime_type,
+                fu.category_tag,
+                fu.category_score,
+                fu.datetime_uploaded,
+                fu.file_path,
+                fu.file_size,
+                prof.fname,
+                prof.lname,
+                fc.file_category,
+                fc.file_category_id
+            FROM file_upload_tbl fu
+            LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id 
+            INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
+            LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+        ";
+        
+        $params = [];
+        $whereConditions = [];
+        
+        // For subadmins, check if they have file_management view permission
+        if ($isSubadmin) {
+            // Check if user has permission to view files
+            require_once __DIR__ . '/permission_class.php';
+            if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+                return ['data' => []];
+            }
+            
+            // Subadmins with file_management permission can see all files
+            // No category restrictions for subadmins - they see everything
+        } else {
+            // For non-subadmin users, use position-based permissions (old system)
+            $positionId = $user['position_id'];
+            $permittedCategories = $db->select("
+                SELECT file_category_id 
+                FROM file_permission_tbl 
+                WHERE position_id = ?
+            ", [$positionId]);
+            
+            $permittedCategories = array_column($permittedCategories, 'file_category_id');
+            
+            if (empty($permittedCategories)) {
+                return ['data' => []];
+            }
+            
+            $whereConditions[] = "fu.file_category_id IN (" . implode(',', array_map('intval', $permittedCategories)) . ")";
+        }
+        
+        // Apply filters
+        if (!empty($filters['category_id'])) {
+            $whereConditions[] = "fu.file_category_id = ?";
+            $params[] = $filters['category_id'];
+        }
+        
+        if (!empty($filters['date_from'])) {
+            $whereConditions[] = "DATE(fu.datetime_uploaded) >= ?";
+            $params[] = $filters['date_from'];
+        }
+        
+        if (!empty($filters['date_to'])) {
+            $whereConditions[] = "DATE(fu.datetime_uploaded) <= ?";
+            $params[] = $filters['date_to'];
+        }
+        
+        // Add WHERE clause if there are conditions
+        if (!empty($whereConditions)) {
+            $query .= " WHERE " . implode(' AND ', $whereConditions);
+        }
+        
+        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        
+        $files = $db->select($query, $params);
+        return ['data' => $files ?: []];
     }
 
     // Upload file with NLP

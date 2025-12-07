@@ -98,9 +98,10 @@ class AuthenticationManager {
             'sgo member' => 'student',
             's.g.o member' => 'student',
 
-            'adviser' => 'adviser',
-            'sgo adviser' => 'adviser',
-            'student gov adviser' => 'adviser',
+            'adviser' => 'subadmin',
+            'sgo adviser' => 'subadmin',
+            'student gov adviser' => 'subadmin',
+            'subadmin' => 'subadmin',
 
             'admin' => 'admin',
             'administrator' => 'admin'

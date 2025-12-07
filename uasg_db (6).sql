@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Dec 01, 2025 at 02:07 AM
+-- Generation Time: Dec 07, 2025 at 05:15 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   PRIMARY KEY (`file_upload_id`),
   KEY `uploaded_by` (`uploaded_by`),
   KEY `file_category_id` (`file_category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_upload_tbl`
@@ -183,7 +183,8 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
 
 INSERT INTO `file_upload_tbl` (`file_upload_id`, `file_category_id`, `category_tag`, `category_score`, `mime_type`, `file_name`, `file_path`, `file_size`, `drive_id`, `datetime_uploaded`, `uploaded_by`) VALUES
 (1, 2, 'Amendments', 6.25, 'application/pdf', '6927f67d752bc_1764226685.pdf', 'uploads/files/6927f67d752bc_1764226685.pdf', 215043, NULL, '2025-11-27 06:58:08', 5),
-(3, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '6929364a52346_1764308554.docx', 'uploads/files/6929364a52346_1764308554.docx', 13728, NULL, '2025-11-28 05:42:38', 5);
+(3, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '6929364a52346_1764308554.docx', 'uploads/files/6929364a52346_1764308554.docx', 13728, NULL, '2025-11-28 05:42:38', 5),
+(4, 1, 'Resolutions', 100.00, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '6934fbdc25735_1765080028.docx', 'uploads/files/6934fbdc25735_1765080028.docx', 13728, NULL, '2025-12-07 04:00:31', 5);
 
 -- --------------------------------------------------------
 
@@ -203,7 +204,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=71 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -221,8 +222,10 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (18, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:02'),
 (19, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, 'User not found', '2025-11-09 07:25:05'),
 (20, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 0, NULL, '2025-11-09 07:25:05'),
-(67, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-11-27 07:13:23'),
-(70, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-12-01 02:06:14');
+(73, 'juan.perez', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-12-06 13:09:18'),
+(76, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-12-07 03:59:39'),
+(78, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-12-07 05:05:55'),
+(79, 'rustom.caspillo', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', 1, 'Login successful', '2025-12-07 05:14:35');
 
 -- --------------------------------------------------------
 
@@ -244,7 +247,7 @@ CREATE TABLE IF NOT EXISTS `notifications_tbl` (
   KEY `user_id` (`user_id`),
   KEY `is_read` (`is_read`),
   KEY `datetime_created` (`datetime_created`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `notifications_tbl`
@@ -252,7 +255,10 @@ CREATE TABLE IF NOT EXISTS `notifications_tbl` (
 
 INSERT INTO `notifications_tbl` (`notification_id`, `user_id`, `type`, `title`, `message`, `related_id`, `is_read`, `datetime_created`) VALUES
 (1, 5, 'new_task', 'New Task Assigned', 'New task \'Resolution for Health Benefits\' has been assigned to you', 1, 0, '2025-11-19 17:02:03'),
-(2, 5, 'new_task', 'New Task Assigned', 'New task \'Resolution Draft\' has been assigned to you', 5, 0, '2025-11-27 16:45:33');
+(2, 5, 'new_task', 'New Task Assigned', 'New task \'Resolution Draft\' has been assigned to you', 5, 0, '2025-11-27 16:45:33'),
+(3, 5, 'new_task', 'New Task Assigned', 'New task \'Amendment for School Projects\' has been assigned to you', 6, 0, '2025-12-07 11:58:21'),
+(4, 5, 'new_task', 'New Task Assigned', 'New task \'Resolution for Donations\' has been assigned to you', 7, 0, '2025-12-07 12:08:52'),
+(5, 5, 'new_task', 'New Task Assigned', 'New task \'Sample\' has been assigned to you', 8, 0, '2025-12-07 12:12:09');
 
 -- --------------------------------------------------------
 
@@ -300,7 +306,7 @@ CREATE TABLE IF NOT EXISTS `profile_tbl` (
   `contact_number` varchar(13) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `email` varchar(250) COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`profile_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `profile_tbl`
@@ -309,7 +315,9 @@ CREATE TABLE IF NOT EXISTS `profile_tbl` (
 INSERT INTO `profile_tbl` (`profile_id`, `fname`, `mname`, `lname`, `auxname`, `gender`, `birthdate`, `contact_number`, `email`) VALUES
 (4, 'System', '', 'Administrator', '', 'Not specified', '1990-01-01', '', 'admin@system.local'),
 (5, 'Justin', 'Arnaez', 'Abuela', '', 'Male', '1991-11-05', '09812682658', 'justinabuela@gmail.com'),
-(6, 'Mika', 'Jay', 'Esparagoza', '', 'Female', '1996-07-12', '', 'mika.esparagoza@gmail.com');
+(6, 'Mika', 'Jay', 'Esparagoza', '', 'Female', '1996-07-12', '', 'mika.esparagoza@gmail.com'),
+(7, 'Rustom', 'Pelaez', 'Caspillo', '', 'Male', '1987-07-22', '', 'rustom.caspillo@gmail.com'),
+(8, 'Juan', 'Delos Santos', 'Perez', '', 'Male', '1994-05-11', '', 'juan.perez@gmail.com');
 
 -- --------------------------------------------------------
 
@@ -350,7 +358,7 @@ CREATE TABLE IF NOT EXISTS `subadmin_permissions_tbl` (
   UNIQUE KEY `unique_user_permission` (`user_id`,`permission_key`),
   KEY `user_id` (`user_id`),
   KEY `permission_key` (`permission_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `subadmin_permissions_tbl`
@@ -360,7 +368,11 @@ INSERT INTO `subadmin_permissions_tbl` (`permission_id`, `user_id`, `permission_
 (1, 6, 'file_management', 'File Management', 1, 1, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
 (2, 6, 'user_management', 'User Management', 1, 0, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
 (3, 6, 'entry_module', 'Entry Module', 1, 0, 0, 0, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
-(4, 6, 'task_management', 'Task Management', 1, 1, 1, 1, '2025-11-20 00:52:38', '2025-11-20 00:52:38');
+(4, 6, 'task_management', 'Task Management', 1, 1, 1, 1, '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
+(5, 7, 'file_management', 'File Management', 1, 0, 0, 0, '2025-12-01 03:30:17', '2025-12-01 03:30:17'),
+(6, 7, 'user_management', 'User Management', 1, 0, 0, 0, '2025-12-01 03:30:17', '2025-12-01 03:30:17'),
+(7, 7, 'entry_module', 'Entry Module', 1, 0, 0, 0, '2025-12-01 03:30:17', '2025-12-01 03:30:17'),
+(8, 7, 'task_management', 'Task Management', 1, 1, 1, 0, '2025-12-01 03:30:17', '2025-12-01 03:30:17');
 
 -- --------------------------------------------------------
 
@@ -378,14 +390,15 @@ CREATE TABLE IF NOT EXISTS `subadmin_roles_tbl` (
   PRIMARY KEY (`role_id`),
   UNIQUE KEY `unique_user_role` (`user_id`),
   KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `subadmin_roles_tbl`
 --
 
 INSERT INTO `subadmin_roles_tbl` (`role_id`, `user_id`, `role`, `created_at`, `updated_at`) VALUES
-(1, 6, 'Adviser', '2025-11-20 00:52:38', '2025-11-20 00:52:38');
+(1, 6, 'Adviser', '2025-11-20 00:52:38', '2025-11-20 00:52:38'),
+(2, 7, 'Adviser', '2025-12-01 03:30:17', '2025-12-01 03:30:17');
 
 -- --------------------------------------------------------
 
@@ -425,14 +438,15 @@ CREATE TABLE IF NOT EXISTS `task_submission_tbl` (
   KEY `task_id` (`task_id`),
   KEY `file_upload_id` (`file_upload_id`),
   KEY `submitted_by` (`submitted_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `task_submission_tbl`
 --
 
 INSERT INTO `task_submission_tbl` (`task_submission_id`, `task_id`, `file_upload_id`, `check_status`, `submitted_by`) VALUES
-(1, 5, 3, 'Pending', 5);
+(1, 1, 3, 'Approved', 5),
+(2, 2, 4, 'Approved', 5);
 
 -- --------------------------------------------------------
 
@@ -451,14 +465,16 @@ CREATE TABLE IF NOT EXISTS `task_tbl` (
   PRIMARY KEY (`task_id`),
   KEY `task_category_id` (`task_category_id`),
   KEY `assigned_to` (`assigned_to`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `task_tbl`
 --
 
 INSERT INTO `task_tbl` (`task_id`, `task_category_id`, `task_title`, `task_description`, `task_deadline`, `assigned_to`) VALUES
-(5, 1, 'Resolution Draft', 'Create a Resolution Draft for Health Benefits', '2025-12-22', NULL);
+(1, 1, 'Resolution Draft', 'Create a Resolution Draft for Health Benefits', '2025-12-05', NULL),
+(2, 2, 'Amendment for School Projects', 'Create Amendments for school projects and proposals', '2025-12-12', NULL),
+(8, 1, 'Sample', 'Sample', '2025-12-12', 5);
 
 -- --------------------------------------------------------
 
@@ -502,16 +518,18 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
   PRIMARY KEY (`user_id`),
   KEY `position_id` (`position_id`),
   KEY `profile_id` (`profile_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user_tbl`
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '2e13c1d68b1426bf39e36cbf57a297c03a283954a6864d2e7f181e3719950796', 1, NULL, NULL),
-(5, 'justin.abuela', '$2y$10$e4Ae3o.eXQ7QlfQmtV9BNOMa1Nn5yrANtz.tMYGnUvxX1m1zMvVLG', 2, 5, 'student', '00a0cdd76030848794e0b6a0efec64fe161b0751ff980ee014afd635bd55c735', 1, NULL, NULL),
-(6, 'subadmin', '$2y$10$7bWzg2Z35BdwqNK2N3.t8uMNHnr0VhSuf22j2V4RYlXyPEhU2sy8K', 1, 6, 'subadmin', NULL, 1, NULL, NULL);
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', 'b220c06e2cf8c30e71a13029ebb6d491e714346d3474975721f6a7bcbd5e4c5b', 1, NULL, NULL),
+(5, 'justin.abuela', '$2y$10$e4Ae3o.eXQ7QlfQmtV9BNOMa1Nn5yrANtz.tMYGnUvxX1m1zMvVLG', 2, 5, 'student', '50eefd0e8e7e83b86065354918478b3933ef0a2db0c1459c8d0dcd76c86ec53c', 1, NULL, NULL),
+(6, 'subadmin', '$2y$10$7bWzg2Z35BdwqNK2N3.t8uMNHnr0VhSuf22j2V4RYlXyPEhU2sy8K', 1, 6, 'subadmin', NULL, 1, NULL, NULL),
+(7, 'rustom.caspillo', '$2y$10$KTHIEVoZBU7CIBFBuF8/z.jguBk45aqXPqeEY1QTUWZ.OKcwIC5/2', 1, 7, 'subadmin', '22a733a1079e726efc9c42ade2e50c94408c12a05eab5ef8ef3d927e92370050', 1, NULL, NULL),
+(8, 'juan.perez', '$2y$10$7of4kjUtHSQ.pMdMiceVxO3Hj5nMyC.tRpawLQLsapJsiReBz1cLG', 2, 8, 'student', '4ee50ac42696756b0d902d95784769bb4c66c60a7cee205cb8722907ec2132d6', 1, NULL, NULL);
 
 --
 -- Constraints for dumped tables
