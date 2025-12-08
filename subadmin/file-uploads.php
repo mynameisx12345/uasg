@@ -95,6 +95,65 @@ if (!$canView) {
       border-color: #2196F3;
       background: #e3f2fd;
     }
+    
+    /* Tab content visibility */
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Alert info styling */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    
+    .alert-info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+      color: #0d47a1;
+    }
+    
+    .alert-info p {
+      margin: 5px 0 0 0;
+      font-size: 13px;
+      color: #1565c0;
+    }
+    
+    /* Form improvements */
+    .form-row {
+      margin-bottom: 15px;
+    }
+    
+    .form-row label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+    }
+    
+    textarea.form-control {
+      resize: vertical;
+      min-height: 80px;
+    }
   </style>
 </head>
 <body>
@@ -391,6 +450,113 @@ if (!$canView) {
 
   <script src="js/file-uploads.js"></script>
   
+  <!-- Additional Upload Enhancement Script -->
+  <script>
+  $(document).ready(function() {
+      // Enhanced file input handling (matching admin implementation)
+      const uploadFileInput = document.getElementById('fileInput');
+      
+      if (uploadFileInput) {
+          // Auto-analyze file on selection
+          uploadFileInput.addEventListener('change', function(e) {
+              const file = e.target.files[0];
+              if (file) {
+                  // Display file info
+                  document.getElementById('fileName').textContent = file.name;
+                  document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+                  document.getElementById('filePreview').style.display = 'block';
+                  
+                  // Show NLP preview
+                  document.getElementById('nlpPreview').style.display = 'block';
+                  document.getElementById('suggestedCategory').textContent = 'Analyzing...';
+                  document.getElementById('categoryConfidence').textContent = 'Please wait...';
+                  
+                  // Trigger NLP analysis
+                  analyzeFile(file);
+              }
+          });
+      }
+      
+      // NLP Analysis function
+      function analyzeFile(file) {
+          const formData = new FormData();
+          formData.append('CALL', 'nlp_analyze');
+          formData.append('file', file);
+          
+          $.ajax({
+              url: 'ajax.php',
+              type: 'POST',
+              data: formData,
+              processData: false,
+              contentType: false,
+              dataType: 'json',
+              success: function(result) {
+                  if (result.status === 'SUCCESS') {
+                      const category = result.category || 'Uncategorized';
+                      const score = parseFloat(result.score) || 0;
+                      
+                      document.getElementById('suggestedCategory').innerHTML = 
+                          '<strong style="color: #2196F3;">' + category + '</strong>';
+                      
+                      let confidenceColor = '#dc3545';
+                      let confidenceLabel = 'Low';
+                      if (score >= 80) {
+                          confidenceColor = '#10b981';
+                          confidenceLabel = 'High';
+                      } else if (score >= 50) {
+                          confidenceColor = '#f59e0b';
+                          confidenceLabel = 'Medium';
+                      }
+                      
+                      document.getElementById('categoryConfidence').innerHTML = 
+                          '<span style="color: ' + confidenceColor + '; font-weight: 600;">' +
+                          score.toFixed(1) + '% (' + confidenceLabel + ')</span>';
+                      
+                      // Store NLP data in form
+                      $('#uploadForm').data('nlp-category', category);
+                      $('#uploadForm').data('nlp-score', score);
+                      $('#uploadForm').data('nlp-analysis', JSON.stringify(result.nlp_analysis || {}));
+                  } else {
+                      document.getElementById('suggestedCategory').innerHTML = 
+                          '<span style="color: #dc3545;">Analysis failed</span>';
+                      document.getElementById('categoryConfidence').innerHTML = 
+                          '<span style="color: #dc3545;">N/A</span>';
+                  }
+              },
+              error: function(xhr, status, error) {
+                  document.getElementById('suggestedCategory').innerHTML = 
+                      '<span style="color: #dc3545;">Error</span>';
+                  document.getElementById('categoryConfidence').innerHTML = 
+                      '<span style="color: #dc3545;">Failed</span>';
+                  console.error('NLP Analysis Error:', error);
+              }
+          });
+      }
+      
+      // Upload area click handler
+      const uploadArea = document.getElementById('uploadArea');
+      if (uploadArea) {
+          uploadArea.addEventListener('click', function() {
+              uploadFileInput.click();
+          });
+      }
+  });
+  
+  // Reset upload form function
+  function resetUploadForm() {
+      document.getElementById('uploadForm').reset();
+      document.getElementById('filePreview').style.display = 'none';
+      document.getElementById('nlpPreview').style.display = 'none';
+      document.getElementById('fileName').textContent = '';
+      document.getElementById('fileSize').textContent = '';
+      document.getElementById('suggestedCategory').textContent = 'Will be detected on upload';
+      document.getElementById('categoryConfidence').textContent = 'TBD';
+      $('#uploadForm').removeData('nlp-category');
+      $('#uploadForm').removeData('nlp-score');
+      $('#uploadForm').removeData('nlp-analysis');
+  }
+  </script>
+  
   <!-- Notification Modal -->
   <div id="notificationModal" class="modal">
     <div class="modal-content">
@@ -440,6 +606,9 @@ if (!$canView) {
       }
     };
   </script>
+  
+  <!-- Include modals -->
+  <?php require_once('modals.php'); ?>
   
   <!-- PWA Scripts -->
   <!--script src="../js/pwa-helper.js"></script-->

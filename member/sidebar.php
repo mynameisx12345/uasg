@@ -11,9 +11,16 @@
       <li class="nav-section">MAIN NAVIGATION</li>
       
       <li class="nav-item">
-        <a href="#" class="nav-link active" data-tab="index">
+        <a href="index.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : '' ?>">
           <span class="nav-icon">📊</span>
           <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="nlp-search.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'nlp-search.php' ? 'active' : '' ?>">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">NLP File Search</span>
         </a>
       </li>
 

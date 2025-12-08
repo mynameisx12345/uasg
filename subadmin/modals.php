@@ -1,3 +1,23 @@
+<!-- Logout Confirmation Modal -->
+<div id="logoutModal" class="modal">
+    <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeModal('logoutModal')">&times;</span>
+        <h2><i class="fas fa-sign-out-alt" style="color: #2196F3;"></i> Confirm Logout</h2>
+        <div style="padding: 20px 0;">
+            <p>Are you sure you want to logout?</p>
+            <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <strong>Note:</strong> You will need to login again to access your account.
+            </p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+            <button type="button" class="btn-primary" id="confirmLogoutBtn" onclick="window.location.href='logout.php'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Task Creation/Edit Modal -->
 <div id="taskModal" class="modal">
   <div class="modal-content modal-content-large">
@@ -552,3 +572,14 @@ $(document).ready(function() {
   .status-completed { background: #28a745; color: white; }
   .status-overdue { background: #dc3545; color: white; }
 </style>
+
+<script>
+// Generic modal functions for subadmin
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+</script>

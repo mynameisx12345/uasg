@@ -22,6 +22,8 @@ if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL'])) {
     }
 }
 
+
+
 // Clear any previous output and set headers
 ob_clean();
 header("Content-Type: application/json"); // always return JSON
@@ -90,6 +92,83 @@ if($call === 'nlp_analyze') {
         $result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
     }
     echo json_encode($result);
+    exit;
+}
+
+if($call === 'nlp_search_files'){
+    try {
+        require_once '../config/google_nlp_config.php';
+        require_once '../resources/objects/google_nlp_service.php';
+        
+        $searchWord = $_POST['SEARCH_WORD'] ?? '';
+        $categoryId = $_POST['CATEGORY_ID'] ?? '';
+        
+        $db = Database::getInstance();
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            echo json_encode(['data' => [], 'error' => 'Permission denied']);
+            exit;
+        }
+        
+        // Subadmins with file_management permission see all files
+        $query = "SELECT fu.*, fc.file_category, p.fname, p.lname
+                  FROM file_upload_tbl fu
+                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  WHERE 1=1";
+        
+        $params = [];
+        
+        if (!empty($categoryId)) {
+            $query .= " AND fu.file_category_id = ?";
+            $params[] = $categoryId;
+        }
+        
+        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        
+        $allFiles = $db->select($query, $params);
+        
+        // If no search word, return all files
+        if (empty($searchWord)) {
+            echo json_encode(['data' => $allFiles ?: []]);
+            exit;
+        }
+        
+        // Filter by NLP/keyword matching
+        $config = include('../config/google_nlp_config.php');
+        $apiKey = $config['api_key'] ?? '';
+        $nlp = new GoogleNLPService($apiKey);
+        
+        $matchedFiles = [];
+        foreach ($allFiles as $file) {
+            $filePath = '../' . $file['file_path'];
+            if (!file_exists($filePath)) continue;
+            
+            try {
+                // Extract text and check for keyword
+                $result = $nlp->extractTextFromFile($filePath, $file['mime_type']);
+                if ($result['success'] && !empty($result['text'])) {
+                    if (stripos($result['text'], $searchWord) !== false) {
+                        $matchedFiles[] = $file;
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("NLP search error for file {$file['file_name']}: " . $e->getMessage());
+            }
+        }
+        
+        echo json_encode(['data' => $matchedFiles]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'nlp_search', 'file_management', 'Performed NLP search: ' . $searchWord);
+        
+    } catch(Exception $e) {
+        error_log("Subadmin NLP search error: " . $e->getMessage());
+        echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+    }
     exit;
 }
 
@@ -1352,3 +1431,4 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
 
 echo json_encode($result);*/
 ?>
+

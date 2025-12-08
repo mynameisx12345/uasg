@@ -563,9 +563,9 @@ function downloadFile(fileId) {
         error: function(xhr) {
             console.error('Download failed:', xhr);
             if(typeof openNotificationModal === 'function') {
-                openNotificationModal('Failed to download file. Please try again.');
+                openNotificationModal('Failed to download file. Please try again.', 'error');
             } else {
-                alert('Failed to download file. Please try again.');
+                openNotificationModal('Failed to download file. Please try again.', 'error');
             }
         }
     });
@@ -799,16 +799,8 @@ function getReadableFileType(mimeType) {
 }
 
 function showAlert(message, type) {
-    const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
-    const alertHtml = `
-        <div class="alert ${alertClass}" style="position: fixed; top: 20px; right: 20px; z-index: 1000; padding: 15px; border-radius: 4px;">
-            ${message}
-            <button type="button" class="close" onclick="$(this).parent().fadeOut()">×</button>
-        </div>
-    `;
-
-    $('body').append(alertHtml);
-    setTimeout(() => $('.alert').fadeOut(), 5000);
+    // Use the notification modal instead of inline alerts
+    openNotificationModal(message, type);
 }
 
 function openModal(modalId) {

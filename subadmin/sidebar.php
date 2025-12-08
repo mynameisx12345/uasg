@@ -40,6 +40,13 @@ $permissions = [
           <span class="nav-text">File Uploads</span>
         </a>
       </li>
+      
+      <li class="nav-item">
+        <a href="nlp-search.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'nlp-search.php' ? 'active' : '' ?>">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">NLP File Search</span>
+        </a>
+      </li>
       <?php endif; ?>
 
       <?php if ($permissions['task_management']): ?>
@@ -60,7 +67,7 @@ $permissions = [
     </ul>
     
     <div class="sidebar-footer">
-      <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?');">
+      <a href="#" class="logout-link" onclick="openModal('logoutModal'); return false;">
         <span class="nav-icon">🚪</span>
         <span class="nav-text">Logout</span>
       </a>

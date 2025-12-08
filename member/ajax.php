@@ -442,6 +442,104 @@ if($call == 1){
     // Output file
     readfile($filePath);
     exit;
+    
+}else if($call === 'get_categories'){
+    // Get file categories for member
+    try {
+        $categories = EntityManager::getAllFileCategories();
+        $result = ["status" => "SUCCESS", "data" => $categories];
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage(), "data" => []];
+    }
+    echo json_encode($result);
+    
+}else if($call === 'nlp_search_files'){
+    // NLP-based file search for members
+    try {
+        require_once '../config/google_nlp_config.php';
+        require_once '../resources/objects/google_nlp_service.php';
+        
+        $searchWord = $_POST['SEARCH_WORD'] ?? '';
+        $categoryId = $_POST['CATEGORY_ID'] ?? '';
+        
+        $db = Database::getInstance();
+        $memberId = $_SESSION['user_id'] ?? 0;
+        
+        // Get user's position for file permissions
+        $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$memberId]);
+        if (!$user) {
+            throw new Exception("User not found");
+        }
+        
+        $positionId = $user['position_id'];
+        
+        // Get permitted categories for this position
+        $permittedCategories = $db->select("
+            SELECT file_category_id 
+            FROM file_permission_tbl 
+            WHERE position_id = ?
+        ", [$positionId]);
+        
+        $permittedCategoryIds = array_column($permittedCategories, 'file_category_id');
+        
+        if (empty($permittedCategoryIds)) {
+            echo json_encode(['data' => []]);
+            exit;
+        }
+        
+        // Build query with permissions
+        $query = "SELECT fu.*, fc.file_category, p.fname, p.lname
+                  FROM file_upload_tbl fu
+                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  WHERE fu.file_category_id IN (" . implode(',', array_map('intval', $permittedCategoryIds)) . ")";
+        
+        $params = [];
+        
+        if (!empty($categoryId)) {
+            $query .= " AND fu.file_category_id = ?";
+            $params[] = $categoryId;
+        }
+        
+        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        
+        $allFiles = $db->select($query, $params);
+        
+        // If no search word, return all permitted files
+        if (empty($searchWord)) {
+            echo json_encode(['data' => $allFiles ?: []]);
+            exit;
+        }
+        
+        // Filter by NLP/keyword matching
+        $config = include('../config/google_nlp_config.php');
+        $apiKey = $config['api_key'] ?? '';
+        $nlp = new GoogleNLPService($apiKey);
+        
+        $matchedFiles = [];
+        foreach ($allFiles as $file) {
+            $filePath = '../' . $file['file_path'];
+            if (!file_exists($filePath)) continue;
+            
+            try {
+                // Extract text and check for keyword
+                $text = $nlp->extractTextFromFile($filePath, $file['mime_type']);
+                if (stripos($text, $searchWord) !== false) {
+                    $matchedFiles[] = $file;
+                }
+            } catch (Exception $e) {
+                error_log("NLP search error for file {$file['file_name']}: " . $e->getMessage());
+            }
+        }
+        
+        echo json_encode(['data' => $matchedFiles]);
+        
+    } catch(Exception $e) {
+        error_log("Member NLP search error: " . $e->getMessage());
+        echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+    }
+    
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }

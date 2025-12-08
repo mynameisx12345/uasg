@@ -930,5 +930,9 @@ tabLinks.forEach(link => {
   });
 });
 </script>
+
+<!-- Include modals -->
+<?php require_once('modals.php'); ?>
+
 </body>
 </html>

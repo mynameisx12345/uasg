@@ -5,17 +5,17 @@
   <div class="header-left">
     <button class="mobile-sidebar-toggle" onclick="toggleMobileSidebar()">☰</button>
     <div class="header-title">
-      <h1>UASG Adviser Portal</h1>
+      <h1>UASG Subadmin Portal</h1>
       <div class="header-subtitle" id="currentSection">Dashboard</div>
     </div>
   </div>
   
   <div class="header-actions">
     <!-- Notifications -->
-    <button class="header-btn" onclick="toggleNotifications()" title="Notifications">
+    <!--button class="header-btn" onclick="toggleNotifications()" title="Notifications">
       <span>🔔</span>
       <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
-    </button>
+    </button-->
     
     <!-- Notifications Dropdown Panel -->
     <div id="notificationsPanel" class="notifications-panel" style="display: none;">
