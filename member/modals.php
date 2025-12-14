@@ -43,31 +43,55 @@
 <div id="notificationModal" class="modal">
     <div class="modal-content modal-content-small">
         <span class="modal-close" onclick="closeNotificationModal()">&times;</span>
-        <h2>Notifications</h2>
-        <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
-            <!-- Notifications/messages will be injected here -->
+        <h2 id="notificationTitle">Notification</h2>
+        <div id="notificationMessage" style="padding: 20px; text-align: center;">
+            <!-- Message will be injected here -->
         </div>
         <div class="form-actions">
-            <button type="button" class="btn-secondary" onclick="closeNotificationModal()">Close</button>
+            <button type="button" class="btn-primary" onclick="closeNotificationModal()">OK</button>
         </div>
     </div>
 </div>
 
+<style>
+.modal.success .modal-content-small { border-left: 5px solid #28a745; }
+.modal.error .modal-content-small { border-left: 5px solid #dc3545; }
+.modal.warning .modal-content-small { border-left: 5px solid #ffc107; }
+.modal.info .modal-content-small { border-left: 5px solid #17a2b8; }
+</style>
+
 <script>
-function openNotificationModal(message) {
+function openNotificationModal(message, type = 'info', title = '') {
     var modal = document.getElementById('notificationModal');
-    var list = document.getElementById('notificationList');
-    list.innerHTML = '';
-    if (message && typeof message === 'string') {
-        list.innerHTML = '<div style="padding:10px;">' + message + '</div>';
+    var messageDiv = document.getElementById('notificationMessage');
+    var titleEl = document.getElementById('notificationTitle');
+    
+    // Set title
+    if (title) {
+        titleEl.textContent = title;
     } else {
-        list.innerHTML = '<div style="padding:10px;">No notifications or messages.</div>';
+        titleEl.textContent = type === 'success' ? 'Success' :
+                              type === 'error' ? 'Error' :
+                              type === 'warning' ? 'Warning' : 'Notification';
     }
+    
+    // Set message
+    messageDiv.innerHTML = message || 'No message.';
+    
+    // Set modal class for styling
+    modal.className = 'modal ' + type;
     modal.style.display = 'flex';
 }
+
 function closeNotificationModal() {
     document.getElementById('notificationModal').style.display = 'none';
 }
+
+// Global openModal function for consistency
+window.openModal = function(status, message) {
+    const type = status.toLowerCase();
+    openNotificationModal(message, type);
+};
 </script>
 <!-- View Task Modal -->
 <div id="viewTaskModal" class="modal">
@@ -568,7 +592,7 @@ window.submitTask = function() {
         },
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            alert(result.msg);
+            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
             if (result.status === 'SUCCESS') {
                 closeModal('submitTaskModal');
                 // Reload relevant tables
@@ -586,7 +610,7 @@ window.submitTask = function() {
             document.getElementById('submitProgress').style.display = 'none';
         },
         error: function() {
-            alert('Error submitting task. Please try again.');
+            openNotificationModal('Error submitting task. Please try again.', 'error');
             document.getElementById('submitProgress').style.display = 'none';
         }
     });
@@ -634,7 +658,7 @@ window.resubmitTask = function() {
         },
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            alert(result.msg);
+            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
             if (result.status === 'SUCCESS') {
                 closeModal('resubmitTaskModal');
                 // Reload relevant tables
@@ -652,7 +676,7 @@ window.resubmitTask = function() {
             document.getElementById('resubmitProgress').style.display = 'none';
         },
         error: function() {
-            alert('Error resubmitting task. Please try again.');
+            openNotificationModal('Error resubmitting task. Please try again.', 'error');
             document.getElementById('resubmitProgress').style.display = 'none';
         }
     });
@@ -754,11 +778,11 @@ window.viewFile = function(fileId) {
                 displayFileDetails(response.data);
                 openModal('viewFileModal');
             } else {
-                alert(response.msg || 'Error loading file details');
+                openNotificationModal(response.msg || 'Error loading file details', 'error');
             }
         },
         error: function() {
-            alert('Error loading file details');
+            openNotificationModal('Error loading file details', 'error');
         }
     });
 };
@@ -965,7 +989,7 @@ window.startFileUpload = function() {
     const files = fileInput.files;
     
     if (files.length === 0) {
-        alert('Please select files to upload');
+        openNotificationModal('Please select files to upload', 'warning');
         return;
     }
     
@@ -1034,7 +1058,7 @@ function uploadFiles(files) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
             
             if (result.status === 'SUCCESS') {
-                alert('Files uploaded successfully!');
+                openNotificationModal('Files uploaded successfully!', 'success');
                 closeModal('fileUploadModal');
                 
                 // Reload relevant tables
@@ -1048,12 +1072,12 @@ function uploadFiles(files) {
                     refreshDashboard();
                 }
             } else {
-                alert(result.msg || 'Error uploading files');
+                openNotificationModal(result.msg || 'Error uploading files', 'error');
                 document.getElementById('startUploadBtn').disabled = false;
             }
         },
         error: function() {
-            alert('Error uploading files');
+            openNotificationModal('Error uploading files', 'error');
             document.getElementById('startUploadBtn').disabled = false;
         }
     });
@@ -1074,11 +1098,11 @@ window.editFile = function(fileId) {
                 populateEditForm(response.data);
                 openModal('editFileModal');
             } else {
-                alert(response.msg || 'Error loading file details');
+                openNotificationModal(response.msg || 'Error loading file details', 'error');
             }
         },
         error: function() {
-            alert('Error loading file details');
+            openNotificationModal('Error loading file details', 'error');
         }
     });
 };
@@ -1105,7 +1129,7 @@ window.updateFileInfo = function() {
         dataType: 'json',
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            alert(result.msg);
+            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
             
             if (result.status === 'SUCCESS') {
                 closeModal('editFileModal');
@@ -1117,7 +1141,7 @@ window.updateFileInfo = function() {
             }
         },
         error: function() {
-            alert('Error updating file information');
+            openNotificationModal('Error updating file information', 'error');
         }
     });
 };
@@ -1147,7 +1171,7 @@ function performDelete(type, id) {
         dataType: 'json',
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            alert(result.msg);
+            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
             
             if (result.status === 'SUCCESS') {
                 closeModal('confirmDeleteModal');
@@ -1161,7 +1185,7 @@ function performDelete(type, id) {
             }
         },
         error: function() {
-            alert(`Error deleting ${type}`);
+            openNotificationModal(`Error deleting ${type}`, 'error');
         }
     });
 }

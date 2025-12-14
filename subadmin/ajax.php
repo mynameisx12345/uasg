@@ -5,6 +5,25 @@ ob_start();
 session_start();
 require_once("../resources/class.php");
 
+// Check if this is a download request (GET allowed for downloads)
+if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL'])) {
+    if ($_GET['CALL'] === 'download') {
+        ob_end_clean();
+        $fileId = $_GET['file_id'] ?? 0;
+        try {
+            $fileManager = new FileManager();
+            $fileManager->downloadFile($fileId);
+            exit;
+        } catch(Exception $e) {
+            header("Content-Type: application/json");
+            echo json_encode(["status" => "ERROR", "msg" => "Download failed: " . $e->getMessage()]);
+            exit;
+        }
+    }
+}
+
+
+
 // Clear any previous output and set headers
 ob_clean();
 header("Content-Type: application/json"); // always return JSON
@@ -41,24 +60,30 @@ $result = [];
 
 // NLP analysis before upload (for preview)
 if($call === 'nlp_analyze') {
+    require_once '../resources/objects/google_nlp_service.php';
+    $m = new Main('file_upload_tbl');
     if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
         try {
-            require_once '../resources/objects/nlp_helper.php'; // Helper for Google NLP
-            $nlp = new NLPHelper();
             $file = $_FILES['file'];
-            $text = $nlp->extractTextFromFile($file['tmp_name'], $file['type']);
-            $analysis = $nlp->analyzeText($text);
-            $suggestedCategory = $analysis['suggested_category'] ?? 'Uncategorized';
-            $categoryConfidence = $analysis['category_confidence'] ?? 0;
+            $tmpPath = $file['tmp_name'];
+            $mimeType = $file['type'];
+
+            $configFile = '../config/google_nlp_config.php';
+            $apiKey = '';
+            if (file_exists($configFile)) {
+                $config = include($configFile);
+                $apiKey = $config['api_key'] ?? '';
+            }
+
+            $nlp = new GoogleNLPService($apiKey);
+            $categories = $m->getFileCategories() ?: [];
+            $res = $nlp->analyzeFileAndSuggestCategory($tmpPath, $mimeType, $categories);
+
             $result = [
                 'status' => 'SUCCESS',
-                'nlp_analysis' => [
-                    'suggested_category' => $suggestedCategory,
-                    'category_confidence' => $categoryConfidence,
-                    'keywords' => $analysis['keywords'] ?? [],
-                    'entities' => $analysis['entities'] ?? [],
-                    'full_analysis' => $analysis
-                ]
+                'category' => $res['suggested_category_name'] ?? 'Uncategorized',
+                'score'=> $res['confidence_score'] ?? 0,
+                'nlp_analysis' => $res
             ];
         } catch(Exception $e) {
             $result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
@@ -67,6 +92,83 @@ if($call === 'nlp_analyze') {
         $result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
     }
     echo json_encode($result);
+    exit;
+}
+
+if($call === 'nlp_search_files'){
+    try {
+        require_once '../config/google_nlp_config.php';
+        require_once '../resources/objects/google_nlp_service.php';
+        
+        $searchWord = $_POST['SEARCH_WORD'] ?? '';
+        $categoryId = $_POST['CATEGORY_ID'] ?? '';
+        
+        $db = Database::getInstance();
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            echo json_encode(['data' => [], 'error' => 'Permission denied']);
+            exit;
+        }
+        
+        // Subadmins with file_management permission see all files
+        $query = "SELECT fu.*, fc.file_category, p.fname, p.lname
+                  FROM file_upload_tbl fu
+                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  WHERE 1=1";
+        
+        $params = [];
+        
+        if (!empty($categoryId)) {
+            $query .= " AND fu.file_category_id = ?";
+            $params[] = $categoryId;
+        }
+        
+        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        
+        $allFiles = $db->select($query, $params);
+        
+        // If no search word, return all files
+        if (empty($searchWord)) {
+            echo json_encode(['data' => $allFiles ?: []]);
+            exit;
+        }
+        
+        // Filter by NLP/keyword matching
+        $config = include('../config/google_nlp_config.php');
+        $apiKey = $config['api_key'] ?? '';
+        $nlp = new GoogleNLPService($apiKey);
+        
+        $matchedFiles = [];
+        foreach ($allFiles as $file) {
+            $filePath = '../' . $file['file_path'];
+            if (!file_exists($filePath)) continue;
+            
+            try {
+                // Extract text and check for keyword
+                $result = $nlp->extractTextFromFile($filePath, $file['mime_type']);
+                if ($result['success'] && !empty($result['text'])) {
+                    if (stripos($result['text'], $searchWord) !== false) {
+                        $matchedFiles[] = $file;
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("NLP search error for file {$file['file_name']}: " . $e->getMessage());
+            }
+        }
+        
+        echo json_encode(['data' => $matchedFiles]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'nlp_search', 'file_management', 'Performed NLP search: ' . $searchWord);
+        
+    } catch(Exception $e) {
+        error_log("Subadmin NLP search error: " . $e->getMessage());
+        echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+    }
     exit;
 }
 
@@ -137,6 +239,17 @@ if($call == 1){
     echo json_encode($result);
     
 }else if($call == 6){
+    // Get task categories
+    try {
+        $taskCategories = EntityManager::getAllTaskCategories() ?: [];
+        $result = ["data" => $taskCategories];
+    } catch(Exception $e) {
+        $result = ["data" => [], "error" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    exit;
+    
+}else if($call == '6_filtered'){
     // Get all tasks with filters
     try {
         $adviserId = $_SESSION['user_id'] ?? 0;
@@ -371,8 +484,7 @@ if($call == 1){
 }else if($call == 20){
     // Get file categories
     try {
-        $entityManager = new EntityManager();
-        $categories = $entityManager::getAllFileCategories();
+        $categories = EntityManager::getAllFileCategories();
         $result = ["status" => "SUCCESS", "data" => $categories];
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
@@ -436,6 +548,30 @@ if($call == 1){
     }
     echo json_encode($result);
     
+}else if($call == 'create_task'){
+    // Create new task
+    $data = $_POST['DATA'] ?? [];
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'create')) {
+            throw new Exception("Permission denied: You cannot create tasks");
+        }
+        
+        $taskManager = new TaskManager();
+        $result = $taskManager->createTask($data);
+        
+        // Log activity
+        if ($result['status'] === 'SUCCESS') {
+            SubadminPermission::logActivity($userId, 'create_task', 'task_management', 'Created task: ' . ($data['task_title'] ?? 'Unknown'));
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
 }else if($call == 23){
     // Get file details
     $data = $_POST['DATA'] ?? [];
@@ -453,9 +589,10 @@ if($call == 1){
         
         $db = Database::getInstance()->getConnection();
         $query = "SELECT fu.*, fc.file_category as category_name, 
+                  fu.mime_type as file_type,
                   CONCAT(p.fname, ' ', p.lname) as uploaded_by_name
                   FROM file_upload_tbl fu
-                  LEFT JOIN file_category_tbl fc ON fu.category_id = fc.file_category_id
+                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
                   LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
                   LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
                   WHERE fu.file_upload_id = :file_id";
@@ -500,6 +637,277 @@ if($call == 1){
         
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 40){
+    // Get all tasks for DataTable
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT t.*, tc.task_category,
+                  (SELECT COUNT(*) FROM task_submission_tbl ts WHERE ts.task_id = t.task_id) as submission_count,
+                  CONCAT(p.fname, ' ', p.lname) as assigned_member_name
+                  FROM task_tbl t
+                  LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
+                  LEFT JOIN user_tbl u ON t.assigned_to = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  ORDER BY t.task_id DESC";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $result = ["status" => "SUCCESS", "data" => $tasks];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "data" => [], "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 41){
+    // Get all submissions for DataTable
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT ts.*, t.task_title, 
+                  CONCAT(p.fname, ' ', p.lname) as student_name,
+                  fu.file_name, fu.file_upload_id, fu.datetime_uploaded as submitted_at
+                  FROM task_submission_tbl ts
+                  LEFT JOIN task_tbl t ON ts.task_id = t.task_id
+                  LEFT JOIN user_tbl u ON ts.submitted_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  LEFT JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
+                  ORDER BY fu.datetime_uploaded DESC";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $result = ["status" => "SUCCESS", "data" => $submissions];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "data" => [], "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 42){
+    // Get single task details
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        if (empty($_POST['task_id'])) {
+            throw new Exception("Task ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT * FROM task_tbl WHERE task_id = :task_id";
+        $stmt = $db->prepare($query);
+        $stmt->execute([':task_id' => $_POST['task_id']]);
+        $task = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($task) {
+            $result = ["status" => "SUCCESS", "data" => $task];
+        } else {
+            $result = ["status" => "ERROR", "msg" => "Task not found"];
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 43){
+    // Update task
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'edit')) {
+            throw new Exception("Permission denied: You cannot edit tasks");
+        }
+        
+        if (empty($_POST['task_id'])) {
+            throw new Exception("Task ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "UPDATE task_tbl SET 
+                  task_category_id = :category_id,
+                  task_title = :title,
+                  task_description = :description,
+                  task_deadline = :deadline
+                  WHERE task_id = :task_id";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':category_id' => $_POST['task_category_id'],
+            ':title' => $_POST['task_title'],
+            ':description' => $_POST['task_description'],
+            ':deadline' => $_POST['task_deadline'],
+            ':task_id' => $_POST['task_id']
+        ]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'edit_task', 'task_management', 'Updated task ID: ' . $_POST['task_id']);
+        
+        $result = ["status" => "SUCCESS", "msg" => "Task updated successfully"];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 44){
+    // Delete task
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'delete')) {
+            throw new Exception("Permission denied: You cannot delete tasks");
+        }
+        
+        if (empty($_POST['task_id'])) {
+            throw new Exception("Task ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        
+        // Delete submissions first
+        $query = "DELETE FROM task_submission_tbl WHERE task_id = :task_id";
+        $stmt = $db->prepare($query);
+        $stmt->execute([':task_id' => $_POST['task_id']]);
+        
+        // Delete task
+        $query = "DELETE FROM task_tbl WHERE task_id = :task_id";
+        $stmt = $db->prepare($query);
+        $stmt->execute([':task_id' => $_POST['task_id']]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'delete_task', 'task_management', 'Deleted task ID: ' . $_POST['task_id']);
+        
+        $result = ["status" => "SUCCESS", "msg" => "Task deleted successfully"];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 45){
+    // Get submission details
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        if (empty($_POST['submission_id'])) {
+            throw new Exception("Submission ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT ts.*, t.task_title, 
+                  CONCAT(p.fname, ' ', p.lname) as student_name,
+                  fu.file_name, fu.file_upload_id, fu.datetime_uploaded as submitted_at
+                  FROM task_submission_tbl ts
+                  LEFT JOIN task_tbl t ON ts.task_id = t.task_id
+                  LEFT JOIN user_tbl u ON ts.submitted_by = u.user_id
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  LEFT JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
+                  WHERE ts.task_submission_id = :submission_id";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([':submission_id' => $_POST['submission_id']]);
+        $submission = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($submission) {
+            $result = ["status" => "SUCCESS", "data" => $submission];
+        } else {
+            $result = ["status" => "ERROR", "msg" => "Submission not found"];
+        }
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 46){
+    // Approve submission
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'edit')) {
+            throw new Exception("Permission denied: You cannot approve submissions");
+        }
+        
+        if (empty($_POST['submission_id'])) {
+            throw new Exception("Submission ID is required");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        
+        // Update submission status
+        $query = "UPDATE task_submission_tbl SET check_status = 'Approved' WHERE task_submission_id = :submission_id";
+        $stmt = $db->prepare($query);
+        $stmt->execute([':submission_id' => $_POST['submission_id']]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'approve_submission', 'task_management', 'Approved submission ID: ' . $_POST['submission_id']);
+        
+        $result = ["status" => "SUCCESS", "msg" => "Submission approved successfully"];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 'get_members'){
+    // Get all members for task assignment
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        
+        $db = Database::getInstance()->getConnection();
+        $query = "SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) as full_name, pos.position
+                  FROM user_tbl u
+                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                  LEFT JOIN position_tbl pos ON u.position_id = pos.position_id
+                  WHERE u.user_type = 'student' AND u.is_active = 1
+                  ORDER BY p.fname, p.lname";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $result = ["status" => "SUCCESS", "data" => $members];
+        
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "data" => [], "msg" => $e->getMessage()];
     }
     echo json_encode($result);
     
@@ -554,7 +962,7 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
         exit;
     }
 }
-?>
+/*
             
         case 'get_recent_activity':
             // Get recent activity for dashboard table
@@ -831,6 +1239,186 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
             ];
             break;
             
+        case 'get_my_tasks':
+            // Get tasks created by this adviser
+            $taskManager = new TaskManager();
+            $tasks = $taskManager->getTasks(); // Get all tasks
+            
+            $result = [
+                "status" => "SUCCESS",
+                "data" => $tasks
+            ];
+            break;
+        
+        case 'get_all_files':
+            // Get all uploaded files (permission-checked)
+            try {
+                $userId = $_SESSION['user_id'] ?? 0;
+                
+                // Check permission
+                if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+                    throw new Exception("Permission denied");
+                }
+                
+                $db = Database::getInstance()->getConnection();
+                
+                $query = "SELECT f.*, c.file_category, 
+                         CONCAT(p.fname, ' ', p.lname) as uploader_name
+                         FROM file_upload_tbl f
+                         LEFT JOIN file_category_tbl c ON f.file_category_id = c.file_category_id
+                         LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
+                         LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                         ORDER BY f.datetime_uploaded DESC";
+                
+                $stmt = $db->query($query);
+                $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['data' => $files]);
+            } catch(Exception $e) {
+                echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+            }
+            exit;
+            
+        case 'nlp_search_files':
+            // NLP-powered file search (permission-checked)
+            try {
+                $userId = $_SESSION['user_id'] ?? 0;
+                
+                // Check permission
+                if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+                    throw new Exception("Permission denied");
+                }
+                
+                $searchQuery = $_POST['search_query'] ?? '';
+                
+                if (empty($searchQuery)) {
+                    echo json_encode(['data' => []]);
+                    exit;
+                }
+                
+                $db = Database::getInstance()->getConnection();
+                
+                // Search in file names, categories, and NLP tags
+                $query = "SELECT f.*, c.file_category,
+                         CONCAT(p.fname, ' ', p.lname) as uploader_name
+                         FROM file_upload_tbl f
+                         LEFT JOIN file_category_tbl c ON f.file_category_id = c.file_category_id
+                         LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
+                         LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+                         WHERE f.file_name LIKE :query
+                            OR c.file_category LIKE :query
+                            OR f.category_tag LIKE :query
+                         ORDER BY f.category_score DESC, f.datetime_uploaded DESC";
+                
+                $stmt = $db->prepare($query);
+                $stmt->execute([':query' => "%{$searchQuery}%"]);
+                $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['data' => $files]);
+            } catch(Exception $e) {
+                echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+            }
+            exit;
+        
+        case '40':
+            // Get all tasks (for task table)
+            try {
+                $taskManager = new TaskManager();
+                $tasks = $taskManager->getTasks();
+                echo json_encode(['data' => $tasks]);
+            } catch(Exception $e) {
+                echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+            }
+            exit;
+            
+        case '41':
+            // Get all submissions (for reports table)
+            try {
+                $taskManager = new TaskManager();
+                $submissions = $taskManager->getAllSubmissions();
+                echo json_encode(['data' => $submissions]);
+            } catch(Exception $e) {
+                echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+            }
+            exit;
+            
+        case '42':
+            // Get single task details
+            try {
+                $taskManager = new TaskManager();
+                $taskId = $_POST['task_id'];
+                $tasks = $taskManager->getTasks();
+                $task = array_filter($tasks, fn($t) => $t['task_id'] == $taskId);
+                $task = array_values($task)[0] ?? null;
+                if (!$task) {
+                    echo json_encode(['status' => 'ERROR', 'msg' => 'Task not found']);
+                } else {
+                    echo json_encode(['status' => 'SUCCESS', 'data' => $task]);
+                }
+            } catch(Exception $e) {
+                echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+            }
+            exit;
+            
+        case '43':
+            // Update task
+            $data = [
+                'task_id' => $_POST['task_id'] ?? null,
+                'task_category_id' => $_POST['task_category_id'] ?? null,
+                'task_title' => $_POST['task_title'] ?? null,
+                'task_description' => $_POST['task_description'] ?? null,
+                'task_deadline' => $_POST['task_deadline'] ?? null
+            ];
+
+            try {
+                $taskManager = new TaskManager();
+                $result = $taskManager->updateTask($data);
+            } catch(Exception $e) {
+                $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+            }
+            echo json_encode($result);
+            exit;
+            
+        case '44':
+            // Delete task
+            try {
+                $taskManager = new TaskManager();
+                $taskId = $_POST['task_id'] ?? null;
+                $result = $taskManager->deleteTask($taskId);
+            } catch(Exception $e) {
+                $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+            }
+            echo json_encode($result);
+            exit;
+            
+        case '45':
+            // Get submission details
+            try {
+                $taskManager = new TaskManager();
+                $submissionId = $_POST['submission_id'] ?? null;
+                $submission = $taskManager->getSubmissionDetails($submissionId);
+                if (!$submission) {
+                    echo json_encode(['status' => 'ERROR', 'msg' => 'Submission not found']);
+                } else {
+                    echo json_encode(['status' => 'SUCCESS', 'data' => $submission]);
+                }
+            } catch(Exception $e) {
+                echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+            }
+            exit;
+            
+        case '46':
+            // Approve submission
+            try {
+                $taskManager = new TaskManager();
+                $submissionId = $_POST['submission_id'] ?? null;
+                $result = $taskManager->approveSubmission($submissionId);
+            } catch(Exception $e) {
+                $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+            }
+            echo json_encode($result);
+            exit;
+            
         default:
             $result = ["status" => "ERROR", "msg" => "Invalid call"];
             break;
@@ -841,5 +1429,6 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
     $result = ["status" => "ERROR", "msg" => "An error occurred: " . $e->getMessage()];
 }
 
-echo json_encode($result);
+echo json_encode($result);*/
 ?>
+

@@ -1,3 +1,23 @@
+<!-- Logout Confirmation Modal -->
+<div id="logoutModal" class="modal">
+    <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeModal('logoutModal')">&times;</span>
+        <h2><i class="fas fa-sign-out-alt" style="color: #2196F3;"></i> Confirm Logout</h2>
+        <div style="padding: 20px 0;">
+            <p>Are you sure you want to logout?</p>
+            <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <strong>Note:</strong> You will need to login again to access your account.
+            </p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+            <button type="button" class="btn-primary" id="confirmLogoutBtn" onclick="window.location.href='logout.php'">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Task Creation/Edit Modal -->
 <div id="taskModal" class="modal">
   <div class="modal-content modal-content-large">
@@ -382,4 +402,184 @@ $(document).ready(function() {
     }
   });
 });
+</script>
+
+<!-- Notification Modal -->
+<div id="notificationModal" class="notification-modal">
+  <div class="notification-content">
+    <i id="notificationIcon" class="fas fa-info-circle"></i>
+    <div class="notification-text">
+      <h3 id="notificationTitle">Information</h3>
+      <p id="notificationMessage"></p>
+    </div>
+    <button class="notification-close" onclick="closeNotification()">&times;</button>
+  </div>
+</div>
+
+<style>
+  /* Dropdown Menu Styles */
+  .dropdown-container {
+    position: relative;
+    display: inline-block;
+  }
+  .dropdown-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.6rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .dropdown-btn:hover {
+    background: #5a6268;
+  }
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 4px;
+    z-index: 1000;
+    margin-top: 4px;
+  }
+  .dropdown-menu.show {
+    display: block;
+  }
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .dropdown-item:last-child {
+    border-bottom: none;
+  }
+  .dropdown-item:hover {
+    background: #f8f9fa;
+  }
+  .dropdown-item.view { color: #007bff; }
+  .dropdown-item.edit { color: #28a745; }
+  .dropdown-item.approve { color: #28a745; }
+  .dropdown-item.delete { color: #dc3545; }
+  .dropdown-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* Notification Modal Styles */
+  .notification-modal {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .notification-modal.notification-show .notification-content {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .notification-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: white;
+    padding: 20px 25px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    min-width: 350px;
+    max-width: 500px;
+    border-left: 5px solid #3b82f6;
+  }
+  
+  .notification-content i {
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+  
+  .notification-text {
+    flex: 1;
+  }
+  
+  .notification-text h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  
+  .notification-text p {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  
+  .notification-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  
+  .notification-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  /* Status badges */
+  .status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .status-pending { background: #ffc107; color: #000; }
+  .status-submitted { background: #17a2b8; color: white; }
+  .status-completed { background: #28a745; color: white; }
+  .status-overdue { background: #dc3545; color: white; }
+</style>
+
+<script>
+// Generic modal functions for subadmin
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
 </script>

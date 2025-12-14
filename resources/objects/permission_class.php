@@ -5,6 +5,7 @@
  */
 
 require_once("db_config.php");
+require_once("main_class.php");
 
 /**
  * SubadminPermission Class
@@ -55,11 +56,9 @@ class SubadminPermission extends Main {
 		try {
 			$db = Database::getInstance()->getConnection();
 			
-			$query = "SELECT sp.*, pd.permission_description, pd.permission_category
-					  FROM subadmin_permissions_tbl sp
-					  JOIN permission_definitions_tbl pd ON sp.permission_key = pd.permission_key
-					  WHERE sp.user_id = :user_id AND pd.is_active = 1
-					  ORDER BY pd.permission_category, pd.permission_name";
+			$query = "SELECT * FROM subadmin_permissions_tbl
+					  WHERE user_id = :user_id
+					  ORDER BY permission_name";
 			
 			$stmt = $db->prepare($query);
 			$stmt->execute([':user_id' => $userId]);
@@ -146,24 +145,42 @@ class SubadminPermission extends Main {
  */
 class PermissionDefinition extends Main {
 	public function __construct($data = []) {
-		parent::__construct('permission_definitions_tbl', $data);
+		parent::__construct('subadmin_permissions_tbl', $data);
 	}
 	
 	/**
 	 * Get all active permission definitions
+	 * Returns the available permission keys and names
 	 */
 	public static function getAllActive() {
 		try {
-			$db = Database::getInstance()->getConnection();
-			
-			$query = "SELECT * FROM permission_definitions_tbl 
-					  WHERE is_active = 1 
-					  ORDER BY permission_category, permission_name";
-			
-			$stmt = $db->prepare($query);
-			$stmt->execute();
-			
-			return $stmt->fetchAll(PDO::FETCH_ASSOC);
+			// Return predefined permission modules
+			return [
+				[
+					'permission_key' => 'file_management',
+					'permission_name' => 'File Management',
+					'permission_category' => 'Content Management',
+					'is_active' => 1
+				],
+				[
+					'permission_key' => 'task_management',
+					'permission_name' => 'Task Management',
+					'permission_category' => 'Task System',
+					'is_active' => 1
+				],
+				[
+					'permission_key' => 'user_management',
+					'permission_name' => 'User Management',
+					'permission_category' => 'Administration',
+					'is_active' => 1
+				],
+				[
+					'permission_key' => 'entry_module',
+					'permission_name' => 'Entry Module',
+					'permission_category' => 'Content Management',
+					'is_active' => 1
+				]
+			];
 			
 		} catch (Exception $e) {
 			throw new Exception("Failed to get permission definitions: " . $e->getMessage());

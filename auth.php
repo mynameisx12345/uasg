@@ -204,6 +204,8 @@ function getRedirectUrl($userType) {
     switch (strtolower($userType)) {
         case 'admin':
             return 'admin/index.php';
+        case 'subadmin':
+            return 'subadmin/index.php';
         case 'adviser':
             return 'subadmin/index.php';
         case 'student': // <-- this now matches session

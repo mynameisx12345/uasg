@@ -1,24 +1,27 @@
 <?php
 session_start();
 
-// Include the main class for database connection
-include_once '../resources/objects/main_class.php';
-
-// Create instance of main class
-$main = new Main();
+// Include the database connection
+require_once '../resources/objects/main_class.php';
 
 // Log logout activity if user is logged in
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
     $user_type = $_SESSION['user_type'] ?? 'adviser';
     
-    // Log the logout activity
-    $logout_time = date('Y-m-d H:i:s');
-    $sql = "INSERT INTO user_activity (user_id, activity_type, activity_description, activity_timestamp) 
-            VALUES (?, 'logout', 'User logged out from ? dashboard', ?)";
-    $stmt = $main->connection->prepare($sql);
-    $stmt->bind_param("iss", $user_id, $user_type, $logout_time);
-    $stmt->execute();
+    // Log the logout activity (if user_activity table exists)
+    try {
+        $db = Database::getInstance()->getConnection();
+        $logout_time = date('Y-m-d H:i:s');
+        $sql = "INSERT INTO user_activity (user_id, activity_type, activity_description, activity_timestamp) 
+                VALUES (?, 'logout', ?, ?)";
+        $stmt = $db->prepare($sql);
+        $description = "User logged out from {$user_type} dashboard";
+        $stmt->execute([$user_id, $description, $logout_time]);
+    } catch (Exception $e) {
+        // If logging fails, continue with logout anyway
+        error_log("Logout logging failed: " . $e->getMessage());
+    }
 }
 
 // Clear all session variables

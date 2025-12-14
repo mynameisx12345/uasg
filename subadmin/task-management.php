@@ -1,19 +1,40 @@
 <?php
-require_once __DIR__ . '/../resources/objects/db_config.php';
-require_once __DIR__ . '/../resources/objects/main_class.php';
-
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
+require_once("../resources/session.php");
+require_once("../resources/objects/permission_class.php");
+
+// Require subadmin role
+$session = SessionManager::getInstance();
+$session->requireRole(['Adviser', 'adviser', 'Subadmin', 'subadmin']);
+
+$currentUser = $session->getUserData();
+$userId = $currentUser['user_id'] ?? null;
+
+if (!$userId) {
+    header("Location: ../index.php");
     exit;
 }
+
+// Get user permissions for task management
+$canView = SubadminPermission::hasPermission($userId, 'task_management', 'view');
+$canCreate = SubadminPermission::hasPermission($userId, 'task_management', 'create');
+$canEdit = SubadminPermission::hasPermission($userId, 'task_management', 'edit');
+$canDelete = SubadminPermission::hasPermission($userId, 'task_management', 'delete');
+
+// Redirect if no view permission
+if (!$canView) {
+    header("Location: index.php");
+    exit;
+}
+
+$userName = $session->getFullName();
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Task Management - UASG</title>
+  <title>Task Management - UASG Subadmin</title>
   
   <link rel="stylesheet" href="../resources/style.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
@@ -145,42 +166,49 @@ if (!isset($_SESSION['user_id'])) {
     .submission-item:last-child {
       border-bottom: none;
     }
+    .permission-denied {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 1rem;
+      border-radius: 4px;
+      color: #856404;
+      margin: 1rem 0;
+    }
   </style>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>
   <script src='../js/datatable.js'></script>
 </head>
 <body>
-  <!-- HEADER -->
-   <?php require_once("header.php");?>
-   <header class="topbar">
-    <h1>Task Management</h1>
-    <div class="user-info">
-      <span>Welcome, Admin</span>
-    </div>
-  </header>
-  
-  <!-- MAIN -->
-  <main class="main">
+  <!-- MAIN LAYOUT -->
+  <div class="dashboard-container">
     <!-- SIDEBAR -->
     <?php require_once("sidebar.php");?>
 
-    <!-- CONTENT -->
-    <section class="content">
-      <div class="card">
-        <h2>Task Management</h2>
-
-        <!-- TABS -->
-        <div class="tabs">
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      <!-- HEADER -->
+      <?php require_once("header.php");?>
+      
+      <!-- CONTENT -->
+      <div class="dashboard-content">
+        <!-- NAVIGATION TABS -->
+        <div class="tab-nav">
+          <?php if ($canCreate): ?>
           <button class="tab-link active" data-tab="create">Create Task</button>
           <button class="tab-link" data-tab="all-tasks">All Tasks</button>
+          <?php else: ?>
+          <button class="tab-link active" data-tab="all-tasks">All Tasks</button>
+          <?php endif; ?>
           <button class="tab-link" data-tab="submissions">Submissions</button>
         </div>
 
         <!-- CREATE TASK TAB -->
+        <?php if ($canCreate): ?>
         <div id="create" class="tab-content active">
-          <div class="compact-form">
-            <h3>Create New Task</h3>
+          <div class="card">
+            <h2>Create New Task</h2>
+            <div class="compact-form">
             <form id="createTaskForm">
               <div class="form-columns">
                 <div class="form-column">
@@ -229,11 +257,15 @@ if (!isset($_SESSION['user_id'])) {
               </div>
             </form>
           </div>
+          </div>
         </div>
+        <?php endif; ?>
 
         <!-- ALL TASKS TAB -->
-        <div id="all-tasks" class="tab-content">
-          <div class="table-container">
+        <div id="all-tasks" class="tab-content <?= !$canCreate ? 'active' : '' ?>">
+          <div class="card">
+            <h2>All Tasks</h2>
+            <div class="table-container">
             <table id="tasksTable" class="data-table">
               <thead>
                 <tr>
@@ -250,11 +282,14 @@ if (!isset($_SESSION['user_id'])) {
               <tbody></tbody>
             </table>
           </div>
+          </div>
         </div>
 
         <!-- SUBMISSIONS TAB -->
         <div id="submissions" class="tab-content">
-          <div class="table-container">
+          <div class="card">
+            <h2>Submissions</h2>
+            <div class="table-container">
             <table id="submissionsTable" class="data-table">
               <thead>
                 <tr>
@@ -270,12 +305,14 @@ if (!isset($_SESSION['user_id'])) {
               <tbody></tbody>
             </table>
           </div>
+          </div>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <!-- EDIT TASK MODAL -->
+  <?php if ($canEdit): ?>
   <div class="modal" id="editTaskModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -314,8 +351,10 @@ if (!isset($_SESSION['user_id'])) {
       </form>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- DELETE TASK MODAL -->
+  <?php if ($canDelete): ?>
   <div class="modal" id="deleteTaskModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -329,6 +368,7 @@ if (!isset($_SESSION['user_id'])) {
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- VIEW SUBMISSION MODAL -->
   <div class="modal" id="viewSubmissionModal">
@@ -505,17 +545,15 @@ function showNotification(message, type = 'info', title = '') {
 
 <script>
 (function($) {
+    // PHP permissions passed to JavaScript
+    const permissions = {
+        canCreate: <?= json_encode($canCreate) ?>,
+        canEdit: <?= json_encode($canEdit) ?>,
+        canDelete: <?= json_encode($canDelete) ?>
+    };
+    
     let deleteTaskId = null;
     let approveSubmissionId = null;
-    
-    // Tab switching
-    $('.tab-link').on('click', function() {
-        const target = $(this).data('tab');
-        $('.tab-link').removeClass('active');
-        $('.tab-content').removeClass('active');
-        $(this).addClass('active');
-        $('#' + target).addClass('active');
-    });
 
     // Load task categories
     function loadTaskCategories() {
@@ -539,7 +577,7 @@ function showNotification(message, type = 'info', title = '') {
         },
         columns: [
             { data: 'task_id' },
-            { data: 'task_category' }, // changed from category_name
+            { data: 'task_category' },
             { data: 'task_title' },
             { 
                 data: 'task_description',
@@ -605,16 +643,29 @@ function showNotification(message, type = 'info', title = '') {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
+                    let actions = [];
+                    
+                    if (permissions.canEdit) {
+                        actions.push(`<button class="dropdown-item edit editTaskBtn" data-id="${row.task_id}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>`);
+                    }
+                    
+                    if (permissions.canDelete) {
+                        actions.push(`<button class="dropdown-item delete deleteTaskBtn" data-id="${row.task_id}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>`);
+                    }
+                    
+                    if (actions.length === 0) {
+                        return '<span style="color: #999;">No actions</span>';
+                    }
+                    
                     return `
                         <div class="dropdown-container">
                             <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
                             <div class="dropdown-menu">
-                                <button class="dropdown-item edit editTaskBtn" data-id="${row.task_id}">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                                <button class="dropdown-item delete deleteTaskBtn" data-id="${row.task_id}">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
+                                ${actions.join('')}
                             </div>
                         </div>
                     `;
@@ -627,7 +678,7 @@ function showNotification(message, type = 'info', title = '') {
         ajax: {
             url: 'ajax.php',
             type: 'POST',
-            data: { CALL: 41 }, // Get all submissions
+            data: { CALL: 41 },
             dataSrc: function(json) { return json.data || []; }
         },
         columns: [
@@ -675,49 +726,48 @@ function showNotification(message, type = 'info', title = '') {
     $(document).on('click', '.modal', function(e) { if (e.target === this) closeModal(); });
 
     // Create task form submission
+    <?php if ($canCreate): ?>
     $('#createTaskForm').on('submit', function(e) {
         e.preventDefault();
 
         const payload = {
-            CALL: 22, // Create task
+            CALL: 'create_task',
             DATA: {
                 task_category_id: $('#taskCategory').val(),
                 task_title: $('#taskTitle').val(),
                 task_description: $('#taskDescription').val(),
                 task_deadline: $('#taskDeadline').val(),
-                assigned_to: $('#assignTo').val() // NEW
+                assigned_to: $('#assignTo').val()
             }
         };
 
-         $.post('ajax.php', payload, function(resp) {
+        $.post('ajax.php', payload, function(resp) {
             if (resp.status === 'SUCCESS') {
                 showNotification('Task created successfully', 'success', 'Task Created');
                 $('#createTaskForm')[0].reset();
-                tasksTable.ajax.reload(); // <-- reload table
+                tasksTable.ajax.reload();
             } else {
                 showNotification(resp.msg || 'Failed to create task', 'error', 'Creation Failed');
             }
         }, 'json');
     });
 
-      function loadMembers() {
-          $.post('ajax.php', { CALL: 63 }, function(resp) {
-              if (resp.status === 'SUCCESS' && resp.data && Array.isArray(resp.data)) {
-                  const options = resp.data.map(m =>
-                      `<option value="${m.user_id}">${m.full_name} - ${m.position}</option>`
-                  ).join('');
-                  $('#assignTo').append(options);
-              } else {
-                  console.error('Failed to load members:', resp.msg || 'Unknown error');
-              }
-          }, 'json').fail(function(xhr, status, error) {
-              console.error('AJAX error loading members:', error);
-          });
-      }
+    function loadMembers() {
+        $.post('ajax.php', { CALL: 'get_members' }, function(resp) {
+            if (resp.status === 'SUCCESS' && resp.data && Array.isArray(resp.data)) {
+                const options = resp.data.map(m =>
+                    `<option value="${m.user_id}">${m.full_name} - ${m.position}</option>`
+                ).join('');
+                $('#assignTo').append(options);
+            }
+        }, 'json');
+    }
 
-      loadMembers(); // call it
+    loadMembers();
+    <?php endif; ?>
 
     // Edit task button
+    <?php if ($canEdit): ?>
     $(document).on('click', '.editTaskBtn', function() {
         const taskId = $(this).data('id');
         
@@ -741,7 +791,7 @@ function showNotification(message, type = 'info', title = '') {
         e.preventDefault();
         
         const payload = {
-            CALL: 43, // Update task
+            CALL: 43,
             task_id: $('#editTaskId').val(),
             task_category_id: $('#editTaskCategory').val(),
             task_title: $('#editTaskTitle').val(),
@@ -759,8 +809,10 @@ function showNotification(message, type = 'info', title = '') {
             }
         }, 'json');
     });
+    <?php endif; ?>
 
     // Delete task button
+    <?php if ($canDelete): ?>
     $(document).on('click', '.deleteTaskBtn', function() {
         deleteTaskId = $(this).data('id');
         $('#deleteTaskMessage').text('Are you sure you want to delete this task? All submissions will also be deleted.');
@@ -782,6 +834,7 @@ function showNotification(message, type = 'info', title = '') {
             }
         }, 'json');
     });
+    <?php endif; ?>
 
     // View submission button
     $(document).on('click', '.viewSubmissionBtn', function() {
@@ -862,6 +915,24 @@ document.addEventListener('click', function(e) {
         });
     }
 });
+
+// Tab switcher (matching index.php style)
+const tabLinks = document.querySelectorAll(".tab-link");
+const tabContents = document.querySelectorAll(".tab-content");
+
+tabLinks.forEach(link => {
+  link.addEventListener("click", () => {
+    tabLinks.forEach(l => l.classList.remove("active"));
+    tabContents.forEach(c => c.classList.remove("active"));
+
+    link.classList.add("active");
+    document.getElementById(link.dataset.tab).classList.add("active");
+  });
+});
 </script>
+
+<!-- Include modals -->
+<?php require_once('modals.php'); ?>
+
 </body>
 </html>
