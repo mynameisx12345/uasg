@@ -352,13 +352,29 @@
       let keywordstable;
 
       $(document).on("click",".deleteBtn",function(){
-        $("#deleteid").val($(this).data('id'));
-        $("#deletevalue").val($(this).closest("tr").find("td").eq(0).text());
+        var id = $(this).data('id');
+        var table = $(this).data('table');
+        var title = $(this).data('title');
+        var dataValue = $(this).closest("tr").find("td").eq(0).text(); // Get the first visible column value
+        
+        $("#deleteid").val(id);
+        $("#deletevalue").val(dataValue);
+        $("#deleteModal").data('table', table);
+        $("#deleteModal").data('title', title);
         openDeleteModal();
       });
 
       $(document).on("click",".updateBtn",function(){
-        $("#option").val($(this).closest("tr").find("td").eq(0).text());
+        var id = $(this).data('id');
+        var table = $(this).data('table');
+        var title = $(this).data('title');
+        var currentValue = $(this).closest("tr").find("td").eq(0).text(); // Get the first visible column value
+        
+        $("#option").val(currentValue);
+        $("#updateName").val(currentValue);
+        $("#updateModal").data('id', id);
+        $("#updateModal").data('table', table);
+        $("#updateModal").data('title', title);
         openFormModal();
       });
 
@@ -692,6 +708,81 @@
           }
         });
       }
+
+      // Handle "Save Changes" button click in update modal
+      $("#updateModal").on("click", ".btn-primary", function(){
+        var id = $("#updateModal").data('id');
+        var table = $("#updateModal").data('table');
+        var title = $("#updateModal").data('title');
+        var newValue = $("#updateName").val().trim();
+        
+        if(newValue === ""){
+          openModal("ERROR", "Please enter a value");
+          return;
+        }
+        
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{
+            CALL:64, // Generic update handler
+            DATA:{
+              id: id,
+              table: table,
+              value: newValue,
+              title: title
+            }
+          },dataType:'json',
+          success:function(result){
+            openModal(result.status, result.msg);
+            if(result.status == "SUCCESS"){
+              closeFormModal();
+              $("#updateName").val('');
+              $("#option").val('');
+            }
+          },complete:function(){
+            reloadAllAjaxTables();
+          }
+        });
+      });
+
+      // Handle "Confirm Delete" button click in delete modal
+      $("#deleteModal").on("click", ".btn-primary", function(){
+        var id = $("#deleteid").val();
+        var table = $("#deleteModal").data('table');
+        var title = $("#deleteModal").data('title');
+        var reason = $("#reason").val().trim();
+        
+        if(reason === ""){
+          openModal("ERROR", "Please enter a reason for deletion");
+          return;
+        }
+        
+        $.ajax({
+          url:'ajax.php',
+          type:'post',
+          data:{
+            CALL:65, // Generic delete handler
+            DATA:{
+              id: id,
+              table: table,
+              reason: reason,
+              title: title
+            }
+          },dataType:'json',
+          success:function(result){
+            openModal(result.status, result.msg);
+            if(result.status == "SUCCESS"){
+              closeDeleteModal();
+              $("#deleteid").val('');
+              $("#deletevalue").val('');
+              $("#reason").val('');
+            }
+          },complete:function(){
+            reloadAllAjaxTables();
+          }
+        });
+      });
     });
   </script>
   

@@ -1166,13 +1166,18 @@
 					FROM task_tbl AS t
 					LEFT JOIN task_category_tbl AS c
 						ON c.task_category_id = t.task_category_id
+					LEFT JOIN task_submission_tbl AS s
+						ON s.task_id = t.task_id 
+						AND s.submitted_by = ?
+						AND s.check_status = 'Approved'
 					WHERE 
-						(t.assigned_to = ? OR t.assigned_to IS NULL OR t.assigned_to = '')
+						t.assigned_to = ?
+						AND s.task_submission_id IS NULL
 					ORDER BY t.task_deadline ASC
 				";
 
-				// Execute query
-				$tasks = $db->select($sql, [$memberId]) ?: [];
+				// Execute query - pass memberId twice for both placeholders
+				$tasks = $db->select($sql, [$memberId, $memberId]) ?: [];
 
 				// Normalize keys
 				$tasks = array_map(function($t) {
@@ -1246,11 +1251,12 @@
 					throw new Exception("All task fields are required");
 				}
 
-				// Handle assigned_to - convert empty string to null
-				$assignedTo = null;
-				if (!empty($data['assigned_to']) && is_numeric($data['assigned_to'])) {
-					$assignedTo = (int)$data['assigned_to'];
+				// Validate assigned_to is required and valid
+				if (empty($data['assigned_to']) || !is_numeric($data['assigned_to'])) {
+					throw new Exception("Task must be assigned to a specific member");
 				}
+				
+				$assignedTo = (int)$data['assigned_to'];
 
 				// Create task
 				$task = new Task([
@@ -1266,8 +1272,7 @@
 					throw new Exception("Failed to create task");
 				}
 
-				// Create notifications for all UASG members
-				//$this->notifyMembersNewTask($taskId, $data['task_title']);
+				// Notify the assigned member
 				$this->notifyMembersNewTask($taskId, $data['task_title'], $assignedTo);
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
@@ -1739,6 +1744,37 @@
         return [
             "status" => "SUCCESS",
             "msg" => "Permission granted successfully"
+        ];
+    }
+
+    // Remove file permissions
+    public function removeFilePermission($positionId, $categoryId) {
+        $db = Database::getInstance();
+
+        // Check if permission exists
+        $check = $db->selectOne("
+            SELECT COUNT(*) AS cnt 
+            FROM file_permission_tbl 
+            WHERE position_id = ? AND file_category_id = ?
+        ", [$positionId, $categoryId]);
+
+        if ($check['cnt'] == 0) {
+            throw new Exception("Permission does not exist.");
+        }
+
+        // Delete the permission
+        $deleted = $db->execute("
+            DELETE FROM file_permission_tbl 
+            WHERE position_id = ? AND file_category_id = ?
+        ", [$positionId, $categoryId]);
+
+        if (!$deleted) {
+            throw new Exception("Failed to revoke permission.");
+        }
+
+        return [
+            "status" => "SUCCESS",
+            "msg" => "Permission revoked successfully"
         ];
     }
 

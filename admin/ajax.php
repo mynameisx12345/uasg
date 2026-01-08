@@ -1830,6 +1830,260 @@
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
+	}else if($call == 'transfer_task'){
+		// Transfer task to another member
+		try {
+			$taskId = $_POST['task_id'] ?? 0;
+			$newAssignedTo = $_POST['new_assigned_to'] ?? 0;
+			$transferReason = $_POST['transfer_reason'] ?? '';
+			
+			if(!$taskId || !$newAssignedTo) {
+				throw new Exception("Task ID and new assignee are required");
+			}
+			
+			if(empty($transferReason)) {
+				throw new Exception("Transfer reason is required");
+			}
+			
+			$db = Database::getInstance();
+			
+			// Get current task info
+			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+			if(!$task) {
+				throw new Exception("Task not found");
+			}
+			
+			// Get new assignee info
+			$newMember = $db->selectOne("
+				SELECT u.user_id, p.fname, p.lname 
+				FROM user_tbl u 
+				JOIN profile_tbl p ON u.profile_id = p.profile_id 
+				WHERE u.user_id = ?
+			", [$newAssignedTo]);
+			
+			if(!$newMember) {
+				throw new Exception("New assignee not found");
+			}
+			
+			// Update task with new assignee and status
+			$updated = $db->execute("
+				UPDATE task_tbl 
+				SET assigned_to = ?, task_status = 'transferred'
+				WHERE task_id = ?
+			", [$newAssignedTo, $taskId]);
+			
+			if($updated) {
+				// Log the transfer in deletion table for audit trail
+				$logData = json_encode([
+					'task_id' => $taskId,
+					'task_title' => $task['task_title'],
+					'old_assigned_to' => $task['assigned_to'],
+					'new_assigned_to' => $newAssignedTo,
+					'new_assignee_name' => $newMember['fname'] . ' ' . $newMember['lname'],
+					'transfer_reason' => $transferReason,
+					'transferred_by' => $_SESSION['user_id'] ?? 0,
+					'transferred_at' => date('Y-m-d H:i:s')
+				]);
+				
+				$db->execute("
+					INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+					VALUES (?, ?, 'task_tbl', NOW())
+				", [$logData, 'Task Transfer: ' . $transferReason]);
+				
+				$result = ["status" => "SUCCESS", "msg" => "Task transferred successfully to " . $newMember['fname'] . ' ' . $newMember['lname']];
+			} else {
+				throw new Exception("Failed to transfer task");
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 'close_cancel_task'){
+		// Close or cancel a task
+		try {
+			$taskId = $_POST['task_id'] ?? 0;
+			$action = $_POST['action'] ?? ''; // 'close' or 'cancel'
+			$reason = $_POST['reason'] ?? '';
+			
+			if(!$taskId) {
+				throw new Exception("Task ID is required");
+			}
+			
+			if(!in_array($action, ['close', 'cancel'])) {
+				throw new Exception("Invalid action. Must be 'close' or 'cancel'");
+			}
+			
+			if(empty($reason)) {
+				throw new Exception("Reason is required");
+			}
+			
+			$db = Database::getInstance();
+			
+			// Get task info
+			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+			if(!$task) {
+				throw new Exception("Task not found");
+			}
+			
+			// Determine new status
+			$newStatus = $action === 'close' ? 'closed' : 'cancelled';
+			
+			// Update task status
+			$updated = $db->execute("
+				UPDATE task_tbl 
+				SET task_status = ?
+				WHERE task_id = ?
+			", [$newStatus, $taskId]);
+			
+			if($updated) {
+				// Log the action in deletion table for audit trail
+				$logData = json_encode([
+					'task_id' => $taskId,
+					'task_title' => $task['task_title'],
+					'task_category_id' => $task['task_category_id'],
+					'assigned_to' => $task['assigned_to'],
+					'action' => $action,
+					'new_status' => $newStatus,
+					'reason' => $reason,
+					'actioned_by' => $_SESSION['user_id'] ?? 0,
+					'actioned_at' => date('Y-m-d H:i:s')
+				]);
+				
+				$db->execute("
+					INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+					VALUES (?, ?, 'task_tbl', NOW())
+				", [$logData, ucfirst($action) . ' Task: ' . $reason]);
+				
+				$actionText = $action === 'close' ? 'closed' : 'cancelled';
+				$result = ["status" => "SUCCESS", "msg" => "Task {$actionText} successfully"];
+			} else {
+				throw new Exception("Failed to update task status");
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 64){
+		// Generic update handler for entry module
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$id = intval($data['id'] ?? 0);
+			$table = trim($data['table'] ?? '');
+			$value = trim($data['value'] ?? '');
+			$title = trim($data['title'] ?? 'Entry');
+			
+			// Validate input
+			if($id <= 0) {
+				throw new Exception("Invalid ID");
+			}
+			if(empty($table)) {
+				throw new Exception("Invalid table");
+			}
+			if(empty($value)) {
+				throw new Exception("Value cannot be empty");
+			}
+			
+			// Whitelist allowed tables for security
+			$allowedTables = [
+				'position_tbl' => ['column' => 'position', 'id_column' => 'position_id'],
+				'file_category_tbl' => ['column' => 'file_category', 'id_column' => 'file_category_id'],
+				'task_category_tbl' => ['column' => 'task_category', 'id_column' => 'task_category_id']
+			];
+			
+			if(!isset($allowedTables[$table])) {
+				throw new Exception("Unauthorized table access");
+			}
+			
+			$column = $allowedTables[$table]['column'];
+			$idColumn = $allowedTables[$table]['id_column'];
+			
+			$db = Database::getInstance();
+			
+			// Check if entry exists
+			$exists = $db->selectOne("SELECT * FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			if(!$exists) {
+				throw new Exception("{$title} not found");
+			}
+			
+			// Update the entry
+			$updated = $db->execute("UPDATE {$table} SET {$column} = ? WHERE {$idColumn} = ?", [$value, $id]);
+			
+			if($updated) {
+				$result = ["status" => "SUCCESS", "msg" => "{$title} updated successfully"];
+			} else {
+				throw new Exception("Failed to update {$title}");
+			}
+			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 65){
+		// Generic delete handler for entry module
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$id = intval($data['id'] ?? 0);
+			$table = trim($data['table'] ?? '');
+			$reason = trim($data['reason'] ?? '');
+			$title = trim($data['title'] ?? 'Entry');
+			
+			// Validate input
+			if($id <= 0) {
+				throw new Exception("Invalid ID");
+			}
+			if(empty($table)) {
+				throw new Exception("Invalid table");
+			}
+			if(empty($reason)) {
+				throw new Exception("Deletion reason is required");
+			}
+			
+			// Whitelist allowed tables for security
+			$allowedTables = [
+				'position_tbl' => ['column' => 'position', 'id_column' => 'position_id'],
+				'file_category_tbl' => ['column' => 'file_category', 'id_column' => 'file_category_id'],
+				'task_category_tbl' => ['column' => 'task_category', 'id_column' => 'task_category_id']
+			];
+			
+			if(!isset($allowedTables[$table])) {
+				throw new Exception("Unauthorized table access");
+			}
+			
+			$column = $allowedTables[$table]['column'];
+			$idColumn = $allowedTables[$table]['id_column'];
+			
+			$db = Database::getInstance();
+			
+			// Get entry data before deletion for logging
+			$entry = $db->selectOne("SELECT * FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			if(!$entry) {
+				throw new Exception("{$title} not found");
+			}
+			
+			// Log the deletion to deleted_record_tbl
+			$deletionData = json_encode($entry);
+			$logged = $db->execute(
+				"INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted) VALUES (?, ?, ?, NOW())",
+				[$deletionData, $reason, $table]
+			);
+			
+			if(!$logged) {
+				throw new Exception("Failed to log deletion");
+			}
+			
+			// Delete the entry
+			$deleted = $db->execute("DELETE FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			
+			if($deleted) {
+				$result = ["status" => "SUCCESS", "msg" => "{$title} deleted successfully"];
+			} else {
+				throw new Exception("Failed to delete {$title}");
+			}
+			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
 	}
 
 

@@ -911,6 +911,163 @@ if($call == 1){
     }
     echo json_encode($result);
     
+}else if($call == 'transfer_task'){
+    // Transfer task to another member
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'edit')) {
+            throw new Exception("Permission denied: You cannot transfer tasks");
+        }
+        
+        $taskId = $_POST['task_id'] ?? 0;
+        $newAssignedTo = $_POST['new_assigned_to'] ?? 0;
+        $transferReason = $_POST['transfer_reason'] ?? '';
+        
+        if(!$taskId || !$newAssignedTo) {
+            throw new Exception("Task ID and new assignee are required");
+        }
+        
+        if(empty($transferReason)) {
+            throw new Exception("Transfer reason is required");
+        }
+        
+        $db = Database::getInstance();
+        
+        // Get current task info
+        $task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+        if(!$task) {
+            throw new Exception("Task not found");
+        }
+        
+        // Get new assignee info
+        $newMember = $db->selectOne("
+            SELECT u.user_id, p.fname, p.lname 
+            FROM user_tbl u 
+            JOIN profile_tbl p ON u.profile_id = p.profile_id 
+            WHERE u.user_id = ?
+        ", [$newAssignedTo]);
+        
+        if(!$newMember) {
+            throw new Exception("New assignee not found");
+        }
+        
+        // Update task with new assignee and status
+        $updated = $db->execute("
+            UPDATE task_tbl 
+            SET assigned_to = ?, task_status = 'transferred'
+            WHERE task_id = ?
+        ", [$newAssignedTo, $taskId]);
+        
+        if($updated) {
+            // Log the transfer
+            $logData = json_encode([
+                'task_id' => $taskId,
+                'task_title' => $task['task_title'],
+                'old_assigned_to' => $task['assigned_to'],
+                'new_assigned_to' => $newAssignedTo,
+                'new_assignee_name' => $newMember['fname'] . ' ' . $newMember['lname'],
+                'transfer_reason' => $transferReason,
+                'transferred_by' => $userId,
+                'transferred_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            $db->execute("
+                INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+                VALUES (?, ?, 'task_tbl', NOW())
+            ", [$logData, 'Task Transfer: ' . $transferReason]);
+            
+            // Log activity
+            SubadminPermission::logActivity($userId, 'transfer_task', 'task_management', 
+                "Transferred task ID {$taskId} to " . $newMember['fname'] . ' ' . $newMember['lname']);
+            
+            $result = ["status" => "SUCCESS", "msg" => "Task transferred successfully to " . $newMember['fname'] . ' ' . $newMember['lname']];
+        } else {
+            throw new Exception("Failed to transfer task");
+        }
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
+}else if($call == 'close_cancel_task'){
+    // Close or cancel a task
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'task_management', 'edit')) {
+            throw new Exception("Permission denied: You cannot close/cancel tasks");
+        }
+        
+        $taskId = $_POST['task_id'] ?? 0;
+        $action = $_POST['action'] ?? ''; // 'close' or 'cancel'
+        $reason = $_POST['reason'] ?? '';
+        
+        if(!$taskId) {
+            throw new Exception("Task ID is required");
+        }
+        
+        if(!in_array($action, ['close', 'cancel'])) {
+            throw new Exception("Invalid action. Must be 'close' or 'cancel'");
+        }
+        
+        if(empty($reason)) {
+            throw new Exception("Reason is required");
+        }
+        
+        $db = Database::getInstance();
+        
+        // Get task info
+        $task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+        if(!$task) {
+            throw new Exception("Task not found");
+        }
+        
+        // Determine new status
+        $newStatus = $action === 'close' ? 'closed' : 'cancelled';
+        
+        // Update task status
+        $updated = $db->execute("
+            UPDATE task_tbl 
+            SET task_status = ?
+            WHERE task_id = ?
+        ", [$newStatus, $taskId]);
+        
+        if($updated) {
+            // Log the action
+            $logData = json_encode([
+                'task_id' => $taskId,
+                'task_title' => $task['task_title'],
+                'task_category_id' => $task['task_category_id'],
+                'assigned_to' => $task['assigned_to'],
+                'action' => $action,
+                'new_status' => $newStatus,
+                'reason' => $reason,
+                'actioned_by' => $userId,
+                'actioned_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            $db->execute("
+                INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+                VALUES (?, ?, 'task_tbl', NOW())
+            ", [$logData, ucfirst($action) . ' Task: ' . $reason]);
+            
+            // Log activity
+            SubadminPermission::logActivity($userId, $action . '_task', 'task_management', 
+                ucfirst($action) . "d task ID {$taskId}: {$reason}");
+            
+            $actionText = $action === 'close' ? 'closed' : 'cancelled';
+            $result = ["status" => "SUCCESS", "msg" => "Task {$actionText} successfully"];
+        } else {
+            throw new Exception("Failed to update task status");
+        }
+    } catch(Exception $e) {
+        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    }
+    echo json_encode($result);
+    
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }

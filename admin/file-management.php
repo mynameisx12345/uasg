@@ -315,6 +315,44 @@ header("Expires: 0");
         <p style='text-align: center;'>Please wait while we process your request.</p>
       </div>
     </div>
+
+    <!-- REVOKE PERMISSION MODAL -->
+    <div id="revokePermissionModal" class="modal">
+      <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeRevokePermissionModal()">&times;</span>
+        <h2>Revoke Permission Confirmation</h2>
+        
+        <div class="compact-form">
+          <input type="hidden" id="revokePositionId">
+          <input type="hidden" id="revokeCategoryId">
+          
+          <div class="form-section">
+            <h4>Permission Details</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Position</label>
+                <input type="text" id="revokePositionName" readonly>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>File Category</label>
+                <input type="text" id="revokeCategoryName" readonly>
+              </div>
+            </div>
+            <p style="margin-top: 15px; color: #f44336;">
+              <i class="fas fa-exclamation-triangle"></i> 
+              Are you sure you want to revoke this permission? Users with this position will no longer be able to access files in this category.
+            </p>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn-primary" id="confirmRevokePermission">Confirm Revoke</button>
+            <button type="button" class="btn-secondary" onclick="closeRevokePermissionModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -325,6 +363,14 @@ header("Expires: 0");
 
     function openDeleteFileModal() {
       document.getElementById("deleteFileModal").style.display = "flex";
+    }
+
+    function closeRevokePermissionModal() {
+      document.getElementById("revokePermissionModal").style.display = "none";
+    }
+
+    function openRevokePermissionModal() {
+      document.getElementById("revokePermissionModal").style.display = "flex";
     }
 
     function closeViewFileModal() {
@@ -986,10 +1032,24 @@ header("Expires: 0");
       $(document).on("click", ".revokePermBtn", function() {
         const positionId = $(this).data('position');
         const categoryId = $(this).data('category');
+        const positionName = $(this).closest('tr').find('td').eq(0).text();
+        const categoryName = $(this).closest('tr').find('td').eq(1).text();
         
-        if(!confirm('Are you sure you want to revoke this permission?')) {
-          return;
-        }
+        // Store data in modal and mark that it came from table (not button)
+        $('#revokePositionId').val(positionId).data('fromButton', false);
+        $('#revokeCategoryId').val(categoryId);
+        $('#revokePositionName').val(positionName);
+        $('#revokeCategoryName').val(categoryName);
+        
+        // Open confirmation modal
+        openRevokePermissionModal();
+      });
+
+      // Confirm revoke permission from modal
+      $('#confirmRevokePermission').click(function() {
+        const positionId = $('#revokePositionId').val();
+        const categoryId = $('#revokeCategoryId').val();
+        const fromButton = $('#revokePositionId').data('fromButton'); // Track if from button or table
         
         $.ajax({
           url: 'ajax.php',
@@ -1003,14 +1063,23 @@ header("Expires: 0");
           },
           dataType: 'json',
           success: function(result) {
+            closeRevokePermissionModal();
             if(result.status === "SUCCESS") {
               showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
+              
+              // Clear form fields if revoked from button
+              if(fromButton) {
+                $('#permissionPosition').val('');
+                $('#permissionCategory').val('');
+              }
+              
               permissionsTable.ajax.reload();
             } else {
               showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
             }
           },
           error: function(xhr, status, error) {
+            closeRevokePermissionModal();
             console.error('Revoke error:', xhr.responseText);
             showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
           }
@@ -1027,36 +1096,18 @@ header("Expires: 0");
           return;
         }
         
-        if(!confirm('Are you sure you want to revoke this permission?')) {
-          return;
-        }
-
-        $.ajax({
-          url: 'ajax.php',
-          type: 'post',
-          data: {
-            CALL: 19, // Remove permission
-            DATA: {
-              position_id: positionId,
-              file_category_id: categoryId
-            }
-          },
-          dataType: 'json',
-          success: function(result) {
-            if(result.status === "SUCCESS") {
-              showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
-              $('#permissionPosition').val('');
-              $('#permissionCategory').val('');
-              permissionsTable.ajax.reload();
-            } else {
-              showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
-            }
-          },
-          error: function(xhr, status, error) {
-            console.error('Revoke error:', xhr.responseText);
-            showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
-          }
-        });
+        // Get selected option texts
+        const positionName = $('#permissionPosition option:selected').text();
+        const categoryName = $('#permissionCategory option:selected').text();
+        
+        // Store data in modal and mark that it came from button
+        $('#revokePositionId').val(positionId).data('fromButton', true);
+        $('#revokeCategoryId').val(categoryId);
+        $('#revokePositionName').val(positionName);
+        $('#revokeCategoryName').val(categoryName);
+        
+        // Open confirmation modal
+        openRevokePermissionModal();
       });
   });
 
