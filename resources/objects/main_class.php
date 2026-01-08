@@ -318,7 +318,7 @@
 					"INSERT INTO file_upload_tbl (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
 					VALUES (:categoryid, :category_tag, :category_score, :mime_type, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
 				);
-				$file_id = $stmt->insert([
+				$stmt->execute([
 					':categoryid' => $categoryid,
 					':category_tag' => $filecategory,
 					':category_score' => $score,
@@ -331,7 +331,7 @@
 				]);
 
 				// Get last inserted file_upload_id
-				//$file_id = $db->pdo->lastInsertId();
+				$file_id = $db->lastInsertId();
 
 				return [
 					'success' => true,
