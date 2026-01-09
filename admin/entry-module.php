@@ -601,20 +601,34 @@
 
       $(document).on("click",".updateKeywordBtn",function(){
         var keywordId = $(this).data('id');
-        var currentKeyword = $(this).closest("tr").find("td").eq(2).text();
-        var newKeyword = prompt("Enter new keyword:", currentKeyword);
-        if(newKeyword && newKeyword.trim() !== "" && newKeyword !== currentKeyword){
-          updateKeyword(keywordId, newKeyword.trim());
-        }
+        var row = $(this).closest("tr");
+        var rowData = keywordstable.row(row).data();
+        var currentKeyword = rowData.keyword;
+        var categoryName = rowData.file_category;
+        
+        // Populate modal
+        $('#option').val(categoryName + ' - ' + currentKeyword);
+        $('#updateName').val(currentKeyword);
+        $('#updateModal').data('keyword-id', keywordId);
+        $('#updateModal').data('action', 'keyword');
+        
+        openFormModal();
       });
 
       $(document).on("click",".deleteKeywordBtn",function(){
         var keywordId = $(this).data('id');
-        var keyword = $(this).closest("tr").find("td").eq(2).text();
-        var reason = prompt("Enter reason for deleting keyword '" + keyword + "':");
-        if(reason && reason.trim() !== ""){
-          deleteKeyword(keywordId, reason.trim());
-        }
+        var row = $(this).closest("tr");
+        var rowData = keywordstable.row(row).data();
+        var keyword = rowData.keyword;
+        var categoryName = rowData.file_category;
+        
+        // Populate delete modal
+        $('#deletevalue').val(categoryName + ' - ' + keyword);
+        $('#deleteid').val(keywordId);
+        $('#deleteModal').data('action', 'keyword');
+        $('#reason').val('');
+        
+        openDeleteModal();
       });
 
       function saveKeyword(categoryId, keyword){
@@ -647,6 +661,11 @@
           },dataType:'json',
           success:function(result){
             openModal(result.status, result.msg);
+            if(result.status == "SUCCESS"){
+              closeFormModal();
+              $("#updateName").val('');
+              $("#option").val('');
+            }
             
             // Send mobile notification for successful actions
             if (result.status === 'SUCCESS') {
@@ -692,6 +711,12 @@
           },dataType:'json',
           success:function(result){
             openModal(result.status, result.msg);
+            if(result.status == "SUCCESS"){
+              closeDeleteModal();
+              $("#deleteid").val('');
+              $("#deletevalue").val('');
+              $("#reason").val('');
+            }
             
             // Send mobile notification for successful deletion
             if (result.status === 'SUCCESS') {
@@ -711,15 +736,25 @@
 
       // Handle "Save Changes" button click in update modal
       $("#updateModal").on("click", ".btn-primary", function(){
-        var id = $("#updateModal").data('id');
-        var table = $("#updateModal").data('table');
-        var title = $("#updateModal").data('title');
+        var action = $("#updateModal").data('action');
         var newValue = $("#updateName").val().trim();
         
         if(newValue === ""){
           openModal("ERROR", "Please enter a value");
           return;
         }
+        
+        // Check if this is a keyword update
+        if(action === 'keyword'){
+          var keywordId = $("#updateModal").data('keyword-id');
+          updateKeyword(keywordId, newValue);
+          return;
+        }
+        
+        // Otherwise, it's a generic update
+        var id = $("#updateModal").data('id');
+        var table = $("#updateModal").data('table');
+        var title = $("#updateModal").data('title');
         
         $.ajax({
           url:'ajax.php',
@@ -748,15 +783,24 @@
 
       // Handle "Confirm Delete" button click in delete modal
       $("#deleteModal").on("click", ".btn-primary", function(){
+        var action = $("#deleteModal").data('action');
         var id = $("#deleteid").val();
-        var table = $("#deleteModal").data('table');
-        var title = $("#deleteModal").data('title');
         var reason = $("#reason").val().trim();
         
         if(reason === ""){
           openModal("ERROR", "Please enter a reason for deletion");
           return;
         }
+        
+        // Check if this is a keyword delete
+        if(action === 'keyword'){
+          deleteKeyword(id, reason);
+          return;
+        }
+        
+        // Otherwise, it's a generic delete
+        var table = $("#deleteModal").data('table');
+        var title = $("#deleteModal").data('title');
         
         $.ajax({
           url:'ajax.php',

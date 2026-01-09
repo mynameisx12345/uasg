@@ -11,7 +11,10 @@
         	$this->table = $table;
 
         	foreach ($data as $key => $value) {
-            	$this->fields[$key] = $value;
+            	// Only add non-null values to fields
+            	if ($value !== null) {
+                	$this->fields[$key] = $value;
+            	}
         	}
     	}
 
@@ -405,7 +408,7 @@
 		public function __construct($params = []){
 			parent::__construct('file_category_tbl',[
 				'file_category_id' => $params["id"] ?? null,
-				'file_category' => $params["category"] ?? null
+				'file_category' => $params["file_category"] ?? $params["category"] ?? null
 			]);
 		}
 	}
@@ -525,7 +528,7 @@
 			parent::__construct('deleted_record_tbl',[
 				'delete_id' => $params["id"] ?? null,
 				'data_deleted' => $params["data"] ?? null,
-				'reason_for_deleteion' => $params["reason"] ?? null,
+				'reason_for_deletion' => $params["reason"] ?? null,
 				'table_origin' => $params["table"] ?? null,
 				'datetime_deleted' => $params["datetime"] ?? null
 			]);

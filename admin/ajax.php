@@ -477,67 +477,20 @@
 	}else if($call == 7){
 		// Get admin users
 		try {
-			// Test with mock data first
-			$mockData = [
-				[
-					'user_id' => 1,
-					'user_name' => 'admin',
-					'fname' => 'System',
-					'lname' => 'Administrator',
-					'mname' => '',
-					'auxname' => '',
-					'email' => 'admin@uasg.edu',
-					'contact_number' => '09123456789',
-					'gender' => 'Male',
-					'birthdate' => '1990-01-01'
-				]
-			];
-			
-			// Try to get real data, fallback to mock
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByType('admin');
-				
-				if(empty($users)) {
-					// No users found, return mock data for testing
-					$result = ["data" => $mockData];
-				} else {
-					$result = ["data" => $users];
-				}
-			} else {
-				// Class not found, return mock data
-				$result = ["data" => $mockData];
-			}
-			
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByType('admin');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			error_log("Error in CALL 7: " . $e->getMessage());
-			// Return mock data on error for testing
-			$result = ["data" => [
-				[
-					'user_id' => 1,
-					'user_name' => 'admin',
-					'fname' => 'System',
-					'lname' => 'Administrator',
-					'mname' => '',
-					'auxname' => '',
-					'email' => 'admin@uasg.edu',
-					'contact_number' => '09123456789',
-					'gender' => 'Male',
-					'birthdate' => '1990-01-01'
-				]
-			]];
+			$result = ["data" => []];
 		}
 		echo json_encode($result);
 	}else if($call == 8){
 		// Get subadmin users with roles
 		try {
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByTypeWithRoles('subadmin');
-				$result = ["data" => $users ? $users : []];
-			} else {
-				$result = ["data" => []];
-			}
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByTypeWithRoles('subadmin');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			$result = ["data" => []];
 		}
@@ -545,13 +498,9 @@
 	}else if($call == 9){
 		// Get student users
 		try {
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByType('student');
-				$result = ["data" => $users ? $users : []];
-			} else {
-				$result = ["data" => []];
-			}
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByType('student');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			$result = ["data" => []];
 		}
@@ -952,7 +901,7 @@
 		}
 		echo json_encode($result);
 	}else if($call == 36){
-		// Test file categorization
+		// File categorization analysis
 		$filename = $_POST['FILENAME'] ?? '';
 		
 		if(empty($filename)) {
@@ -963,7 +912,7 @@
 		try {
 			$fileAnalyzer = new FileAnalyzer();
 			$extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-			$mimeType = 'application/octet-stream'; // Default mime type for testing
+			$mimeType = 'application/octet-stream';
 			
 			$analysis = $fileAnalyzer->analyzeFileContent($filename, $mimeType, $extension);
 			
@@ -978,7 +927,7 @@
 		echo json_encode($result);
 	}
 	
-	// CALL 37: Send Mobile Notification (for testing and real scenarios)
+	// CALL 37: Send Mobile Notification
 	else if($call == 37) {
 		try {
 			$data = $_POST['DATA'] ?? [];
@@ -1016,88 +965,6 @@
 					"supports_actions" => true
 				],
 				"msg" => "Mobile notification prepared successfully"
-			];
-			
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
-	}
-	
-	// CALL 38: Test Mobile Notification Features
-	else if($call == 38) {
-		try {
-			$data = $_POST['DATA'] ?? [];
-			$test_type = trim($data['TEST_TYPE'] ?? "basic");
-			
-			$notifications = [];
-			
-			switch($test_type) {
-				case 'file_upload':
-					$notifications[] = [
-						'title' => '📁 File Upload Complete',
-						'message' => 'Your file "test-document.pdf" has been uploaded successfully to the Academic category.',
-						'type' => 'success',
-						'url' => '/uasg/admin/entry-module.php',
-						'actions' => [
-							['action' => 'view', 'title' => '👁️ View File'],
-							['action' => 'dismiss', 'title' => '❌ Dismiss']
-						]
-					];
-					break;
-					
-				case 'system_alert':
-					$notifications[] = [
-						'title' => '⚠️ System Maintenance',
-						'message' => 'System maintenance scheduled for tonight at 11 PM. Please save your work.',
-						'type' => 'warning',
-						'url' => '/uasg/',
-						'requireInteraction' => true
-					];
-					break;
-					
-				case 'approval_needed':
-					$notifications[] = [
-						'title' => '📋 Document Approval Required',
-						'message' => 'A new document is waiting for your approval in the Admin panel.',
-						'type' => 'info',
-						'url' => '/uasg/admin/',
-						'badge' => '1'
-					];
-					break;
-					
-				case 'mobile_features':
-					$notifications[] = [
-						'title' => '📱 Mobile Features Test',
-						'message' => 'Testing vibration, sound, and mobile-specific notification features.',
-						'type' => 'info',
-						'vibrate' => [200, 100, 200, 100, 200],
-						'requireInteraction' => true,
-						'actions' => [
-							['action' => 'test', 'title' => '✅ Test Passed'],
-							['action' => 'dismiss', 'title' => '❌ Close']
-						]
-					];
-					break;
-					
-				default:
-					$notifications[] = [
-						'title' => '🧪 Basic Test Notification',
-						'message' => 'This is a basic test notification to verify mobile functionality.',
-						'type' => 'info',
-						'url' => '/uasg/mobile-notifications-test.html'
-					];
-			}
-			
-			$result = [
-				"status" => "SUCCESS",
-				"data" => [
-					"notifications" => $notifications,
-					"test_type" => $test_type,
-					"mobile_optimized" => true,
-					"timestamp" => time()
-				],
-				"msg" => "Test notifications prepared successfully"
 			];
 			
 		} catch(Exception $e) {
