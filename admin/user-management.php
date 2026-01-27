@@ -80,7 +80,6 @@ if (!isset($_SESSION['user_id'])) {
     }
     .dropdown-item.edit { color: #28a745; }
     .dropdown-item.delete { color: #dc3545; }
-    .dropdown-item.permission { color: #007bff; }
     
     .modal {
       display: none;
@@ -649,24 +648,6 @@ if (!isset($_SESSION['user_id'])) {
     </div>
   </div>
 
-  <!-- PERMISSION MODAL -->
-  <div class="modal" id="permissionModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <span>Manage Permissions</span>
-        <span class="close-modal" data-close>&times;</span>
-      </div>
-      <form id="permissionForm">
-        <input type="hidden" id="permissionUserId" name="user_id" />
-        <div id="permissionContent"></div>
-        <div class="form-actions" style="justify-content:flex-end;margin-top:1.5rem;">
-          <button type="submit" class="btn-primary">Save Permissions</button>
-          <button type="button" class="btn-secondary" data-close>Cancel</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
 <script>
 // Global Notification System
 function showNotification(message, type = 'info', title = '') {
@@ -898,9 +879,6 @@ function copyPassword() {
                                 <button class="dropdown-item edit editBtn" data-id="${row.user_id}" data-type="subadmin">
                                     <i class="fas fa-edit"></i> Edit
                                 </button>
-                                <button class="dropdown-item permission permissionBtn" data-id="${row.user_id}" data-name="${row.fname} ${row.lname}">
-                                    <i class="fas fa-shield-alt"></i> Permissions
-                                </button>
                                 <button class="dropdown-item delete deleteBtn" data-id="${row.user_id}" data-type="subadmin">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
@@ -1103,16 +1081,6 @@ function copyPassword() {
         }, 'json');
     });
 
-    // Permission button
-    $(document).on('click', '.permissionBtn', function() {
-        const userId = $(this).data('id');
-        const userName = $(this).data('name');
-        
-        $('#permissionUserId').val(userId);
-        loadPermissionModal(userId, userName);
-        openModal('permissionModal');
-    });
-
     function loadUserPermissions(userId) {
         $.post('ajax.php', { CALL: 15, user_id: userId }, function(resp) {
             if (resp.status === 'SUCCESS') {
@@ -1131,75 +1099,6 @@ function copyPassword() {
             }
         }, 'json');
     }
-
-    function loadPermissionModal(userId, userName) {
-        const content = `
-            <h4>Permissions for: ${userName}</h4>
-            <div class="permission-group">
-                <div class="permission-header">File Management</div>
-                <div class="permission-checks">
-                    <label class="permission-check">
-                        <input type="checkbox" name="perm_file_management_view" value="1"> View
-                    </label>
-                    <label class="permission-check">
-                        <input type="checkbox" name="perm_file_management_create" value="1"> Create
-                    </label>
-                    <label class="permission-check">
-                        <input type="checkbox" name="perm_file_management_edit" value="1"> Edit
-                    </label>
-                    <label class="permission-check">
-                        <input type="checkbox" name="perm_file_management_delete" value="1"> Delete
-                    </label>
-                </div>
-            </div>
-            <!-- Add more permission groups as needed -->
-        `;
-        $('#permissionContent').html(content);
-        
-        // Load existing permissions
-        $.post('ajax.php', { CALL: 15, user_id: userId }, function(resp) {
-            if (resp.status === 'SUCCESS') {
-                const permissions = resp.data;
-                permissions.forEach(function(perm) {
-                    $(`input[name="perm_${perm.permission_key}_view"]`).prop('checked', perm.can_view);
-                    $(`input[name="perm_${perm.permission_key}_create"]`).prop('checked', perm.can_create);
-                    $(`input[name="perm_${perm.permission_key}_edit"]`).prop('checked', perm.can_edit);
-                    $(`input[name="perm_${perm.permission_key}_delete"]`).prop('checked', perm.can_delete);
-                });
-            }
-        }, 'json');
-    }
-
-    // Permission form submission
-    $('#permissionForm').on('submit', function(e) {
-        e.preventDefault();
-        const userId = $('#permissionUserId').val();
-        const permissions = {};
-        
-        $('#permissionContent input[type="checkbox"]').each(function() {
-            const name = $(this).attr('name');
-            const match = name.match(/perm_([^_]+)_(.+)/);
-            if (match && $(this).is(':checked')) {
-                const module = match[1];
-                const permission = match[2];
-                if (!permissions[module]) permissions[module] = {};
-                permissions[module][permission] = 1;
-            }
-        });
-        
-        $.post('ajax.php', { 
-            CALL: 69, 
-            user_id: userId,
-            permissions: permissions
-        }, function(resp) {
-            if (resp.status === 'SUCCESS') {
-                closeModal();
-                showNotification('Permissions updated successfully', 'success', 'Success');
-            } else {
-                showNotification(resp.message || 'Failed to update permissions', 'error', 'Error');
-            }
-        }, 'json');
-    });
 
     function reloadTables() {
         adminTable.ajax.reload(null, false);

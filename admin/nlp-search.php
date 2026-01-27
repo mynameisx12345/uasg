@@ -70,6 +70,23 @@ header("Expires: 0");
 		}
 		.dropdown-item.view { color: #007bff; }
 		.dropdown-item.download { color: #28a745; }
+		
+		/* Badge styles */
+		.badge {
+			display: inline-block;
+			padding: 0.25em 0.6em;
+			font-size: 0.85em;
+			font-weight: 600;
+			line-height: 1;
+			color: #fff;
+			text-align: center;
+			white-space: nowrap;
+			vertical-align: baseline;
+			border-radius: 0.25rem;
+		}
+		.badge-primary {
+			background-color: #007bff;
+		}
 	</style>
 	<script src='../js/all.js?v=<?= time() ?>'></script>
 	<script src='../js/jquery.js?v=<?= time() ?>'></script>
@@ -136,6 +153,7 @@ header("Expires: 0");
 								<th>ID</th>
 								<th>File Name</th>
 								<th>Category</th>
+								<th>Content Preview</th>
 								<th>Type</th>
 								<th>Uploaded By</th>
 								<th>Date Uploaded</th>
@@ -156,6 +174,22 @@ header("Expires: 0");
 					<i class='fas fa-spinner fa-spin' style='font-size: 48px; color: #2196F3;'></i>
 				</div>
 				<p style='text-align: center;'>Please wait while we process your request.</p>
+			</div>
+		</div>
+
+		<!-- NLP Analysis Modal -->
+		<div id="nlpAnalysisModal" class="modal" style="display: none;">
+			<div class="modal-content" style="max-width: 900px;">
+				<div class="modal-header">
+					<h2><i class="fas fa-brain"></i> NLP Analysis Report</h2>
+					<span class="close-modal" onclick="closeNlpAnalysisModal()">&times;</span>
+				</div>
+				<div id="nlpAnalysisContent" style="padding: 20px 0;">
+					<!-- Content will be populated by JavaScript -->
+				</div>
+				<div style="text-align: right; margin-top: 20px;">
+					<button class="btn-secondary" onclick="closeNlpAnalysisModal()">Close</button>
+				</div>
 			</div>
 		</div>
 
@@ -363,6 +397,97 @@ header("Expires: 0");
 			modal.style.display = 'none';
 		}, 300);
 	}
+
+	// NLP Analysis Modal Functions
+	function closeNlpAnalysisModal() {
+		document.getElementById('nlpAnalysisModal').style.display = 'none';
+	}
+
+	// This function is called from file-management.php - need to be global
+	window.displayNlpAnalysis = function(data, fileName) {
+		const content = document.getElementById('nlpAnalysisContent');
+		const file = data.file;
+		const analysis = data.analysis;
+		
+		let html = `
+			<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+				<h3 style="margin-top: 0; color: #333;"><i class="fas fa-file"></i> ${fileName || file.original_filename || file.file_name}</h3>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+					<div><strong>Category:</strong> <span class="badge badge-primary">${file.category_name || 'Uncategorized'}</span></div>
+					<div><strong>Uploaded:</strong> ${new Date(file.datetime_uploaded).toLocaleString()}</div>
+				</div>
+			</div>
+		`;
+		
+		if(!analysis) {
+			html += `<div style="text-align: center; padding: 40px; color: #666;">
+				<i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ffc107; margin-bottom: 15px;"></i>
+				<p style="font-size: 16px;">No NLP analysis available for this file.</p>
+				<p style="font-size: 14px; color: #999;">The file may have been uploaded before NLP processing was enabled.</p>
+			</div>`;
+		} else {
+			const confidence = parseFloat(analysis.category_confidence || 0);
+			const confidenceColor = confidence >= 80 ? '#28a745' : confidence >= 60 ? '#ffc107' : '#dc3545';
+			
+			html += `<div style="margin-bottom: 25px;">
+				<h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;"><i class="fas fa-chart-line"></i> Categorization Analysis</h4>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+					<div><strong>Suggested Category:</strong><br><span class="badge badge-primary" style="font-size: 14px; margin-top: 5px;">${analysis.suggested_category || 'N/A'}</span></div>
+					<div><strong>Confidence Score:</strong><br>
+						<div style="margin-top: 5px;">
+							<div style="background: #e9ecef; height: 25px; border-radius: 12px; overflow: hidden;">
+								<div style="background: ${confidenceColor}; width: ${confidence}%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">${confidence.toFixed(1)}%</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>`;
+			
+			if(analysis.keywords && analysis.keywords.length > 0) {
+				html += `<div style="margin-bottom: 25px;"><h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;"><i class="fas fa-key"></i> Extracted Keywords</h4><div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;">`;
+				analysis.keywords.forEach(keyword => {
+					html += `<span style="background: #e7f3ff; color: #0066cc; padding: 6px 12px; border-radius: 15px; font-size: 13px; border: 1px solid #b3d9ff;">${keyword}</span>`;
+				});
+				html += `</div></div>`;
+			}
+			
+			if(analysis.entities && analysis.entities.length > 0) {
+				html += `<div style="margin-bottom: 25px;"><h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;"><i class="fas fa-tags"></i> Named Entities</h4><div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;">`;
+				analysis.entities.forEach(entity => {
+					const entityText = typeof entity === 'string' ? entity : (entity.name || entity.text || JSON.stringify(entity));
+					const entityType = typeof entity === 'object' ? (entity.type || '') : '';
+					html += `<span style="background: #fff3cd; color: #856404; padding: 6px 12px; border-radius: 15px; font-size: 13px; border: 1px solid #ffeaa7;">${entityText}${entityType ? ` <em style="font-size: 11px;">(${entityType})</em>` : ''}</span>`;
+				});
+				html += `</div></div>`;
+			}
+			
+			html += `<div style="margin-bottom: 25px;"><h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;"><i class="fas fa-info-circle"></i> Processing Statistics</h4>
+				<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+					<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 24px; font-weight: bold; color: #007bff;">${analysis.word_count || 0}</div>
+						<div style="font-size: 12px; color: #666; margin-top: 5px;">Words Extracted</div>
+					</div>
+					<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 24px; font-weight: bold; color: #28a745;">${analysis.provider || 'N/A'}</div>
+						<div style="font-size: 12px; color: #666; margin-top: 5px;">NLP Provider</div>
+					</div>
+					<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 24px; font-weight: bold; color: #ffc107;">${analysis.processing_time_ms || 0}ms</div>
+						<div style="font-size: 12px; color: #666; margin-top: 5px;">Processing Time</div>
+					</div>
+				</div>
+			</div>`;
+			
+			if(analysis.extracted_text) {
+				const textPreview = analysis.extracted_text.length > 500 ? analysis.extracted_text.substring(0, 500) + '...' : analysis.extracted_text;
+				html += `<div><h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;"><i class="fas fa-file-alt"></i> Extracted Text Preview</h4>
+					<div style="margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 6px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${textPreview}</div>
+				</div>`;
+			}
+		}
+		
+		content.innerHTML = html;
+	};
 	</script>
 
 	<script>
@@ -428,8 +553,35 @@ header("Expires: 0");
 				paging: true,
 				columns: [
 					{ data: "file_upload_id" },
-					{ data: "file_name" },
-					{ data: "file_category" },
+					{ data: "original_filename", render: function(data, type, row) {
+						return data || row.file_name || 'N/A';
+					}},
+					{ data: "file_category", render: function(data) {
+						return data ? `<span class="badge badge-primary">${data}</span>` : 'Uncategorized';
+					}},
+					{ data: "extracted_text", render: function(data, type, row) {
+						if (!data) return '<em>No content available</em>';
+						// Get search word for highlighting
+						const searchWord = $('#nlpSearchWord').val().trim();
+						if (searchWord && data.toLowerCase().includes(searchWord.toLowerCase())) {
+							// Find the position of the search word
+							const lowerData = data.toLowerCase();
+							const lowerSearch = searchWord.toLowerCase();
+							const pos = lowerData.indexOf(lowerSearch);
+							// Extract snippet around the match (100 chars before and after)
+							const start = Math.max(0, pos - 100);
+							const end = Math.min(data.length, pos + searchWord.length + 100);
+							let snippet = data.substring(start, end);
+							if (start > 0) snippet = '...' + snippet;
+							if (end < data.length) snippet = snippet + '...';
+							// Highlight the search term
+							const regex = new RegExp('(' + searchWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+							snippet = snippet.replace(regex, '<mark style="background-color: yellow; font-weight: bold;">$1</mark>');
+							return snippet;
+						}
+						// If no search word, show first 150 chars
+						return data.length > 150 ? data.substring(0, 150) + '...' : data;
+					}},
 					{ data: "mime_type" },
 					{ data: null, render: function(data) { return data.fname && data.lname ? data.fname + " " + data.lname : "Unknown"; } },
 					{ data: "datetime_uploaded", render: d => d ? new Date(d).toLocaleDateString() : "N/A" },
@@ -439,7 +591,7 @@ header("Expires: 0");
 						render: function(data, type, row) {
 							const fileId = row.file_upload_id;
 							const filePath = row.file_path || '';
-							const fileName = row.file_name || '';
+							const fileName = row.original_filename || row.file_name || '';
 							const fileSize = row.file_size || 0;
 							const mimeType = row.mime_type || '';
 							const dateUploaded = row.datetime_uploaded ? new Date(row.datetime_uploaded).toLocaleString() : 'N/A';
@@ -460,6 +612,12 @@ header("Expires: 0");
 											data-category="${category}"
 											data-uploader="${uploadedBy}">
 											<i class="fas fa-eye"></i> View Details
+										</button>
+										<button class="dropdown-item nlp viewNlpBtn" 
+											data-id="${fileId || ''}" 
+											data-name="${fileName}"
+											style="color: #6f42c1;">
+											<i class="fas fa-brain"></i> NLP Analysis
 										</button>
 										<button class="dropdown-item download downloadBtn" 
 											data-id="${fileId || ''}" 
@@ -499,6 +657,42 @@ header("Expires: 0");
 			
 			// Show file details in centered modal
 			showFileDetails(fileName, fileSize, mimeType, dateUploaded, category, uploadedBy);
+		});
+
+		// View NLP Analysis button
+		$(document).on('click', '.viewNlpBtn', function() {
+			const fileId = $(this).data('id');
+			const fileName = $(this).data('name');
+			
+			if(fileId) {
+				$.ajax({
+					url: 'ajax.php',
+					type: 'POST',
+					data: {
+						CALL: 'get_nlp_analysis',
+						file_id: fileId
+					},
+					dataType: 'json',
+					beforeSend: function() {
+						$('#loadingModal').show();
+					},
+					success: function(response) {
+						$('#loadingModal').hide();
+						
+						if(response.status === 'SUCCESS' || response.status === 'WARNING') {
+							displayNlpAnalysis(response, fileName);
+							document.getElementById('nlpAnalysisModal').style.display = 'flex';
+						} else {
+							showNotification(response.msg || 'Failed to load NLP analysis', 'error', 'Error');
+						}
+					},
+					error: function(xhr, status, error) {
+						$('#loadingModal').hide();
+						console.error('NLP Analysis error:', xhr.responseText);
+						showNotification('Failed to load NLP analysis. Please try again.', 'error', 'Error');
+					}
+				});
+			}
 		});
 
 		// Download button

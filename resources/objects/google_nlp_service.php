@@ -31,9 +31,154 @@ class GoogleNLPService {
         $configFile = __DIR__ . '/../../config/google_nlp_config.php';
         if (file_exists($configFile)) {
             $config = include($configFile);
-            return $config['api_key'] ?? '';
+            return $config['google']['api_key'] ?? $config['api_key'] ?? '';
         }
         return '';
+    }
+    
+    /**
+     * Analyze file and return categorization result (main method)
+     * @param string $filePath - Path to uploaded file
+     * @param string $mimeType - MIME type of file
+     * @return array
+     */
+    public function analyzeFile($filePath, $mimeType) {
+        $startTime = microtime(true);
+        
+        try {
+            // Extract text from file
+            require_once __DIR__ . '/text_extractor.php';
+            $extractor = new TextExtractor();
+            $extraction = $extractor->extractText($filePath, $mimeType);
+            
+            if (!$extraction['success']) {
+                return [
+                    'success' => false,
+                    'error' => 'Text extraction failed: ' . ($extraction['error'] ?? 'Unknown error'),
+                    'category_tag' => 'Uncategorized',
+                    'category_score' => 0,
+                    'extracted_text' => '',
+                    'word_count' => 0,
+                    'entities' => [],
+                    'keywords' => [],
+                    'processing_time_ms' => 0
+                ];
+            }
+            
+            if (empty($extraction['text'])) {
+                return [
+                    'success' => false,
+                    'error' => 'No text content extracted from file',
+                    'category_tag' => 'Uncategorized',
+                    'category_score' => 0,
+                    'extracted_text' => '',
+                    'word_count' => 0,
+                    'entities' => [],
+                    'keywords' => [],
+                    'processing_time_ms' => 0
+                ];
+            }
+            
+            $text = $extraction['text'];
+            $wordCount = str_word_count($text);
+            
+            // Check if API key is configured
+            if (empty($this->apiKey)) {
+                throw new Exception('Google Cloud API key not configured');
+            }
+            
+            // Use Google Cloud NLP for categorization - Pure AI analysis
+            $result = $this->categorizeWithGoogle($text);
+            
+            $processingTime = round((microtime(true) - $startTime) * 1000);
+            
+            return [
+                'success' => true,
+                'category_tag' => $result['category'],
+                'category_score' => $result['confidence'],
+                'extracted_text' => substr($text, 0, 50000), // Limit stored text
+                'word_count' => $wordCount,
+                'entities' => $result['entities'] ?? [],
+                'keywords' => $result['keywords'] ?? [],
+                'full_analysis' => $result,
+                'processing_time_ms' => $processingTime
+            ];
+            
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'category_tag' => 'Uncategorized',
+                'category_score' => 0,
+                'extracted_text' => '',
+                'word_count' => 0,
+                'entities' => [],
+                'keywords' => [],
+                'processing_time_ms' => round((microtime(true) - $startTime) * 1000)
+            ];
+        }
+    }
+    
+    /**
+     * Categorize document using Google Cloud Natural Language API
+     * @param string $text - Document text
+     * @return array
+     */
+    private function categorizeWithGoogle($text) {
+        try {
+            // Call classifyText API for categories
+            $classification = $this->classifyContent($text);
+            
+            // Call analyzeEntities API for entities
+            $entityAnalysis = $this->analyzeEntities($text);
+            
+            // Extract category from Google's response
+            $category = 'Uncategorized';
+            $confidence = 0;
+            
+            if ($classification['success'] && !empty($classification['categories'])) {
+                // Get the top category
+                $topCategory = $classification['categories'][0];
+                $category = $this->formatGoogleCategory($topCategory['name']);
+                $confidence = round($topCategory['confidence'] * 100);
+            }
+            
+            // Extract entities
+            $entities = [];
+            if ($entityAnalysis['success'] && !empty($entityAnalysis['entities'])) {
+                foreach (array_slice($entityAnalysis['entities'], 0, 5) as $entity) {
+                    $entities[] = $entity['name'];
+                }
+            }
+            
+            // Extract keywords (top entities)
+            $keywords = array_slice($entities, 0, 8);
+            
+            return [
+                'category' => $category,
+                'confidence' => $confidence,
+                'keywords' => $keywords,
+                'entities' => $entities,
+                'all_categories' => $classification['categories'] ?? [],
+                'provider' => 'Google Cloud Natural Language'
+            ];
+            
+        } catch (Exception $e) {
+            throw new Exception('Google NLP analysis failed: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Format Google category name to be more readable
+     */
+    private function formatGoogleCategory($googleCategory) {
+        // Google returns categories like "/Law & Government/Legal"
+        // Extract the last part and make it readable
+        $parts = explode('/', trim($googleCategory, '/'));
+        $lastPart = end($parts);
+        
+        // Make it more readable
+        return str_replace('&', 'and', $lastPart);
     }
     
     /**

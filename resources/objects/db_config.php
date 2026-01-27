@@ -4,7 +4,7 @@ class Database {
     private $pdo;
 
     private $host = 'localhost';
-    private $db   = 'uasg_db';
+    private $db   = 'uasg_copy_db';
     private $user = 'root';
     private $pass = '';
     private $charset = 'utf8mb4';

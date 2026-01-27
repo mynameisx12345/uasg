@@ -108,99 +108,9 @@
         -->
         <!-- TAB CONTENT: CATEGORIES -->
         <div class="tab-content" id="categories">
-          <div class="compact-form">
-            <h3>Add New File Category</h3>
-            <div class="form-columns">
-              <div class="form-column">
-                <div class="form-section">
-                  <h4>Category Information</h4>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="categoryName">File Category Name</label>
-                      <input type="text" id="categoryName" name="categoryName" placeholder="Enter file category..." required>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="form-column">
-                <div class="form-section">
-                  <h4>Actions</h4>
-                  <div class="form-actions">
-                    <button type="submit" id='saveFileCategory' class="btn-primary">Save Category</button>
-                    <button type="reset" class="btn-secondary">Clear</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <br/>
-          <div class="table-container">
-            <table class='data-table' id='filecategorytable'>
-              <thead>
-                <tr>
-                  <th>File Category ID</th>
-                  <th>File Category</th>
-                  <th>Keywords</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Keywords Management Section -->
-          <div class="compact-form" style="margin-top: 30px;">
-            <h3>Manage Keywords for Auto-Categorization</h3>
-            <div class="form-columns">
-              <div class="form-column">
-                <div class="form-section">
-                  <h4>Add Keyword</h4>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="keywordCategory">Select Category</label>
-                      <select id="keywordCategory" name="keywordCategory" required>
-                        <option value="">Select a category...</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label for="keywordText">Keyword</label>
-                      <input type="text" id="keywordText" name="keywordText" placeholder="Enter keyword for auto-detection..." required>
-                      <small>Keywords help automatically categorize uploaded files based on filename content</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="form-column">
-                <div class="form-section">
-                  <h4>Actions</h4>
-                  <div class="form-actions">
-                    <button type="submit" id='saveKeyword' class="btn-primary">Add Keyword</button>
-                    <button type="reset" class="btn-secondary">Clear</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <br/>
-          <div class="table-container">
-            <h3>Keywords by Category</h3>
-            <table class='data-table' id='keywordstable'>
-              <thead>
-                <tr>
-                  <th>Keyword ID</th>
-                  <th>Category</th>
-                  <th>Keyword</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                
-              </tbody>
-            </table>
+          <div class="alert alert-info">
+            <h3>File Categories Removed</h3>
+            <p>File categorization is now handled automatically using NLP (Natural Language Processing) analysis. Categories are assigned based on file content, not predefined categories.</p>
           </div>
         </div>
 
@@ -347,9 +257,7 @@
   <script>
     $(document).ready(function(){
       let positiontable;
-      let filecategorytable;
       let taskcategory;
-      let keywordstable;
 
       $(document).on("click",".deleteBtn",function(){
         var id = $(this).data('id');
@@ -414,41 +322,7 @@
         });
       }
 
-      function getAllFileCategory(){
-        filecategorytable = $("#filecategorytable").DataTable({
-          ajax:{
-            url:'ajax.php',
-            type:'post',
-            data:{
-              CALL:5
-            },dataType:'json',
-          },
-          scroll:'50vh',
-          scrollCollapse:true,
-          paging:true,
-          columns: [
-            { data: "file_category_id" },
-            { data: "file_category" },
-            { data: "keywords", 
-              render: function(data) {
-                  return data ? '<span class="keyword-count">' + data.split(',').length + ' keywords</span>' : '<span class="no-keywords">No keywords</span>';
-              }
-            },
-            { data: 'file_category_id',
-              render: function(id) {
-                  return '<button class="btn-primary updateBtn" data-id="'+id+'" data-table="file_category_tbl" data-title="File Category" title="Update"><i class="fas fa-edit"></i> Update</button> <button class="btn-secondary deleteBtn" data-id="'+id+'" data-table="file_category_tbl" data-title="File Category" title="Delete File Category"><i class="far fa-trash-alt"></i> Delete</button>';
-              }
-            }
-          ],
-          columnDefs: [
-            { targets: 0, visible: false, searchable: false } 
-          ],
-          initComplete: function(settings, json) {
-            // Populate category dropdown for keywords
-            populateCategoryDropdown();
-          }
-        });
-      }
+      // getAllFileCategory function and all file category/keyword handling code removed
 
       function getAllTaskCategory(){
         taskcategory = $("#taskcategory").DataTable({
@@ -482,62 +356,11 @@
       }
 
       getAllPositions();
-      getAllFileCategory();
       getAllTaskCategory();
-      getAllKeywords();
-
-      function populateCategoryDropdown(){
-        $.ajax({
-          url:'ajax.php',
-          type:'post',
-          data:{CALL:5},
-          dataType:'json',
-          success:function(result){
-            var options = '<option value="">Select a category...</option>';
-            if(result.data){
-              result.data.forEach(function(category){
-                options += '<option value="'+category.file_category_id+'">'+category.file_category+'</option>';
-              });
-            }
-            $("#keywordCategory").html(options);
-          }
-        });
-      }
-
-      function getAllKeywords(){
-        keywordstable = $("#keywordstable").DataTable({
-          ajax:{
-            url:'ajax.php',
-            type:'post',
-            data:{
-              CALL:33
-            },dataType:'json',
-          },
-          scroll:'50vh',
-          scrollCollapse:true,
-          paging:true,
-          columns:[
-            { data: "file_category_key_id" },
-            { data: "file_category" },
-            { data: "keyword" },
-            { data: 'file_category_key_id',
-              render: function(id) {
-                  return '<button class="btn-primary updateKeywordBtn" data-id="'+id+'" title="Update Keyword"><i class="fas fa-edit"></i> Update</button> <button class="btn-secondary deleteKeywordBtn" data-id="'+id+'" title="Delete Keyword"><i class="far fa-trash-alt"></i> Delete</button>';
-              }
-            },
-          ],
-          columnDefs: [
-            { targets: 0, visible: false, searchable: false } 
-          ]
-        });
-      }
 
       function reloadAllAjaxTables(){
         positiontable.ajax.reload(null, false);
-        filecategorytable.ajax.reload(null, false);
         taskcategory.ajax.reload(null, false);
-        keywordstable.ajax.reload(null, false);
-        populateCategoryDropdown(); // Refresh dropdown
       }
 
       function saveData(call,dataArr = []){
@@ -568,15 +391,6 @@
         }
       });
 
-      $("#saveFileCategory").click(function(){
-        var category = $("#categoryName").val();
-        if(category.trim() === ""){
-          openModal("ERROR","Please enter file category name");
-        }else{
-          saveData(2,{NAME:category});
-        }
-      });
-
       $("#saveTaskCategory").click(function(){
         var taskcategory = $("#taskCategoryName").val();
         if(taskcategory.trim() === ""){
@@ -586,157 +400,8 @@
         }
       });
 
-      // Keywords management
-      $("#saveKeyword").click(function(){
-        var categoryId = $("#keywordCategory").val();
-        var keyword = $("#keywordText").val();
-        if(categoryId === ""){
-          openModal("ERROR","Please select a category");
-        }else if(keyword.trim() === ""){
-          openModal("ERROR","Please enter a keyword");
-        }else{
-          saveKeyword(categoryId, keyword.trim());
-        }
-      });
-
-      $(document).on("click",".updateKeywordBtn",function(){
-        var keywordId = $(this).data('id');
-        var row = $(this).closest("tr");
-        var rowData = keywordstable.row(row).data();
-        var currentKeyword = rowData.keyword;
-        var categoryName = rowData.file_category;
-        
-        // Populate modal
-        $('#option').val(categoryName + ' - ' + currentKeyword);
-        $('#updateName').val(currentKeyword);
-        $('#updateModal').data('keyword-id', keywordId);
-        $('#updateModal').data('action', 'keyword');
-        
-        openFormModal();
-      });
-
-      $(document).on("click",".deleteKeywordBtn",function(){
-        var keywordId = $(this).data('id');
-        var row = $(this).closest("tr");
-        var rowData = keywordstable.row(row).data();
-        var keyword = rowData.keyword;
-        var categoryName = rowData.file_category;
-        
-        // Populate delete modal
-        $('#deletevalue').val(categoryName + ' - ' + keyword);
-        $('#deleteid').val(keywordId);
-        $('#deleteModal').data('action', 'keyword');
-        $('#reason').val('');
-        
-        openDeleteModal();
-      });
-
-      function saveKeyword(categoryId, keyword){
-        $.ajax({
-          url:'ajax.php',
-          type:'post',
-          data:{
-            CALL:32,
-            DATA:{category_id:categoryId, keyword:keyword}
-          },dataType:'json',
-          success:function(result){
-            openModal(result.status, result.msg);
-            if(result.status == "SUCCESS"){
-              $("#keywordText").val('');
-              $("#keywordCategory").val('');
-            }
-          },complete:function(){
-            reloadAllAjaxTables();
-          }
-        });
-      }
-
-      function updateKeyword(keywordId, keyword){
-        $.ajax({
-          url:'ajax.php',
-          type:'post',
-          data:{
-            CALL:34,
-            DATA:{keyword_id:keywordId, keyword:keyword}
-          },dataType:'json',
-          success:function(result){
-            openModal(result.status, result.msg);
-            if(result.status == "SUCCESS"){
-              closeFormModal();
-              $("#updateName").val('');
-              $("#option").val('');
-            }
-            
-            // Send mobile notification for successful actions
-            if (result.status === 'SUCCESS') {
-              if (typeof UASGPWAHelper !== 'undefined') {
-                if (this.url.includes('CALL:32')) {
-                  // Adding keyword
-                  UASGPWAHelper.notifySuccess(
-                    '✅ Keyword Added',
-                    'New keyword has been successfully added to the category.',
-                    window.location.href
-                  );
-                } else if (this.url.includes('CALL:33')) {
-                  // Updating keyword
-                  UASGPWAHelper.notifySuccess(
-                    '📝 Keyword Updated',
-                    'The keyword has been successfully updated.',
-                    window.location.href
-                  );
-                }
-              }
-            } else if (result.status === 'ERROR') {
-              // Show error notification
-              if (typeof UASGPWAHelper !== 'undefined') {
-                UASGPWAHelper.notifyError(
-                  '❌ Operation Failed',
-                  result.msg || 'An error occurred while processing your request.'
-                );
-              }
-            }
-          },complete:function(){
-            reloadAllAjaxTables();
-          }
-        });
-      }
-
-      function deleteKeyword(keywordId, reason){
-        $.ajax({
-          url:'ajax.php',
-          type:'post',
-          data:{
-            CALL:35,
-            DATA:{keyword_id:keywordId, reason:reason}
-          },dataType:'json',
-          success:function(result){
-            openModal(result.status, result.msg);
-            if(result.status == "SUCCESS"){
-              closeDeleteModal();
-              $("#deleteid").val('');
-              $("#deletevalue").val('');
-              $("#reason").val('');
-            }
-            
-            // Send mobile notification for successful deletion
-            if (result.status === 'SUCCESS') {
-              if (typeof UASGPWAHelper !== 'undefined') {
-                UASGPWAHelper.notifySuccess(
-                  '🗑️ Keyword Deleted',
-                  'The keyword has been successfully removed from the category.',
-                  window.location.href
-                );
-              }
-            }
-          },complete:function(){
-            reloadAllAjaxTables();
-          }
-        });
-      }
-
       // Handle "Save Changes" button click in update modal
       $("#updateModal").on("click", ".btn-primary", function(){
-        var action = $("#updateModal").data('action');
         var newValue = $("#updateName").val().trim();
         
         if(newValue === ""){
@@ -744,14 +409,7 @@
           return;
         }
         
-        // Check if this is a keyword update
-        if(action === 'keyword'){
-          var keywordId = $("#updateModal").data('keyword-id');
-          updateKeyword(keywordId, newValue);
-          return;
-        }
-        
-        // Otherwise, it's a generic update
+        // Generic update
         var id = $("#updateModal").data('id');
         var table = $("#updateModal").data('table');
         var title = $("#updateModal").data('title');
@@ -783,7 +441,6 @@
 
       // Handle "Confirm Delete" button click in delete modal
       $("#deleteModal").on("click", ".btn-primary", function(){
-        var action = $("#deleteModal").data('action');
         var id = $("#deleteid").val();
         var reason = $("#reason").val().trim();
         
@@ -792,13 +449,7 @@
           return;
         }
         
-        // Check if this is a keyword delete
-        if(action === 'keyword'){
-          deleteKeyword(id, reason);
-          return;
-        }
-        
-        // Otherwise, it's a generic delete
+        // Generic delete
         var table = $("#deleteModal").data('table');
         var title = $("#deleteModal").data('title');
         
@@ -829,8 +480,5 @@
       });
     });
   </script>
-  
-  <!-- PWA Scripts -->
-  <script src="../js/pwa-helper.js"></script>
 </body>
 </html>

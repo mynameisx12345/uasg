@@ -85,6 +85,7 @@ if (!$canView) {
 		}
 		.dropdown-item.view { color: #007bff; }
 		.dropdown-item.download { color: #28a745; }
+		.dropdown-item.nlp-analysis { color: #6f42c1; }
 	</style>
 	<script src='../js/all.js'></script>
 	<script src='../js/jquery.js'></script>
@@ -157,6 +158,17 @@ if (!$canView) {
 					</div>
 				</div>
 			</div>
+		</div>
+	</div>
+	
+	<!-- NLP Analysis Modal -->
+	<div id="nlpAnalysisModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+		<div style="background:white; max-width:900px; width:90%; max-height:90vh; overflow:auto; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+			<div style="padding:1.5rem; border-bottom:1px solid #dee2e6; display:flex; justify-content:space-between; align-items:center;">
+				<h3 style="margin:0;">NLP Analysis Report</h3>
+				<button onclick="closeNlpAnalysisModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999;">&times;</button>
+			</div>
+			<div id="nlpAnalysisContent" style="padding:1.5rem;"></div>
 		</div>
 	</div>
 	
@@ -292,6 +304,56 @@ if (!$canView) {
 		}
 	});
 
+	// NLP Analysis Modal Functions
+	function closeNlpAnalysisModal() {
+		document.getElementById('nlpAnalysisModal').style.display = 'none';
+	}
+
+	window.displayNlpAnalysis = function(response, fileName) {
+		const analysis = response.analysis || {};
+		const file = response.file || {};
+		const keywords = analysis.keywords || [];
+		const entities = analysis.entities || [];
+		const sentiment = analysis.sentiment || {};
+		
+		let html = `<div style="font-family:Arial,sans-serif;"><div style="background:#f8f9fa;padding:1rem;margin-bottom:1rem;border-radius:4px;"><h4 style="margin:0 0 0.5rem 0;color:#333;">${fileName}</h4><div style="font-size:0.9rem;color:#666;"><strong>Category:</strong> ${file.category_name || 'N/A'} | <strong>Uploaded:</strong> ${file.created_at || 'N/A'}</div></div>`;
+		
+		if (file.suggested_category_name) {
+			const confidence = parseFloat(file.confidence_score || 0);
+			const barColor = confidence >= 80 ? '#28a745' : confidence >= 60 ? '#ffc107' : '#dc3545';
+			html += `<div style="margin-bottom:1.5rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Categorization Analysis</h5><div style="background:#f8f9fa;padding:1rem;border-radius:4px;"><div style="margin-bottom:0.5rem;"><strong>Suggested Category:</strong> ${file.suggested_category_name}</div><div style="margin-bottom:0.5rem;"><strong>Confidence:</strong> ${confidence.toFixed(2)}%</div><div style="background:#e9ecef;border-radius:4px;height:20px;overflow:hidden;"><div style="background:${barColor};height:100%;width:${confidence}%;transition:width 0.3s;"></div></div></div></div>`;
+		}
+		
+		if (keywords.length > 0) {
+			html += `<div style="margin-bottom:1.5rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Keywords</h5><div style="display:flex;flex-wrap:wrap;gap:0.5rem;">`;
+			keywords.forEach(kw => { html += `<span style="background:#007bff;color:white;padding:0.4rem 0.8rem;border-radius:20px;font-size:0.85rem;">${kw}</span>`; });
+			html += `</div></div>`;
+		}
+		
+		if (entities.length > 0) {
+			html += `<div style="margin-bottom:1.5rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Entities</h5><div style="display:flex;flex-wrap:wrap;gap:0.5rem;">`;
+			entities.forEach(ent => { html += `<span style="background:#ffc107;color:#333;padding:0.4rem 0.8rem;border-radius:20px;font-size:0.85rem;">${ent.text} <small style="opacity:0.7;">(${ent.type})</small></span>`; });
+			html += `</div></div>`;
+		}
+		
+		if (Object.keys(sentiment).length > 0) {
+			html += `<div style="margin-bottom:1.5rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Sentiment</h5><pre style="background:#f8f9fa;padding:1rem;border-radius:4px;overflow:auto;font-size:0.85rem;">${JSON.stringify(sentiment, null, 2)}</pre></div>`;
+		}
+		
+		const wordCount = analysis.word_count || 0;
+		const provider = analysis.nlp_provider || 'Unknown';
+		const processingTime = analysis.processing_time_ms || 0;
+		html += `<div style="margin-bottom:1.5rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Statistics</h5><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;"><div style="background:#f8f9fa;padding:1rem;border-radius:4px;text-align:center;"><div style="font-size:1.5rem;font-weight:bold;color:#007bff;">${wordCount}</div><div style="font-size:0.85rem;color:#666;">Words</div></div><div style="background:#f8f9fa;padding:1rem;border-radius:4px;text-align:center;"><div style="font-size:1.2rem;font-weight:bold;color:#28a745;">${provider}</div><div style="font-size:0.85rem;color:#666;">Provider</div></div><div style="background:#f8f9fa;padding:1rem;border-radius:4px;text-align:center;"><div style="font-size:1.5rem;font-weight:bold;color:#6f42c1;">${processingTime}ms</div><div style="font-size:0.85rem;color:#666;">Processing</div></div></div></div>`;
+		
+		if (analysis.extracted_text) {
+			const preview = analysis.extracted_text.substring(0, 500) + (analysis.extracted_text.length > 500 ? '...' : '');
+			html += `<div style="margin-bottom:1rem;"><h5 style="color:#495057;margin-bottom:0.75rem;">Extracted Text Preview</h5><div style="background:#f8f9fa;padding:1rem;border-radius:4px;max-height:200px;overflow:auto;font-family:monospace;font-size:0.85rem;white-space:pre-wrap;">${preview}</div></div>`;
+		}
+		
+		html += `</div>`;
+		document.getElementById('nlpAnalysisContent').innerHTML = html;
+	};
+
 	$(document).ready(function(){
 		let nlpFilesTable;
 		const currentUserId = <?= $userId ?>;
@@ -386,6 +448,11 @@ if (!$canView) {
 											data-uploader="${uploadedBy}">
 											<i class="fa fa-eye"></i> View Details
 										</button>
+										<button class="dropdown-item nlp-analysis viewNlpBtn" 
+											data-id="${fileId || ''}" 
+											data-name="${fileName}">
+											<i class="fa fa-brain"></i> NLP Analysis
+										</button>
 										<button class="dropdown-item download downloadBtn" 
 											data-id="${fileId || ''}" 
 											data-path="${filePath}">
@@ -425,6 +492,42 @@ if (!$canView) {
 			const uploadedBy = $(this).data('uploader');
 			
 			showFileDetails(fileName, fileSize, mimeType, dateUploaded, category, uploadedBy);
+		});
+
+		// View NLP Analysis button
+		$(document).on('click', '.viewNlpBtn', function() {
+			const fileId = $(this).data('id');
+			const fileName = $(this).data('name');
+			
+			if(fileId) {
+				$.ajax({
+					url: 'ajax.php',
+					type: 'POST',
+					data: {
+						CALL: 'get_nlp_analysis',
+						file_id: fileId
+					},
+					dataType: 'json',
+					beforeSend: function() {
+						$('#loadingModal').show();
+					},
+					success: function(response) {
+						$('#loadingModal').hide();
+						
+						if(response.status === 'SUCCESS' || response.status === 'WARNING') {
+							displayNlpAnalysis(response, fileName);
+							document.getElementById('nlpAnalysisModal').style.display = 'flex';
+						} else {
+							showNotification(response.msg || 'Failed to load NLP analysis', 'ERROR');
+						}
+					},
+					error: function(xhr, status, error) {
+						$('#loadingModal').hide();
+						console.error('NLP Analysis error:', xhr.responseText);
+						showNotification('Failed to load NLP analysis. Please try again.', 'ERROR');
+					}
+				});
+			}
 		});
 
 		// Download button

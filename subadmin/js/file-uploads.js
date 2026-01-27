@@ -372,11 +372,30 @@ $(document).ready(function(){
                         .html('<i class="fa fa-spinner fa-spin"></i> Uploading...');
                 },
                 success: function(response) {
-                    if (response.status === 'SUCCESS') {
-                        openModal('SUCCESS', 
-                              'File uploaded successfully!<br><br>' +
-                              '<strong>🤖 Auto-categorized as:</strong> ' + nlpCategory + '<br>' +
-                              '<strong>📊 Confidence:</strong> ' + nlpScore.toFixed(1) + '%');
+                    if (response.status === 'SUCCESS' || response.success) {
+                        let notificationMsg = 'File uploaded successfully!<br><br>';
+                        
+                        // Display NLP results from response
+                        if (response.category_tag || response.nlp_result) {
+                            const category = response.category_tag || response.nlp_result?.category_tag || 'Uncategorized';
+                            const score = response.category_score || response.nlp_result?.category_score || 0;
+                            
+                            notificationMsg += '<strong>🤖 Auto-categorized as:</strong> ' + category + '<br>';
+                            notificationMsg += '<strong>📊 Confidence:</strong> ' + score + '%';
+                            
+                            // Add sentiment if available
+                            if (response.nlp_result?.sentiment && response.nlp_result.sentiment.length > 0) {
+                                const topEmotion = response.nlp_result.sentiment[0];
+                                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                                   topEmotion.label === 'anger' ? '😠' : 
+                                                   topEmotion.label === 'sadness' ? '😢' : 
+                                                   topEmotion.label === 'fear' ? '😨' : 
+                                                   topEmotion.label === 'love' ? '❤️' : '😮';
+                                notificationMsg += '<br>' + emotionIcon + ' <strong>Sentiment:</strong> ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
+                            }
+                        }
+                        
+                        openModal('SUCCESS', notificationMsg);
                         
                         resetUploadForm();
                         filesTable.ajax.reload();

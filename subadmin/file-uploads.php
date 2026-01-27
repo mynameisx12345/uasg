@@ -255,8 +255,8 @@ if (!$canView) {
                   <div class="form-section">
                     <h4>File Information</h4>
                     <div class="alert alert-info" style="margin-bottom: 15px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
-                      <strong>🤖 Auto-Categorization Enabled</strong>
-                      <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
+                      <strong>🤖 AI-Powered Classification</strong>
+                      <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning categorization!</p>
                     </div>
                     <div class="form-row">
                       <label for="uploadTitle">File Title:</label>
@@ -267,16 +267,20 @@ if (!$canView) {
                       <textarea id="uploadDescription" name="description" class="form-control" rows="3" placeholder="Optional: File description"></textarea>
                     </div>
                     <!-- NLP Preview -->
-                    <div id="nlpPreview" style="display: none; margin-top: 15px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                      <h5 style="margin: 0 0 10px 0; font-size: 14px; color: #555;">📊 Classification Preview</h5>
-                      <div style="font-size: 13px;">
+                    <div id="nlpPreview" style="display: none; margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #4CAF50;">
+                      <h5 style="margin: 0 0 10px 0; font-size: 14px; color: #333;">📊 Classification Preview</h5>
+                      <div style="font-size: 13px; line-height: 1.8;">
                         <div style="margin: 5px 0;">
-                          <strong>Suggested Category:</strong> 
-                          <span id="suggestedCategory" style="color: #2196F3;">Will be detected on upload</span>
+                          <strong>🏷️ Suggested Category:</strong> 
+                          <span id="suggestedCategory" style="color: #2196F3; font-weight: 600;">Will be detected on upload</span>
                         </div>
                         <div style="margin: 5px 0;">
-                          <strong>Confidence:</strong> 
-                          <span id="categoryConfidence">TBD</span>
+                          <strong>📈 Confidence Score:</strong> 
+                          <span id="categoryConfidence" style="color: #4CAF50; font-weight: 600;">TBD</span>
+                        </div>
+                        <div id="sentimentPreview" style="margin: 5px 0; display: none;">
+                          <strong>😊 Sentiment:</strong> 
+                          <span id="sentiment" style="font-weight: 600;">-</span>
                         </div>
                       </div>
                     </div>
@@ -512,6 +516,19 @@ if (!$canView) {
                           '<span style="color: ' + confidenceColor + '; font-weight: 600;">' +
                           score.toFixed(1) + '% (' + confidenceLabel + ')</span>';
                       
+                      // Show sentiment if available
+                      if (result.sentiment && result.sentiment.length > 0) {
+                          const topEmotion = result.sentiment[0];
+                          const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                             topEmotion.label === 'anger' ? '😠' : 
+                                             topEmotion.label === 'sadness' ? '😢' : 
+                                             topEmotion.label === 'fear' ? '😨' : 
+                                             topEmotion.label === 'love' ? '❤️' : '😮';
+                          document.getElementById('sentimentPreview').style.display = 'block';
+                          document.getElementById('sentiment').innerHTML = 
+                              emotionIcon + ' <strong>' + topEmotion.label + '</strong> (' + (topEmotion.score * 100).toFixed(1) + '%)';
+                      }
+                      
                       // Store NLP data in form
                       $('#uploadForm').data('nlp-category', category);
                       $('#uploadForm').data('nlp-score', score);
@@ -547,10 +564,12 @@ if (!$canView) {
       document.getElementById('uploadForm').reset();
       document.getElementById('filePreview').style.display = 'none';
       document.getElementById('nlpPreview').style.display = 'none';
+      document.getElementById('sentimentPreview').style.display = 'none';
       document.getElementById('fileName').textContent = '';
       document.getElementById('fileSize').textContent = '';
       document.getElementById('suggestedCategory').textContent = 'Will be detected on upload';
       document.getElementById('categoryConfidence').textContent = 'TBD';
+      document.getElementById('sentiment').textContent = '-';
       $('#uploadForm').removeData('nlp-category');
       $('#uploadForm').removeData('nlp-score');
       $('#uploadForm').removeData('nlp-analysis');

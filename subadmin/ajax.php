@@ -10,9 +10,10 @@ if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['CALL'])) {
     if ($_GET['CALL'] === 'download') {
         ob_end_clean();
         $fileId = $_GET['file_id'] ?? 0;
+        $userId = $_SESSION['user_id'] ?? null;
         try {
             $fileManager = new FileManager();
-            $fileManager->downloadFile($fileId);
+            $fileManager->downloadFile($fileId, $userId);
             exit;
         } catch(Exception $e) {
             header("Content-Type: application/json");
@@ -60,31 +61,34 @@ $result = [];
 
 // NLP analysis before upload (for preview)
 if($call === 'nlp_analyze') {
-    require_once '../resources/objects/google_nlp_service.php';
-    $m = new Main('file_upload_tbl');
+    require_once '../resources/objects/nlpcloud_service.php';
     if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
         try {
             $file = $_FILES['file'];
             $tmpPath = $file['tmp_name'];
             $mimeType = $file['type'];
 
-            $configFile = '../config/google_nlp_config.php';
-            $apiKey = '';
-            if (file_exists($configFile)) {
-                $config = include($configFile);
-                $apiKey = $config['api_key'] ?? '';
+            // Use NLP Cloud service
+            $nlp = new NLPCloudService();
+            $res = $nlp->analyzeFile($tmpPath, $mimeType);
+
+            if ($res['success']) {
+                $result = [
+                    'status' => 'SUCCESS',
+                    'category' => $res['category_tag'] ?? 'Uncategorized',
+                    'score' => $res['category_score'] ?? 0,
+                    'keywords' => $res['keywords'] ?? [],
+                    'entities' => $res['entities'] ?? [],
+                    'sentiment' => $res['sentiment'] ?? [],
+                    'word_count' => $res['word_count'] ?? 0,
+                    'nlp_analysis' => $res
+                ];
+            } else {
+                $result = [
+                    'status' => 'ERROR',
+                    'msg' => 'NLP analysis failed: ' . ($res['error'] ?? 'Unknown error')
+                ];
             }
-
-            $nlp = new GoogleNLPService($apiKey);
-            $categories = $m->getFileCategories() ?: [];
-            $res = $nlp->analyzeFileAndSuggestCategory($tmpPath, $mimeType, $categories);
-
-            $result = [
-                'status' => 'SUCCESS',
-                'category' => $res['suggested_category_name'] ?? 'Uncategorized',
-                'score'=> $res['confidence_score'] ?? 0,
-                'nlp_analysis' => $res
-            ];
         } catch(Exception $e) {
             $result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
         }
@@ -95,79 +99,56 @@ if($call === 'nlp_analyze') {
     exit;
 }
 
-if($call === 'nlp_search_files'){
+if($call === 'get_nlp_analysis'){
     try {
-        require_once '../config/google_nlp_config.php';
-        require_once '../resources/objects/google_nlp_service.php';
-        
-        $searchWord = $_POST['SEARCH_WORD'] ?? '';
-        $categoryId = $_POST['CATEGORY_ID'] ?? '';
-        
-        $db = Database::getInstance();
+        $fileId = $_POST['file_id'] ?? 0;
         $userId = $_SESSION['user_id'] ?? 0;
         
         // Check permission
         if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
-            echo json_encode(['data' => [], 'error' => 'Permission denied']);
+            echo json_encode(['status' => 'ERROR', 'msg' => 'Permission denied']);
             exit;
         }
         
-        // Subadmins with file_management permission see all files
-        $query = "SELECT fu.*, fc.file_category, p.fname, p.lname
-                  FROM file_upload_tbl fu
-                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
-                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
-                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-                  WHERE 1=1";
+        $fileManager = new FileManager();
+        $result = $fileManager->getFileNLPAnalysis($fileId, $userId);
         
-        $params = [];
-        
-        if (!empty($categoryId)) {
-            $query .= " AND fu.file_category_id = ?";
-            $params[] = $categoryId;
-        }
-        
-        $query .= " ORDER BY fu.datetime_uploaded DESC";
-        
-        $allFiles = $db->select($query, $params);
-        
-        // If no search word, return all files
-        if (empty($searchWord)) {
-            echo json_encode(['data' => $allFiles ?: []]);
-            exit;
-        }
-        
-        // Filter by NLP/keyword matching
-        $config = include('../config/google_nlp_config.php');
-        $apiKey = $config['api_key'] ?? '';
-        $nlp = new GoogleNLPService($apiKey);
-        
-        $matchedFiles = [];
-        foreach ($allFiles as $file) {
-            $filePath = '../' . $file['file_path'];
-            if (!file_exists($filePath)) continue;
-            
-            try {
-                // Extract text and check for keyword
-                $result = $nlp->extractTextFromFile($filePath, $file['mime_type']);
-                if ($result['success'] && !empty($result['text'])) {
-                    if (stripos($result['text'], $searchWord) !== false) {
-                        $matchedFiles[] = $file;
-                    }
-                }
-            } catch (Exception $e) {
-                error_log("NLP search error for file {$file['file_name']}: " . $e->getMessage());
-            }
-        }
-        
-        echo json_encode(['data' => $matchedFiles]);
+        echo json_encode($result);
         
         // Log activity
-        SubadminPermission::logActivity($userId, 'nlp_search', 'file_management', 'Performed NLP search: ' . $searchWord);
+        SubadminPermission::logActivity($userId, 'view_nlp_analysis', 'file_management', 'Viewed NLP analysis for file ID: ' . $fileId);
+        
+    } catch(Exception $e) {
+        error_log("Subadmin get NLP analysis error: " . $e->getMessage());
+        echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+    }
+    exit;
+}
+
+if($call === 'nlp_search_files'){
+    try {
+        $searchWord = $_POST['SEARCH_WORD'] ?? '';
+        $categoryId = $_POST['CATEGORY_ID'] ?? '';
+        $userId = $_SESSION['user_id'] ?? 0;
+        
+        // Check permission
+        if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
+            echo json_encode(['status' => 'ERROR', 'data' => [], 'msg' => 'Permission denied']);
+            exit;
+        }
+        
+        // Use new content search method from FileManager
+        $fileManager = new FileManager();
+        $results = $fileManager->searchFilesByContent($searchWord, $categoryId, $userId);
+        
+        echo json_encode(['status' => 'SUCCESS', 'data' => $results]);
+        
+        // Log activity
+        SubadminPermission::logActivity($userId, 'nlp_search', 'file_management', 'Performed content search: ' . $searchWord);
         
     } catch(Exception $e) {
         error_log("Subadmin NLP search error: " . $e->getMessage());
-        echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+        echo json_encode(['status' => 'ERROR', 'data' => [], 'msg' => $e->getMessage()]);
     }
     exit;
 }
@@ -588,11 +569,10 @@ if($call == 1){
         }
         
         $db = Database::getInstance()->getConnection();
-        $query = "SELECT fu.*, fc.file_category as category_name, 
+        $query = "SELECT fu.*, fu.category_tag as category_name, 
                   fu.mime_type as file_type,
                   CONCAT(p.fname, ' ', p.lname) as uploaded_by_name
                   FROM file_upload_tbl fu
-                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
                   LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
                   LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
                   WHERE fu.file_upload_id = :file_id";
@@ -1419,10 +1399,9 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
                 
                 $db = Database::getInstance()->getConnection();
                 
-                $query = "SELECT f.*, c.file_category, 
+                $query = "SELECT f.*, f.category_tag as file_category, 
                          CONCAT(p.fname, ' ', p.lname) as uploader_name
                          FROM file_upload_tbl f
-                         LEFT JOIN file_category_tbl c ON f.file_category_id = c.file_category_id
                          LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
                          LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
                          ORDER BY f.datetime_uploaded DESC";
@@ -1436,47 +1415,6 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
             }
             exit;
             
-        case 'nlp_search_files':
-            // NLP-powered file search (permission-checked)
-            try {
-                $userId = $_SESSION['user_id'] ?? 0;
-                
-                // Check permission
-                if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
-                    throw new Exception("Permission denied");
-                }
-                
-                $searchQuery = $_POST['search_query'] ?? '';
-                
-                if (empty($searchQuery)) {
-                    echo json_encode(['data' => []]);
-                    exit;
-                }
-                
-                $db = Database::getInstance()->getConnection();
-                
-                // Search in file names, categories, and NLP tags
-                $query = "SELECT f.*, c.file_category,
-                         CONCAT(p.fname, ' ', p.lname) as uploader_name
-                         FROM file_upload_tbl f
-                         LEFT JOIN file_category_tbl c ON f.file_category_id = c.file_category_id
-                         LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
-                         LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-                         WHERE f.file_name LIKE :query
-                            OR c.file_category LIKE :query
-                            OR f.category_tag LIKE :query
-                         ORDER BY f.category_score DESC, f.datetime_uploaded DESC";
-                
-                $stmt = $db->prepare($query);
-                $stmt->execute([':query' => "%{$searchQuery}%"]);
-                $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                echo json_encode(['data' => $files]);
-            } catch(Exception $e) {
-                echo json_encode(['data' => [], 'error' => $e->getMessage()]);
-            }
-            exit;
-        
         case '40':
             // Get all tasks (for task table)
             try {
