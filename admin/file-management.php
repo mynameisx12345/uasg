@@ -126,8 +126,8 @@ header("Expires: 0");
                     </div>
                   </div>
                   <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
-                    <strong>🤖 Auto-Categorization Enabled</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
+                    <strong>🤖 AI-Powered Auto-Categorization</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using <strong>NLP Cloud AI</strong> for classification and <strong>Google NLP</strong> for keyword extraction - combining the best of both services!</p>
                   </div>
                 </div>
               </div>
@@ -315,6 +315,60 @@ header("Expires: 0");
         <p style='text-align: center;'>Please wait while we process your request.</p>
       </div>
     </div>
+
+    <!-- NLP ANALYSIS MODAL -->
+    <div id="nlpAnalysisModal" class="modal">
+      <div class="modal-content" style="max-width: 900px;">
+        <span class="modal-close" onclick="closeNlpAnalysisModal()">&times;</span>
+        <h2><i class="fas fa-brain"></i> NLP Analysis Report</h2>
+        
+        <div id="nlpAnalysisContent" style="padding: 20px 0;">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+        
+        <div style="text-align: right; margin-top: 20px;">
+          <button class="btn-secondary" onclick="closeNlpAnalysisModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVOKE PERMISSION MODAL -->
+    <div id="revokePermissionModal" class="modal">
+      <div class="modal-content modal-content-small">
+        <span class="modal-close" onclick="closeRevokePermissionModal()">&times;</span>
+        <h2>Revoke Permission Confirmation</h2>
+        
+        <div class="compact-form">
+          <input type="hidden" id="revokePositionId">
+          <input type="hidden" id="revokeCategoryId">
+          
+          <div class="form-section">
+            <h4>Permission Details</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Position</label>
+                <input type="text" id="revokePositionName" readonly>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>File Category</label>
+                <input type="text" id="revokeCategoryName" readonly>
+              </div>
+            </div>
+            <p style="margin-top: 15px; color: #f44336;">
+              <i class="fas fa-exclamation-triangle"></i> 
+              Are you sure you want to revoke this permission? Users with this position will no longer be able to access files in this category.
+            </p>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn-primary" id="confirmRevokePermission">Confirm Revoke</button>
+            <button type="button" class="btn-secondary" onclick="closeRevokePermissionModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -327,12 +381,214 @@ header("Expires: 0");
       document.getElementById("deleteFileModal").style.display = "flex";
     }
 
+    function closeRevokePermissionModal() {
+      document.getElementById("revokePermissionModal").style.display = "none";
+    }
+
+    function openRevokePermissionModal() {
+      document.getElementById("revokePermissionModal").style.display = "flex";
+    }
+
     function closeViewFileModal() {
       document.getElementById("viewFileModal").style.display = "none";
     }
 
     function openViewFileModal() {
       document.getElementById("viewFileModal").style.display = "flex";
+    }
+
+    function closeNlpAnalysisModal() {
+      document.getElementById("nlpAnalysisModal").style.display = "none";
+    }
+
+    function openNlpAnalysisModal() {
+      document.getElementById("nlpAnalysisModal").style.display = "flex";
+    }
+
+    function loadNlpAnalysis(fileId, fileName) {
+      $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: {
+          CALL: 'get_nlp_analysis',
+          file_id: fileId
+        },
+        dataType: 'json',
+        beforeSend: function() {
+          openLoadModal();
+        },
+        success: function(response) {
+          closeLoadModal();
+          
+          if(response.status === 'SUCCESS' || response.status === 'WARNING') {
+            displayNlpAnalysis(response, fileName);
+            openNlpAnalysisModal();
+          } else {
+            showNotification(response.msg || 'Failed to load NLP analysis', 'error', 'Error');
+          }
+        },
+        error: function(xhr, status, error) {
+          closeLoadModal();
+          console.error('NLP Analysis error:', xhr.responseText);
+          showNotification('Failed to load NLP analysis. Please try again.', 'error', 'Error');
+        }
+      });
+    }
+
+    function displayNlpAnalysis(data, fileName) {
+      const content = document.getElementById('nlpAnalysisContent');
+      const file = data.file;
+      const analysis = data.analysis;
+      
+      let html = `
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0; color: #333;">
+            <i class="fas fa-file"></i> ${fileName || file.original_filename || file.file_name}
+          </h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+            <div>
+              <strong>Category:</strong> 
+              <span class="badge badge-primary">${file.category_name || 'Uncategorized'}</span>
+            </div>
+            <div><strong>Uploaded:</strong> ${new Date(file.datetime_uploaded).toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+      
+      if(!analysis) {
+        html += `
+          <div style="text-align: center; padding: 40px; color: #666;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ffc107; margin-bottom: 15px;"></i>
+            <p style="font-size: 16px;">No NLP analysis available for this file.</p>
+            <p style="font-size: 14px; color: #999;">The file may have been uploaded before NLP processing was enabled.</p>
+          </div>
+        `;
+      } else {
+        // Confidence Score
+        const confidence = parseFloat(analysis.category_confidence || 0);
+        const confidenceColor = confidence >= 80 ? '#28a745' : confidence >= 60 ? '#ffc107' : '#dc3545';
+        
+        html += `
+          <div style="margin-bottom: 25px;">
+            <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+              <i class="fas fa-chart-line"></i> Categorization Analysis
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+              <div>
+                <strong>Suggested Category:</strong><br>
+                <span class="badge badge-primary" style="font-size: 14px; margin-top: 5px;">
+                  ${analysis.suggested_category || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <strong>Confidence Score:</strong><br>
+                <div style="margin-top: 5px;">
+                  <div style="background: #e9ecef; height: 25px; border-radius: 12px; overflow: hidden;">
+                    <div style="background: ${confidenceColor}; width: ${confidence}%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">
+                      ${confidence.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Keywords
+        if(analysis.keywords && analysis.keywords.length > 0) {
+          html += `
+            <div style="margin-bottom: 25px;">
+              <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+                <i class="fas fa-key"></i> Extracted Keywords
+              </h4>
+              <div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;">
+          `;
+          
+          analysis.keywords.forEach(keyword => {
+            html += `<span style="background: #e7f3ff; color: #0066cc; padding: 6px 12px; border-radius: 15px; font-size: 13px; border: 1px solid #b3d9ff;">${keyword}</span>`;
+          });
+          
+          html += `</div></div>`;
+        }
+        
+        // Entities
+        if(analysis.entities && analysis.entities.length > 0) {
+          html += `
+            <div style="margin-bottom: 25px;">
+              <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+                <i class="fas fa-tags"></i> Named Entities
+              </h4>
+              <div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px;">
+          `;
+          
+          analysis.entities.forEach(entity => {
+            const entityText = typeof entity === 'string' ? entity : (entity.name || entity.text || JSON.stringify(entity));
+            const entityType = typeof entity === 'object' ? (entity.type || '') : '';
+            html += `<span style="background: #fff3cd; color: #856404; padding: 6px 12px; border-radius: 15px; font-size: 13px; border: 1px solid #ffeaa7;">
+              ${entityText}${entityType ? ` <em style="font-size: 11px;">(${entityType})</em>` : ''}
+            </span>`;
+          });
+          
+          html += `</div></div>`;
+        }
+        
+        // Sentiment
+        if(analysis.sentiment && Object.keys(analysis.sentiment).length > 0) {
+          html += `
+            <div style="margin-bottom: 25px;">
+              <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+                <i class="fas fa-smile"></i> Sentiment Analysis
+              </h4>
+              <div style="margin-top: 15px; background: #f1f3f5; padding: 12px; border-radius: 6px;">
+                ${JSON.stringify(analysis.sentiment, null, 2).replace(/[{}"]/g, '').replace(/,/g, '<br>')}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Statistics
+        html += `
+          <div style="margin-bottom: 25px;">
+            <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+              <i class="fas fa-info-circle"></i> Processing Statistics
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${analysis.word_count || 0}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Words Extracted</div>
+              </div>
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${analysis.provider || 'N/A'}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">NLP Provider</div>
+              </div>
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${analysis.processing_time_ms || 0}ms</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Processing Time</div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Content Preview
+        if(analysis.extracted_text) {
+          const textPreview = analysis.extracted_text.length > 500 
+            ? analysis.extracted_text.substring(0, 500) + '...' 
+            : analysis.extracted_text;
+          
+          html += `
+            <div>
+              <h4 style="color: #555; border-bottom: 2px solid #007bff; padding-bottom: 8px;">
+                <i class="fas fa-file-alt"></i> Extracted Text Preview
+              </h4>
+              <div style="margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 6px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">
+${textPreview}
+              </div>
+            </div>
+          `;
+        }
+      }
+      
+      content.innerHTML = html;
     }
 
     function openLoadModal(){
@@ -391,11 +647,11 @@ header("Expires: 0");
 
     // Initialize dropdowns
     function loadDropdowns() {
-        // Load file categories
+        // Load file categories from category_tbl (NEW SYSTEM)
         $.ajax({
           url: 'ajax.php',
           type: 'post',
-          data: { CALL: 5 }, // Get file categories
+          data: { CALL: 5 }, // Get categories from category_tbl
           dataType: 'json',
           beforeSend: function(xhr) {
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
@@ -403,15 +659,21 @@ header("Expires: 0");
           success: function(result) {
             console.log('Categories loaded:', result);
             if(result.data) {
-              let options = '<option value="">All Categories</option>';
+              // Populate filter dropdown
+              let filterOptions = '<option value="">All Categories</option>';
+              // Populate permissions dropdown
               let permOptions = '<option value="">Select Category</option>';
               
               result.data.forEach(category => {
-                options += `<option value="${category.file_category_id}">${category.file_category}</option>`;
-                permOptions += `<option value="${category.file_category_id}">${category.file_category}</option>`;
+                // Show category name with file count for filter
+                const displayName = `${category.file_category} (${category.file_count || 0} files)`;
+                // Use category_id for filtering
+                filterOptions += `<option value="${category.category_id}" data-slug="${category.category_slug}">${displayName}</option>`;
+                // For permissions dropdown, show just category name
+                permOptions += `<option value="${category.category_id}">${category.file_category}</option>`;
               });
               
-              $('#categoryFilter').html(options);
+              $('#categoryFilter').html(filterOptions);
               $('#permissionCategory').html(permOptions);
               $('#totalCategories').val(result.data.length);
             }
@@ -475,14 +737,30 @@ header("Expires: 0");
           success: function(result) {
             if(result.status === "SUCCESS") {
               nlpSuggestedCategory = result.category;
-              nlpCategoryConfidence = result.nlp_analysis['confidence'];
+              nlpCategoryConfidence = result.score;
               nlpAnalysisData = result.nlp_analysis;
-              // Show NLP preview and ask for confirmation
+              
+              // Show NLP preview
               $('#nlpPreview').show();
               $('#suggestedCategory').text(nlpSuggestedCategory || 'Uncategorized');
               $('#categoryConfidence').text(nlpCategoryConfidence ? nlpCategoryConfidence + '%' : 'N/A');
-              // Show confirmation dialog
-              //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
+              
+              // Display additional NLP data if available
+              if (result.keywords && result.keywords.length > 0) {
+                $('#suggestedCategory').text(nlpSuggestedCategory + ' 🔑 ' + result.keywords.slice(0, 3).join(', '));
+              }
+              
+              // Show sentiment if available
+              if (result.sentiment && result.sentiment.length > 0) {
+                const topEmotion = result.sentiment[0];
+                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                   topEmotion.label === 'anger' ? '😠' : 
+                                   topEmotion.label === 'sadness' ? '😢' : 
+                                   topEmotion.label === 'fear' ? '😨' : 
+                                   topEmotion.label === 'love' ? '❤️' : '😮';
+                $('#categoryConfidence').text(nlpCategoryConfidence + '% ' + emotionIcon + ' ' + topEmotion.label);
+              }
+              
             } else {
               showNotification("NLP analysis failed: " + (result.message || result.msg || 'Unknown error'), 'error', 'Analysis Failed');
             }
@@ -574,8 +852,30 @@ header("Expires: 0");
             paging: true,
             columns: [
                 { data: "file_upload_id" },
-                { data: "file_name" },
-                { data: "file_category" },
+                { 
+                    data: "original_filename",
+                    render: function(data, type, row) {
+                        // Show original filename, fallback to system filename
+                        return data || row.file_name;
+                    }
+                },
+                { 
+                    data: "file_category",
+                    render: function(data, type, row) {
+                        // Show category with confidence badge
+                        const categoryName = data || row.category_tag || 'Uncategorized';
+                        const confidence = row.category_score || 0;
+                        const badgeColor = confidence >= 80 ? '#10b981' : confidence >= 50 ? '#f59e0b' : '#6b7280';
+                        return `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>${categoryName}</span>
+                                <span style="background: ${badgeColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                                    ${confidence}%
+                                </span>
+                            </div>
+                        `;
+                    }
+                },
                 { data: "mime_type" },
                 { 
                     data: null,
@@ -590,11 +890,14 @@ header("Expires: 0");
                 {
                     data: null,
                     render: function(data, type, row) {
+                        const originalName = row.original_filename || row.file_name;
+                        const displayName = originalName.length > 30 ? originalName.substring(0, 27) + '...' : originalName;
+                        
                         return `
                             <div style="display: flex; gap: 5px; justify-content: center;">
                                 <button class="btn-secondary viewBtn" 
                                         data-id="${row.file_upload_id}"
-                                        data-name="${row.file_name}"
+                                        data-name="${escapeHtml(originalName)}"
                                         data-category="${row.file_category || 'N/A'}"
                                         data-type="${row.mime_type}"
                                         data-uploaded="${row.datetime_uploaded}"
@@ -602,15 +905,22 @@ header("Expires: 0");
                                         title="View Details">
                                     <i class="fas fa-eye"></i> View
                                 </button>
+                                <button class="btn-info viewNlpBtn" 
+                                        data-id="${row.file_upload_id}"
+                                        data-name="${escapeHtml(originalName)}"
+                                        title="View NLP Analysis">
+                                    <i class="fas fa-brain"></i> NLP Analysis
+                                </button>
                                 <button class="btn-success downloadBtn" 
                                         data-id="${row.file_upload_id}"
-                                        data-name="${row.file_name}"
-                                        title="Download File">
+                                        data-name="${escapeHtml(originalName)}"
+                                        data-path="${row.file_path}"
+                                        title="Download ${escapeHtml(originalName)}">
                                     <i class="fas fa-download"></i> Download
                                 </button>
                                 <button class="btn-danger deleteFileBtn" 
                                         data-id="${row.file_upload_id}" 
-                                        data-name="${row.file_name}"
+                                        data-name="${escapeHtml(originalName)}"
                                         title="Delete File">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
@@ -659,8 +969,8 @@ header("Expires: 0");
           scrollCollapse: true, 
           paging: true,
           columns: [
-            { data: "file_permission_id" },
-            { data: "position", defaultContent: "Unknown" },
+            { data: "permission_id" },
+            { data: "position_name", defaultContent: "Unknown" },
             { data: "file_category", defaultContent: "Unknown" },
             { 
               data: null,
@@ -669,7 +979,7 @@ header("Expires: 0");
                 return `
                   <button class="btn-primary revokePermBtn" 
                           data-position="${row.position_id}" 
-                          data-category="${row.file_category_id}"
+                          data-category="${row.category_id}"
                           title="Revoke Permission">
                     <i class="fas fa-times"></i> Revoke
                   </button>
@@ -802,7 +1112,14 @@ header("Expires: 0");
         formData.append('CALL', 16);
         formData.append('file', file);
         formData.append('uploaded_by', currentUserId);
-        // No category_id - NLP will auto-categorize
+        
+        // ⭐ REUSE CACHED NLP RESULTS - No duplicate API call!
+        if(nlpSuggestedCategory && nlpCategoryConfidence !== null && nlpAnalysisData) {
+          formData.append('category_tag', nlpSuggestedCategory);
+          formData.append('category_score', nlpCategoryConfidence);
+          formData.append('nlp_analysis', JSON.stringify(nlpAnalysisData));
+        }
+        
         openLoadModal();
         $.ajax({
           url: 'ajax.php',
@@ -817,12 +1134,30 @@ header("Expires: 0");
           success: function(result) {
             let message = result.msg || result.message;
             if(result.success === true) {
-              let notificationMsg = 'File uploaded successfully';
-              if(result.nlp_result) {
-                notificationMsg += '\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
-                           '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
+              let notificationMsg = 'File uploaded successfully!';
+              
+              // Display NLP results
+              if(result.category_tag || result.nlp_result) {
+                const category = result.category_tag || result.nlp_result?.category_tag || 'Uncategorized';
+                const score = result.category_score || result.nlp_result?.category_score || 0;
+                
+                notificationMsg += '\n\n🤖 Auto-categorized as: ' + category;
+                notificationMsg += '\n📊 Confidence: ' + score + '%';
+                
+                // Add sentiment if available
+                if(result.nlp_result?.sentiment && result.nlp_result.sentiment.length > 0) {
+                  const topEmotion = result.nlp_result.sentiment[0];
+                  const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                     topEmotion.label === 'anger' ? '😠' : 
+                                     topEmotion.label === 'sadness' ? '😢' : 
+                                     topEmotion.label === 'fear' ? '😨' : 
+                                     topEmotion.label === 'love' ? '❤️' : '😮';
+                  notificationMsg += '\n' + emotionIcon + ' Sentiment: ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
+                }
               }
+              
               showNotification(notificationMsg, 'success', 'Upload Complete');
+              clearUploadForm();
               $('.tab-link[data-tab="files"]').click();
             } else {
               showNotification(message || 'Upload failed', 'error', 'Upload Failed');
@@ -896,6 +1231,16 @@ header("Expires: 0");
         }
       });
 
+      // View NLP Analysis button
+      $(document).on("click", ".viewNlpBtn", function() {
+        const fileId = $(this).data('id');
+        const fileName = $(this).data('name');
+        
+        if(fileId) {
+          loadNlpAnalysis(fileId, fileName);
+        }
+      });
+
       // Delete file button
       $(document).on("click", ".deleteFileBtn", function() {
         const fileId = $(this).data('id');
@@ -961,7 +1306,7 @@ header("Expires: 0");
             CALL: 18, // Set permission
             DATA: {
               position_id: positionId,
-              file_category_id: categoryId
+              category_id: categoryId
             }
           },
           dataType: 'json',
@@ -986,10 +1331,24 @@ header("Expires: 0");
       $(document).on("click", ".revokePermBtn", function() {
         const positionId = $(this).data('position');
         const categoryId = $(this).data('category');
+        const positionName = $(this).closest('tr').find('td').eq(0).text();
+        const categoryName = $(this).closest('tr').find('td').eq(1).text();
         
-        if(!confirm('Are you sure you want to revoke this permission?')) {
-          return;
-        }
+        // Store data in modal and mark that it came from table (not button)
+        $('#revokePositionId').val(positionId).data('fromButton', false);
+        $('#revokeCategoryId').val(categoryId);
+        $('#revokePositionName').val(positionName);
+        $('#revokeCategoryName').val(categoryName);
+        
+        // Open confirmation modal
+        openRevokePermissionModal();
+      });
+
+      // Confirm revoke permission from modal
+      $('#confirmRevokePermission').click(function() {
+        const positionId = $('#revokePositionId').val();
+        const categoryId = $('#revokeCategoryId').val();
+        const fromButton = $('#revokePositionId').data('fromButton'); // Track if from button or table
         
         $.ajax({
           url: 'ajax.php',
@@ -998,19 +1357,28 @@ header("Expires: 0");
             CALL: 19, // Remove permission
             DATA: {
               position_id: positionId,
-              file_category_id: categoryId
+              category_id: categoryId
             }
           },
           dataType: 'json',
           success: function(result) {
+            closeRevokePermissionModal();
             if(result.status === "SUCCESS") {
               showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
+              
+              // Clear form fields if revoked from button
+              if(fromButton) {
+                $('#permissionPosition').val('');
+                $('#permissionCategory').val('');
+              }
+              
               permissionsTable.ajax.reload();
             } else {
               showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
             }
           },
           error: function(xhr, status, error) {
+            closeRevokePermissionModal();
             console.error('Revoke error:', xhr.responseText);
             showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
           }
@@ -1027,36 +1395,18 @@ header("Expires: 0");
           return;
         }
         
-        if(!confirm('Are you sure you want to revoke this permission?')) {
-          return;
-        }
-
-        $.ajax({
-          url: 'ajax.php',
-          type: 'post',
-          data: {
-            CALL: 19, // Remove permission
-            DATA: {
-              position_id: positionId,
-              file_category_id: categoryId
-            }
-          },
-          dataType: 'json',
-          success: function(result) {
-            if(result.status === "SUCCESS") {
-              showNotification(result.message || result.msg || 'Permission revoked successfully', 'success', 'Permission Revoked');
-              $('#permissionPosition').val('');
-              $('#permissionCategory').val('');
-              permissionsTable.ajax.reload();
-            } else {
-              showNotification(result.message || result.msg || 'Failed to revoke permission', 'error', 'Revoke Failed');
-            }
-          },
-          error: function(xhr, status, error) {
-            console.error('Revoke error:', xhr.responseText);
-            showNotification("Failed to revoke permission. Please try again.", 'error', 'Error');
-          }
-        });
+        // Get selected option texts
+        const positionName = $('#permissionPosition option:selected').text();
+        const categoryName = $('#permissionCategory option:selected').text();
+        
+        // Store data in modal and mark that it came from button
+        $('#revokePositionId').val(positionId).data('fromButton', true);
+        $('#revokeCategoryId').val(categoryId);
+        $('#revokePositionName').val(positionName);
+        $('#revokeCategoryName').val(categoryName);
+        
+        // Open confirmation modal
+        openRevokePermissionModal();
       });
   });
 

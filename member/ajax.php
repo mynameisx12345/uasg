@@ -51,33 +51,34 @@ $result = [];
 
 // NLP analysis before upload (for preview)
 if($call === 'nlp_analyze') {
-		require_once '../resources/objects/google_nlp_service.php';
-		$m = new Main('file_upload_tbl');
+		require_once '../resources/objects/nlpcloud_service.php';
 		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
 			try {
-				//require_once '../resources/objects/nlp_helper.php'; // Helper for Google NLP
-				//$nlp = new NLPHelper();
 				$file = $_FILES['file'];
 				$tmpPath = $file['tmp_name'];
 				$mimeType = $file['type'];
 
-				$configFile = '../config/google_nlp_config.php';
-				$apiKey = '';
-				if (file_exists($configFile)) {
-					$config = include($configFile);
-					$apiKey = $config['api_key'] ?? '';
+				// Use NLP Cloud service
+				$nlp = new NLPCloudService();
+				$res = $nlp->analyzeFile($tmpPath, $mimeType);
+
+				if ($res['success']) {
+					$result = [
+						'status' => 'SUCCESS',
+						'category' => $res['category_tag'] ?? 'Uncategorized',
+						'score' => $res['category_score'] ?? 0,
+						'keywords' => $res['keywords'] ?? [],
+						'entities' => $res['entities'] ?? [],
+						'sentiment' => $res['sentiment'] ?? [],
+						'word_count' => $res['word_count'] ?? 0,
+						'nlp_analysis' => $res
+					];
+				} else {
+					$result = [
+						'status' => 'ERROR',
+						'msg' => 'NLP analysis failed: ' . ($res['error'] ?? 'Unknown error')
+					];
 				}
-
-				$nlp = new GoogleNLPService($apiKey);
-				$categories = $m->getFileCategories() ?: [];
-				$res = $nlp->analyzeFileAndSuggestCategory($tmpPath, $mimeType, $categories);
-
-				$result = [
-					'status' => 'SUCCESS',
-					'category' => $res['suggested_category_name'] ?? 'Uncategorized',
-					'score'=> $res['confidence_score'] ?? 0,
-					'nlp_analysis' => $res
-				];
 			} catch(Exception $e) {
 				$result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
 			}
@@ -453,91 +454,38 @@ if($call == 1){
     }
     echo json_encode($result);
     
-}else if($call === 'nlp_search_files'){
-    // NLP-based file search for members
+}else if($call === 'get_nlp_analysis'){
+    // Get NLP analysis for a file
     try {
-        require_once '../config/google_nlp_config.php';
-        require_once '../resources/objects/google_nlp_service.php';
-        
-        $searchWord = $_POST['SEARCH_WORD'] ?? '';
-        $categoryId = $_POST['CATEGORY_ID'] ?? '';
-        
-        $db = Database::getInstance();
+        $fileId = $_POST['file_id'] ?? 0;
         $memberId = $_SESSION['user_id'] ?? 0;
         
-        // Get user's position for file permissions
-        $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$memberId]);
-        if (!$user) {
-            throw new Exception("User not found");
-        }
+        $fileManager = new FileManager();
+        $result = $fileManager->getFileNLPAnalysis($fileId, $memberId);
         
-        $positionId = $user['position_id'];
+        echo json_encode($result);
         
-        // Get permitted categories for this position
-        $permittedCategories = $db->select("
-            SELECT file_category_id 
-            FROM file_permission_tbl 
-            WHERE position_id = ?
-        ", [$positionId]);
+    } catch(Exception $e) {
+        error_log("Member get NLP analysis error: " . $e->getMessage());
+        echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+    }
+    
+}else if($call === 'nlp_search_files'){
+    // NLP-based file search for members - search file contents
+    try {
+        $searchWord = $_POST['SEARCH_WORD'] ?? '';
+        $categoryId = $_POST['CATEGORY_ID'] ?? '';
+        $memberId = $_SESSION['user_id'] ?? 0;
         
-        $permittedCategoryIds = array_column($permittedCategories, 'file_category_id');
+        // Use new content search method from FileManager
+        $fileManager = new FileManager();
+        $results = $fileManager->searchFilesByContent($searchWord, $categoryId, $memberId);
         
-        if (empty($permittedCategoryIds)) {
-            echo json_encode(['data' => []]);
-            exit;
-        }
-        
-        // Build query with permissions
-        $query = "SELECT fu.*, fc.file_category, p.fname, p.lname
-                  FROM file_upload_tbl fu
-                  LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
-                  LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
-                  LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-                  WHERE fu.file_category_id IN (" . implode(',', array_map('intval', $permittedCategoryIds)) . ")";
-        
-        $params = [];
-        
-        if (!empty($categoryId)) {
-            $query .= " AND fu.file_category_id = ?";
-            $params[] = $categoryId;
-        }
-        
-        $query .= " ORDER BY fu.datetime_uploaded DESC";
-        
-        $allFiles = $db->select($query, $params);
-        
-        // If no search word, return all permitted files
-        if (empty($searchWord)) {
-            echo json_encode(['data' => $allFiles ?: []]);
-            exit;
-        }
-        
-        // Filter by NLP/keyword matching
-        $config = include('../config/google_nlp_config.php');
-        $apiKey = $config['api_key'] ?? '';
-        $nlp = new GoogleNLPService($apiKey);
-        
-        $matchedFiles = [];
-        foreach ($allFiles as $file) {
-            $filePath = '../' . $file['file_path'];
-            if (!file_exists($filePath)) continue;
-            
-            try {
-                // Extract text and check for keyword
-                $text = $nlp->extractTextFromFile($filePath, $file['mime_type']);
-                if (stripos($text, $searchWord) !== false) {
-                    $matchedFiles[] = $file;
-                }
-            } catch (Exception $e) {
-                error_log("NLP search error for file {$file['file_name']}: " . $e->getMessage());
-            }
-        }
-        
-        echo json_encode(['data' => $matchedFiles]);
+        echo json_encode(['status' => 'SUCCESS', 'data' => $results]);
         
     } catch(Exception $e) {
         error_log("Member NLP search error: " . $e->getMessage());
-        echo json_encode(['data' => [], 'error' => $e->getMessage()]);
+        echo json_encode(['status' => 'ERROR', 'data' => [], 'msg' => $e->getMessage()]);
     }
     
 }else{

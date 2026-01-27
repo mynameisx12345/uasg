@@ -11,7 +11,10 @@
         	$this->table = $table;
 
         	foreach ($data as $key => $value) {
-            	$this->fields[$key] = $value;
+            	// Only add non-null values to fields
+            	if ($value !== null) {
+                	$this->fields[$key] = $value;
+            	}
         	}
     	}
 
@@ -246,12 +249,12 @@
 		}
 
 		public function uploadFile($data) {
-    		require_once __DIR__ . '/google_nlp_service.php';
+    		require_once __DIR__ . '/nlpcloud_service.php';
 			$db = Database::getInstance()->getConnection();
 			$systemname = 'uasg';
 			$file = $data['file'];
 			$allowedTypes = $data['allowed_types'] ?? ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-			$uploadDir = '../uploads/files/';
+			$baseUploadDir = '../uploads/files/';
 			$uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
 			
 			try {
@@ -260,14 +263,15 @@
 					throw new Exception('File upload failed or no file selected');
 				}
 
-				// Check file size (10MB limit)
-				$maxSize = 50 * 1024 * 1024; // 10MB in bytes
+				// Check file size (50MB limit)
+				$maxSize = 50 * 1024 * 1024; // 50MB in bytes
 				if ($file['size'] > $maxSize) {
-					throw new Exception('File size exceeds 10MB limit');
+					throw new Exception('File size exceeds 50MB limit');
 				}
 
-				// Get file extension
-				$fileInfo = pathinfo($file['name']);
+				// Get file extension and original filename
+				$originalFilename = $file['name'];
+				$fileInfo = pathinfo($originalFilename);
 				$extension = strtolower($fileInfo['extension'] ?? '');
 
 				// Validate file type
@@ -275,162 +279,227 @@
 					throw new Exception('File type not allowed. Allowed types: ' . implode(', ', $allowedTypes));
 				}
 
-				// Create upload directory if it doesn't exist
-				//$uploadPath = rtrim($uploadDir, '/') . '/';
-				$uploadPath = '../uploads/files/';
-				if (!is_dir($uploadPath)) {
-					if (!mkdir($uploadPath, 0755, true)) {
+				// Generate unique system filename (will be stored in database)
+				$systemFilename = uniqid() . '_' . time() . '.' . $extension;
+				
+				// Temporary upload to analyze (we'll move it to category folder after NLP)
+				$tempPath = $baseUploadDir . $systemFilename;
+				
+				// Create base upload directory if it doesn't exist
+				if (!is_dir($baseUploadDir)) {
+					if (!mkdir($baseUploadDir, 0755, true)) {
 						throw new Exception('Failed to create upload directory');
 					}
 				}
 
-				// Generate unique filename
-				$filename = uniqid() . '_' . time() . '.' . $extension;
-				$fullPath = $uploadDir . $filename;
-
-				// Move uploaded file
-				if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+				// Move uploaded file to temporary location first
+				if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
 					throw new Exception('Failed to move uploaded file');
 				}
 
-				// Get categories from DB
-				$categories = $this->getFileCategories();
-
-				// Load Google NLP config
-				$configFile = __DIR__ . '/../../config/google_nlp_config.php';
-				$apiKey = '';
-				if (file_exists($configFile)) {
-					$config = include($configFile);
-					$apiKey = $config['api_key'] ?? '';
-				}
-				$nlp = new GoogleNLPService($apiKey);
-
-
-				// Run NLP on the uploaded file
-				$result = $nlp->analyzeFileAndSuggestCategory($fullPath, $file['type'], $categories);
-				$filecategory = $result['suggested_category_name'] ?? 'Uncategorized';
-				$categoryid = $result["suggested_category_id"] ?? null;
-				$score = $result['confidence'] ?? 0;
-
-				$linkpath = 'uploads/files/' . $filename;
-
-				$stmt = $db->prepare(
-					"INSERT INTO file_upload_tbl (file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
-					VALUES (:categoryid, :category_tag, :category_score, :mime_type, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
-				);
-				$stmt->execute([
-					':categoryid' => $categoryid,
-					':category_tag' => $filecategory,
-					':category_score' => $score,
-					':mime_type' => $file['type'],
-					':file_name' => $filename,
-					':file_path' => $linkpath,
-					':file_size' => $file['size'],
-					':datetime_uploaded' => date('Y-m-d H:i:s'),
-					':uploaded_by' => $uploadedBy
-				]);
-
-				// Get last inserted file_upload_id
-				$file_id = $db->lastInsertId();
-
-				return [
-					'success' => true,
-					'file_id' => $file_id,
-					'filename' => $filename,
-					'original_name' => $file['name'],
-					'path' => $fullPath,
-					'size' => $file['size'],
-					'type' => $file['type'],
-					'extension' => $extension,
-					'upload_time' => date('Y-m-d H:i:s'),
-					'nlp_result' => $result
-				];
-
-			} catch (Exception $e) {
-				return [
-					'success' => false,
-					'error' => $e->getMessage()
-				];
-			}
-		}
-
-		public function getFileCategories() {
-			$db = Database::getInstance();
-			$query = "
-				SELECT fc.file_category_id, fc.file_category, fck.keyword
-				FROM file_category_tbl fc
-				LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
-				ORDER BY fc.file_category_id, fck.keyword
-			";
-			$rows = $db->select($query);
-
-			$categories = [];
-			foreach ($rows as $row) {
-				$id = $row['file_category_id'];
-				if (!isset($categories[$id])) {
-					$categories[$id] = [
-						'file_category_id' => $id,
-						'file_category' => $row['file_category'],
-						'keywords' => []
+				// ⭐ CHECK IF NLP DATA IS ALREADY PROVIDED (from preview) - AVOID DUPLICATE API CALL!
+				if (isset($data['nlp_analysis']) && !empty($data['nlp_analysis'])) {
+					// Reuse cached NLP results from preview
+					$nlpAnalysisData = is_string($data['nlp_analysis']) ? json_decode($data['nlp_analysis'], true) : $data['nlp_analysis'];
+					$categoryTag = $data['category_tag'] ?? 'Uncategorized';
+					$categoryScore = $data['category_score'] ?? 0;
+					$extractedText = $nlpAnalysisData['extracted_text'] ?? '';
+					$wordCount = $nlpAnalysisData['word_count'] ?? 0;
+					$keywords = $nlpAnalysisData['keywords'] ?? [];
+					$entities = $nlpAnalysisData['entities'] ?? [];
+					$fullAnalysis = json_encode($nlpAnalysisData);
+					$processingTime = 0; // Already processed
+					
+					$nlpResult = [
+						'success' => true,
+						'category_tag' => $categoryTag,
+						'category_score' => $categoryScore,
+						'extracted_text' => $extractedText,
+						'word_count' => $wordCount,
+						'keywords' => $keywords,
+						'entities' => $entities,
+						'full_analysis' => $nlpAnalysisData,
+						'processing_time_ms' => 0,
+						'from_cache' => true // Indicate this was cached
 					];
+				} else {
+					// No cached data - perform NLP analysis (uses API call)
+					$nlp = new NLPCloudService();
+					$nlpResult = $nlp->analyzeFile($tempPath, $file['type']);
+
+					if (!$nlpResult['success']) {
+						// NLP failed, but we still upload the file
+						error_log('NLP analysis failed: ' . ($nlpResult['error'] ?? 'Unknown error'));
+					}
+
+					// Extract NLP data
+					$categoryTag = $nlpResult['category_tag'] ?? 'Uncategorized';
+					$categoryScore = $nlpResult['category_score'] ?? 0;
+					$extractedText = $nlpResult['extracted_text'] ?? '';
+					$wordCount = $nlpResult['word_count'] ?? 0;
+					$keywords = $nlpResult['keywords'] ?? [];
+					$entities = $nlpResult['entities'] ?? [];
+					$fullAnalysis = $nlpResult['full_analysis'] ?? [];
+					$processingTime = $nlpResult['processing_time_ms'] ?? 0;
 				}
-				if (!empty($row['keyword'])) {
-					$categories[$id]['keywords'][] = $row['keyword'];
+				
+				// Common processing for both cached and fresh NLP results
+				$sentiment = $nlpResult['sentiment'] ?? null;
+				$provider = $nlpResult['provider'] ?? 'nlpcloud';
+
+				// ⭐ NEW: Get or create category in category_tbl
+				$categorySlug = $this->getCategorySlug($categoryTag);
+				$categoryId = $this->getOrCreateCategory($categoryTag, $categorySlug);
+				
+				// ⭐ NEW: Create category-based directory structure
+				$categoryDir = $baseUploadDir . $categorySlug . '/';
+				if (!is_dir($categoryDir)) {
+					if (!mkdir($categoryDir, 0755, true)) {
+						throw new Exception('Failed to create category directory: ' . $categorySlug);
+					}
 				}
-			}
-			// Re-index to get a simple array
-			return array_values($categories);
+				
+				// ⭐ NEW: Move file from temp location to category folder
+				$finalPath = $categoryDir . $systemFilename;
+				if (!rename($tempPath, $finalPath)) {
+					// If rename fails, try copy and delete
+					if (!copy($tempPath, $finalPath)) {
+						throw new Exception('Failed to move file to category directory');
+					}
+					unlink($tempPath);
+				}
+				
+			// Database path (relative from project root)
+			$dbPath = 'uploads/files/' . $categorySlug . '/' . $systemFilename;
+
+			// Insert into file_upload_tbl with ALL required fields
+
+			$stmt = $db->prepare(
+				"INSERT INTO file_upload_tbl 
+				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
+				VALUES (:category_id, :category_tag, :category_score, :mime_type, :original_filename, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
+			);
+			$stmt->execute([
+				':category_id' => $categoryId,
+				':category_tag' => $categoryTag,
+				':category_score' => $categoryScore,
+				':mime_type' => $file['type'],
+				':original_filename' => $originalFilename,
+				':file_name' => $systemFilename,
+				':file_path' => $dbPath,
+				':file_size' => $file['size'],
+				':datetime_uploaded' => date('Y-m-d H:i:s'),
+				':uploaded_by' => $uploadedBy
+			]);				// Get last inserted file_upload_id
+				$fileId = $db->lastInsertId();
+				
+				// Insert NLP analysis data into file_nlp_analysis_tbl
+				if ($extractedText) {
+					$stmt = $db->prepare(
+						"INSERT INTO file_nlp_analysis_tbl 
+						(file_upload_id, extracted_text, word_count, suggested_category, category_confidence, 
+						 keywords, entities, sentiment, full_analysis, provider, processing_time_ms) 
+						VALUES (:file_upload_id, :extracted_text, :word_count, :suggested_category, :category_confidence, 
+						        :keywords, :entities, :sentiment, :full_analysis, :provider, :processing_time_ms)"
+					);
+					$stmt->execute([
+						':file_upload_id' => $fileId,
+						':extracted_text' => $extractedText,
+						':word_count' => $wordCount,
+						':suggested_category' => $categoryTag,
+						':category_confidence' => $categoryScore,
+						':keywords' => json_encode($keywords),
+						':entities' => json_encode($entities),
+						':sentiment' => json_encode($sentiment),
+						':full_analysis' => json_encode($fullAnalysis),
+						':provider' => $provider,
+						':processing_time_ms' => $processingTime
+					]);
+				}
+
+			return [
+				'success' => true,
+				'file_id' => $fileId,
+				'filename' => $systemFilename,
+				'original_name' => $originalFilename,
+				'path' => $finalPath,
+				'db_path' => $dbPath,
+				'category_slug' => $categorySlug,
+				'size' => $file['size'],
+				'type' => $file['type'],
+				'extension' => $extension,
+				'upload_time' => date('Y-m-d H:i:s'),
+				'category_tag' => $categoryTag,
+				'category_score' => $categoryScore,
+				'category_id' => $categoryId,
+				'nlp_result' => $nlpResult
+			];		} catch (Exception $e) {
+			return [
+				'success' => false,
+				'error' => $e->getMessage()
+			];
 		}
+}
 
-		/**
-     * Get all file permissions: which positions can access which file categories
-     * Returns array of {file_permission_id, position_id, position, file_category_id, file_category}
-     */
-    public function getFilePermissions() {
-        $db = Database::getInstance()->getConnection();
-        $query = "
-            SELECT fp.file_permission_id, fp.position_id, p.position, fp.file_category_id, fc.file_category
-            FROM file_permission_tbl fp
-            JOIN position_tbl p ON fp.position_id = p.position_id
-            JOIN file_category_tbl fc ON fp.file_category_id = fc.file_category_id
-            ORDER BY fp.position_id, fp.file_category_id
-        ";
-        return $db->select($query);
-    }
+/**
+ * Get all file permissions - DEPRECATED
+ * Note: file_permission_tbl is obsolete - now using NLP category_tag
+ */
+public function getFilePermissions() {
+	return []; // Obsolete - file_category_tbl removed
+}
 
+/**
+ * Convert category name to URL-safe slug for directory names
+ * Examples: "Meeting Minutes" -> "meeting-minutes", "Resolution" -> "resolution"
+ */
+private function getCategorySlug($categoryName) {
+	$slug = strtolower(trim($categoryName));
+	$slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+	$slug = trim($slug, '-');
+	return $slug ?: 'uncategorized';
+}
+
+/**
+ * Get category ID from category_tbl, create if doesn't exist
+ * This ensures every NLP-detected category has a database entry
+ */
+private function getOrCreateCategory($categoryName, $categorySlug) {
+	$db = Database::getInstance()->getConnection();
+	
+	// Try to find existing category by name
+	$stmt = $db->prepare("SELECT category_id FROM category_tbl WHERE category_name = :name LIMIT 1");
+	$stmt->execute([':name' => $categoryName]);
+	$result = $stmt->fetch(PDO::FETCH_ASSOC);
+	
+	if ($result) {
+		return $result['category_id'];
 	}
+	
+	// Category doesn't exist, create it
+	$stmt = $db->prepare(
+		"INSERT INTO category_tbl (category_name, category_slug, description) 
+		VALUES (:name, :slug, :description)"
+	);
+	$stmt->execute([
+		':name' => $categoryName,
+		':slug' => $categorySlug,
+		':description' => 'Auto-created by NLP classification'
+	]);
+	
+	return $db->lastInsertId();
+}
 
-
-	class FileCategory extends Main{
-		public function __construct($params = []){
-			parent::__construct('file_category_tbl',[
-				'file_category_id' => $params["id"] ?? null,
-				'file_category' => $params["category"] ?? null
-			]);
-		}
-	}
-
-	class FileCategoryKey extends Main{
-		public function __construct($params = []){
-			parent::__construct('file_category_key_tbl',[
-				'file_category_key_id' => $params["id"] ?? null,
-				'file_category_id' => $params["file_category_id"] ?? null,
-				'keyword' => $params["keyword"] ?? null
-			]);
-		}
-	}
-
+}
+	// FilePermission class deprecated - file_category_id no longer exists
 	class FilePermission extends Main{
 		public function __construct($params = []){
 			parent::__construct('file_permission_tbl',[
 				'file_permission_id' => $params["id"] ?? null,
 				'position_id' => $params["position_id"] ?? null,
-				'file_category_id' => $params["file_category_id"] ?? null,
 			]);
 		}
-	}
-
-	class Position extends Main{
+	}	class Position extends Main{
 		public function __construct($params = []){
 			parent::__construct('position_tbl',[
 				'position_id' => $params["id"] ?? null,
@@ -459,7 +528,8 @@
 		public function __construct($params = []){
 			parent::__construct('file_upload_tbl',[
 				'file_upload_id' => $params["id"] ?? null,
-				'file_category_id' => $params["file_category_id"] ?? null,
+				'category_tag' => $params["category_tag"] ?? null,
+				'category_score' => $params["category_score"] ?? null,
 				'mime_type' => $params["mime_type"] ?? null,
 				'file_name' => $params["file_name"] ?? null,
 				'drive_id' => $params["drive_id"] ?? null,
@@ -525,7 +595,7 @@
 			parent::__construct('deleted_record_tbl',[
 				'delete_id' => $params["id"] ?? null,
 				'data_deleted' => $params["data"] ?? null,
-				'reason_for_deleteion' => $params["reason"] ?? null,
+				'reason_for_deletion' => $params["reason"] ?? null,
 				'table_origin' => $params["table"] ?? null,
 				'datetime_deleted' => $params["datetime"] ?? null
 			]);
@@ -586,13 +656,22 @@
 					throw new Exception("Email already exists");
 				}
 
-				// Get position ID based on user type
-				$position_id = 1; // Default to adviser
-				if($data['user_type'] === 'student') {
-					$position_id = 2; // Student Government Member
-				}
-
-				// Create profile first
+			// Get position ID based on user type
+			$position_id = 5; // Default to Adviser for subadmins
+			if($data['user_type'] === 'student') {
+				$position_id = 2; // Student Government Member
+			} elseif($data['user_type'] === 'admin') {
+				$position_id = 3; // System Administrator
+			} elseif($data['user_type'] === 'subadmin' && !empty($data['subadmin_role'])) {
+				// Map subadmin role to position_id
+				$roleMap = [
+					'Adviser' => 5,
+					'President' => 6,
+					'Vice-President' => 7,
+					'Secretary' => 8
+				];
+				$position_id = $roleMap[$data['subadmin_role']] ?? 5; // Default to Adviser if role not found
+			}				// Create profile first
 				$profile = new Profile([
 					'fname' => trim($data['fname']),
 					'mname' => trim($data['mname'] ?? ""),
@@ -947,21 +1026,6 @@
         }
     }
 
-    public static function createFileCategory($name) {
-        try {
-            $name = trim($name);
-            if(empty($name)) {
-                throw new Exception("File category name is required");
-            }
-
-            $fc = new FileCategory(['file_category' => $name]);
-            $fc->findOrCreate('file_category_id', ['file_category']);
-            return ['success' => true, 'message' => 'Successfully added new file category'];
-        } catch(Exception $e) {
-            throw new Exception("Failed! An error was detected: " . $e->getMessage());
-        }
-    }
-
     public static function createTaskCategory($name) {
         try {
             $name = trim($name);
@@ -984,108 +1048,16 @@
         return $db->select($query);
     }
 
-    public static function getAllFileCategories() {
-        $db = Database::getInstance();
-        $query = "SELECT file_category_id, file_category FROM file_category_tbl ORDER BY file_category ASC";
-        return $db->select($query);
-    }
-
     public static function getAllTaskCategories() {
         $db = Database::getInstance();
         $query = "SELECT task_category_id, task_category FROM task_category_tbl ORDER BY task_category ASC";
         return $db->select($query);
     }
 
-    public static function createFileCategoryKeyword($categoryId, $keyword) {
-        try {
-            $keyword = trim($keyword);
-            if(empty($keyword)) throw new Exception("Keyword is required");
-            if(empty($categoryId)) throw new Exception("File category ID is required");
-
-            $fck = new FileCategoryKey([
-                'file_category_id' => $categoryId,
-                'keyword' => $keyword
-            ]);
-
-            if($fck->checkFromTable()) {
-                throw new Exception("Keyword already exists for this category");
-            }
-
-            $fck->insert();
-            return ['success' => true, 'message' => 'Successfully added keyword'];
-        } catch(Exception $e) {
-            throw new Exception("Failed! An error was detected: " . $e->getMessage());
-        }
-    }
-
-    public static function getFileCategoryKeywords($categoryId = null) {
-        try {
-            $db = Database::getInstance();
-            if($categoryId) {
-                $query = "SELECT fck.*, fc.file_category 
-                          FROM file_category_key_tbl fck
-                          JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
-                          WHERE fck.file_category_id = :category_id
-                          ORDER BY fck.keyword";
-                return $db->select($query, [':category_id' => $categoryId]);
-            } else {
-                $query = "SELECT fck.*, fc.file_category 
-                          FROM file_category_key_tbl fck
-                          JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
-                          ORDER BY fc.file_category, fck.keyword";
-                return $db->select($query);
-            }
-        } catch(Exception $e) {
-            throw new Exception("Failed to retrieve keywords: " . $e->getMessage());
-        }
-    }
-
-    public static function updateFileCategoryKeyword($keywordId, $keyword) {
-        try {
-            $keyword = trim($keyword);
-            if(empty($keyword)) throw new Exception("Keyword is required");
-
-            $fck = new FileCategoryKey();
-            $result = $fck->updateSingleValue('keyword', 'file_category_key_id', $keywordId, $keyword);
-
-            if(!$result) throw new Exception("Failed to update keyword");
-
-            return ['success' => true, 'message' => 'Successfully updated keyword'];
-        } catch(Exception $e) {
-            throw new Exception("Failed! An error was detected: " . $e->getMessage());
-        }
-    }
-
-    public static function deleteFileCategoryKeyword($keywordId, $reason = "Admin deletion") {
-        try {
-            $db = Database::getInstance();
-            $keywordData = $db->select(
-                "SELECT fck.*, fc.file_category 
-                 FROM file_category_key_tbl fck
-                 JOIN file_category_tbl fc ON fck.file_category_id = fc.file_category_id
-                 WHERE fck.file_category_key_id = :id", 
-                [':id' => $keywordId]
-            );
-
-            if(empty($keywordData)) throw new Exception("Keyword not found");
-
-            $deleteLog = new Delete([
-                'data' => json_encode($keywordData[0]),
-                'reason' => $reason,
-                'table' => 'file_category_key_tbl',
-                'datetime' => date('Y-m-d H:i:s')
-            ]);
-            $deleteLog->insert();
-
-            $fck = new FileCategoryKey();
-            $result = $fck->delete('file_category_key_id', $keywordId);
-
-            if(!$result) throw new Exception("Failed to delete keyword");
-
-            return ['success' => true, 'message' => 'Successfully deleted keyword'];
-        } catch(Exception $e) {
-            throw new Exception("Failed! An error was detected: " . $e->getMessage());
-        }
+    public static function getAllFileCategories() {
+        $db = Database::getInstance();
+        $query = "SELECT category_id as file_category_id, category_name as file_category, category_slug, description FROM category_tbl ORDER BY category_name ASC";
+        return $db->select($query);
     }
 }
 
@@ -1166,13 +1138,18 @@
 					FROM task_tbl AS t
 					LEFT JOIN task_category_tbl AS c
 						ON c.task_category_id = t.task_category_id
+					LEFT JOIN task_submission_tbl AS s
+						ON s.task_id = t.task_id 
+						AND s.submitted_by = ?
+						AND s.check_status = 'Approved'
 					WHERE 
-						(t.assigned_to = ? OR t.assigned_to IS NULL OR t.assigned_to = '')
+						t.assigned_to = ?
+						AND s.task_submission_id IS NULL
 					ORDER BY t.task_deadline ASC
 				";
 
-				// Execute query
-				$tasks = $db->select($sql, [$memberId]) ?: [];
+				// Execute query - pass memberId twice for both placeholders
+				$tasks = $db->select($sql, [$memberId, $memberId]) ?: [];
 
 				// Normalize keys
 				$tasks = array_map(function($t) {
@@ -1246,11 +1223,12 @@
 					throw new Exception("All task fields are required");
 				}
 
-				// Handle assigned_to - convert empty string to null
-				$assignedTo = null;
-				if (!empty($data['assigned_to']) && is_numeric($data['assigned_to'])) {
-					$assignedTo = (int)$data['assigned_to'];
+				// Validate assigned_to is required and valid
+				if (empty($data['assigned_to']) || !is_numeric($data['assigned_to'])) {
+					throw new Exception("Task must be assigned to a specific member");
 				}
+				
+				$assignedTo = (int)$data['assigned_to'];
 
 				// Create task
 				$task = new Task([
@@ -1266,8 +1244,7 @@
 					throw new Exception("Failed to create task");
 				}
 
-				// Create notifications for all UASG members
-				//$this->notifyMembersNewTask($taskId, $data['task_title']);
+				// Notify the assigned member
 				$this->notifyMembersNewTask($taskId, $data['task_title'], $assignedTo);
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
@@ -1308,24 +1285,18 @@
 				$positionId = $userData[0]['position_id'];
 
 				// Get tasks with permission check
-				$query = "SELECT t.*, tc.task_category,
-								ts.task_submission_id, ts.check_status, ts.file_upload_id,
-								fu.file_name, fu.datetime_uploaded as submission_date,
-								CONCAT(p.fname, ' ', p.lname) AS full_name
-						FROM task_tbl t 
-						LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
-						LEFT JOIN file_category_tbl fc ON tc.task_category = fc.file_category
-						LEFT JOIN file_permission_tbl fp ON fc.file_category_id = fp.file_category_id 
-							AND fp.position_id = :position_id
-						LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id
-						LEFT JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id 
-							AND fu.uploaded_by = :user_id
-						LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
-						LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-						WHERE fp.file_permission_id IS NOT NULL
-						ORDER BY t.task_deadline ASC";
-
-				return $this->db->select($query, [':position_id' => $positionId, ':user_id' => $userId]);
+			$query = "SELECT t.*, tc.task_category,
+							ts.task_submission_id, ts.check_status, ts.file_upload_id,
+							fu.file_name, fu.datetime_uploaded as submission_date,
+							CONCAT(p.fname, ' ', p.lname) AS full_name
+					FROM task_tbl t 
+					LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
+					LEFT JOIN task_submission_tbl ts ON t.task_id = ts.task_id
+					LEFT JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id 
+						AND fu.uploaded_by = :user_id
+					LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+					LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+					ORDER BY t.task_deadline ASC";				return $this->db->select($query, [':position_id' => $positionId, ':user_id' => $userId]);
 			} catch (Exception $e) {
 				return [];
 			}
@@ -1715,46 +1686,101 @@
 
 	class FileManager {
 
-    // Set file permissions
+    // Set file permissions (deprecated - file categories no longer use permissions)
     public function setFilePermission($positionId, $categoryId) {
         $db = Database::getInstance();
-
+        
         // Check if permission already exists
-        $check = $db->selectOne("
-            SELECT COUNT(*) AS cnt 
-            FROM file_permission_tbl 
-            WHERE position_id = ? AND file_category_id = ?
+        $exists = $db->selectOne("
+            SELECT permission_id 
+            FROM category_permissions_tbl 
+            WHERE position_id = ? AND category_id = ?
+            LIMIT 1
         ", [$positionId, $categoryId]);
-
-        if ($check['cnt'] > 0) {
-            throw new Exception("Permission already exists.");
+        
+        if ($exists) {
+            return [
+                "status" => "ERROR",
+                "msg" => "Permission already exists for this position and category"
+            ];
         }
-
+        
         // Insert new permission
         $db->execute("
-            INSERT INTO file_permission_tbl (position_id, file_category_id)
-            VALUES (?, ?)
+            INSERT INTO category_permissions_tbl (position_id, category_id, created_at) 
+            VALUES (?, ?, NOW())
         ", [$positionId, $categoryId]);
-
+        
         return [
             "status" => "SUCCESS",
             "msg" => "Permission granted successfully"
         ];
     }
 
-    // Download files
-    public function downloadFile($fileId) {
+    // Remove file permissions
+    public function removeFilePermission($positionId, $categoryId) {
+        $db = Database::getInstance();
+        
+        $result = $db->execute("
+            DELETE FROM category_permissions_tbl 
+            WHERE position_id = ? AND category_id = ?
+        ", [$positionId, $categoryId]);
+        
+        if ($result) {
+            return [
+                "status" => "SUCCESS",
+                "msg" => "Permission revoked successfully"
+            ];
+        } else {
+            return [
+                "status" => "ERROR",
+                "msg" => "Permission not found or already removed"
+            ];
+        }
+    }
+
+    // Check if user has access to a specific category
+    private function userCanAccessCategory($userId, $categoryId) {
+        $db = Database::getInstance();
+        
+        // Get user's position
+        $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+        if (!$user) return false;
+        
+        // Admin (position_id=3) always has full access
+        if ($user['position_id'] == 3) return true;
+        
+        // Check if position has permission for this category
+        $permission = $db->selectOne("
+            SELECT permission_id 
+            FROM category_permissions_tbl 
+            WHERE position_id = ? AND category_id = ?
+            LIMIT 1
+        ", [$user['position_id'], $categoryId]);
+        
+        return $permission !== null;
+    }
+
+    // Download files with permission check
+    public function downloadFile($fileId, $userId = null) {
         $db = Database::getInstance();
 
         $file = $db->selectOne("
-            SELECT file_name, file_path, mime_type 
-            FROM file_upload_tbl 
-            WHERE file_upload_id = ?
+            SELECT fu.file_name, fu.file_path, fu.mime_type, fu.original_filename, fu.category_id 
+            FROM file_upload_tbl fu
+            WHERE fu.file_upload_id = ?
             LIMIT 1
         ", [$fileId]);
 
         if (!$file) {
             throw new Exception("File not found.");
+        }
+
+        // Check permission if userId is provided and category_id exists
+        if ($userId && $file['category_id']) {
+            if (!$this->userCanAccessCategory($userId, $file['category_id'])) {
+                throw new Exception("Access denied: You don't have permission to access this file category.");
+            }
         }
 
         $fullPath = '../'.$file['file_path'];
@@ -1765,9 +1791,12 @@
 
         if (ob_get_length()) ob_end_clean();
 
+        // Use original filename for download, fallback to system filename
+        $downloadName = !empty($file['original_filename']) ? $file['original_filename'] : basename($file['file_name']);
+
         header("Content-Description: File Transfer");
         header("Content-Type: " . ($file['mime_type'] ?: "application/octet-stream"));
-        header("Content-Disposition: attachment; filename=\"" . basename($file['file_name']) . "\"");
+        header("Content-Disposition: attachment; filename=\"" . $downloadName . "\"");
         header("Expires: 0");
         header("Cache-Control: must-revalidate");
         header("Pragma: public");
@@ -1793,103 +1822,122 @@
             SELECT 
                 fu.file_upload_id,
                 fu.file_name,
-                fu.mime_type,
-                fu.category_tag,
-                fu.category_score,
-                fu.datetime_uploaded,
-                fu.file_path,
-                fu.file_size,
-                prof.fname,
-                prof.lname,
-                fc.file_category
-            FROM file_upload_tbl fu
-            LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
-            INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
-            LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
-        ";
+            fu.mime_type,
+            fu.category_tag,
+            fu.category_score,
+            fu.datetime_uploaded,
+            fu.file_path,
+            fu.file_size,
+            prof.fname,
+            prof.lname,
+            fu.category_tag as file_category
+        FROM file_upload_tbl fu
+        LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+        INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
+    ";
 
-        if ($isAdmin) {
-            if ($categoryId !== null) {
-                $query .= " WHERE fu.file_category_id = ?";
-                $params[] = $categoryId;
-            }
-        } else {
-            $permittedCategories = $db->select("
-                SELECT file_category_id 
-                FROM file_permission_tbl 
-                WHERE position_id = ?
-            ", [$positionId]);
-
-            $permittedCategories = array_column($permittedCategories, 'file_category_id');
-
-            if (empty($permittedCategories)) return [];
-
-            $query .= " WHERE fu.file_category_id IN (" . implode(',', array_map('intval', $permittedCategories)) . ")";
-            
-            if ($categoryId !== null) {
-                if (!in_array($categoryId, $permittedCategories)) return [];
-                $query .= " AND fu.file_category_id = ?";
-                $params[] = $categoryId;
-            }
-        }
-
-        $query .= " ORDER BY fu.datetime_uploaded DESC";
-
-        return $db->select($query, $params);
+    // Filter by category_tag if specified
+    if ($categoryId !== null) {
+        $query .= " WHERE fu.category_tag = ?";
+        $params[] = $categoryId;
     }
 
-    // Get all files
+    $query .= " ORDER BY fu.datetime_uploaded DESC";        return $db->select($query, $params);
+    }
+
+    // Get all files with permission filtering
     public function getAllFiles($userId = null) {
         $db = Database::getInstance();
 
-        $query = "
-            SELECT 
-                fu.file_upload_id,
-                fu.file_name,
-                fu.mime_type,
-                fu.category_tag,
-                fu.category_score,
-                fu.datetime_uploaded,
-                fu.file_path,
-                fu.file_size,
-                prof.fname,
-                prof.lname,
-                fc.file_category
-            FROM file_upload_tbl fu
-            LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id 
-            INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
-            LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
-        ";
-
-        $params = [];
-        if (!empty($userId)) {
-            $query .= " WHERE fu.uploaded_by = ?";
-            $params[] = $userId;
+        // Check if user exists and get their position
+        $userPosition = null;
+        if ($userId) {
+            $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+            $userPosition = $user['position_id'] ?? null;
         }
 
-        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        // Admin (position_id=3) sees all files
+        $isAdmin = ($userPosition == 3);
 
-        return $db->select($query, $params);
+        if ($isAdmin || !$userId) {
+            // Admin or no user specified - return all files
+            $query = "
+                SELECT 
+                    fu.file_upload_id,
+                    fu.original_filename,
+                    fu.file_name,
+                    fu.mime_type,
+                    fu.category_id,
+                    fu.category_tag,
+                    fu.category_score,
+                    fu.datetime_uploaded,
+                    fu.file_path,
+                    fu.file_size,
+                    prof.fname,
+                    prof.lname,
+                    c.category_name as file_category,
+                    c.category_slug
+                FROM file_upload_tbl fu
+                LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id 
+                INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
+                LEFT JOIN category_tbl c ON fu.category_id = c.category_id
+                ORDER BY fu.datetime_uploaded DESC
+            ";
+            return $db->select($query);
+        } else {
+            // Non-admin users - filter by category permissions
+            $query = "
+                SELECT 
+                    fu.file_upload_id,
+                    fu.original_filename,
+                    fu.file_name,
+                    fu.mime_type,
+                    fu.category_id,
+                    fu.category_tag,
+                    fu.category_score,
+                    fu.datetime_uploaded,
+                    fu.file_path,
+                    fu.file_size,
+                    prof.fname,
+                    prof.lname,
+                    c.category_name as file_category,
+                    c.category_slug
+                FROM file_upload_tbl fu
+                LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id 
+                INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
+                LEFT JOIN category_tbl c ON fu.category_id = c.category_id
+                WHERE fu.category_id IN (
+                    SELECT category_id 
+                    FROM category_permissions_tbl 
+                    WHERE position_id = ?
+                )
+                ORDER BY fu.datetime_uploaded DESC
+            ";
+            return $db->select($query, [$userPosition]);
+        }
     }
 
     // Get files accessible to subadmin/adviser based on their permissions
     public function getAdviserAccessibleFiles($userId, $filters = []) {
         $db = Database::getInstance();
         
-        // Get user's type to check if they're a subadmin
+        // Get user's type and position
         $user = $db->selectOne("SELECT user_type, position_id FROM user_tbl WHERE user_id = ?", [$userId]);
         if (!$user) {
             return ['data' => []];
         }
         
         $isSubadmin = ($user['user_type'] === 'subadmin');
+        $isAdmin = ($user['position_id'] == 3);
         
-        // Base query
+        // Base query with category join
         $query = "
             SELECT 
                 fu.file_upload_id,
+                fu.original_filename,
                 fu.file_name,
                 fu.mime_type,
+                fu.category_id,
                 fu.category_tag,
                 fu.category_score,
                 fu.datetime_uploaded,
@@ -1897,52 +1945,41 @@
                 fu.file_size,
                 prof.fname,
                 prof.lname,
-                fc.file_category,
-                fc.file_category_id
+                c.category_name as file_category,
+                c.category_slug
             FROM file_upload_tbl fu
             LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id 
             INNER JOIN profile_tbl prof ON u.profile_id = prof.profile_id
-            LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
+            LEFT JOIN category_tbl c ON fu.category_id = c.category_id
         ";
         
         $params = [];
         $whereConditions = [];
         
-        // For subadmins, check if they have file_management view permission
+        // For subadmins, enforce category permissions
         if ($isSubadmin) {
-            // Check if user has permission to view files
+            // Check if user has permission to view files module
             require_once __DIR__ . '/permission_class.php';
             if (!SubadminPermission::hasPermission($userId, 'file_management', 'view')) {
                 return ['data' => []];
             }
             
-            // Subadmins with file_management permission can see all files
-            // No category restrictions for subadmins - they see everything
-        } else {
-            // For non-subadmin users, use position-based permissions (old system)
-            $positionId = $user['position_id'];
-            $permittedCategories = $db->select("
-                SELECT file_category_id 
-                FROM file_permission_tbl 
-                WHERE position_id = ?
-            ", [$positionId]);
-            
-            $permittedCategories = array_column($permittedCategories, 'file_category_id');
-            
-            if (empty($permittedCategories)) {
-                return ['data' => []];
+            // ✅ ENFORCE CATEGORY PERMISSIONS - Only show files from allowed categories
+            if (!$isAdmin) {
+                $whereConditions[] = "fu.category_id IN (
+                    SELECT category_id 
+                    FROM category_permissions_tbl 
+                    WHERE position_id = ?
+                )";
+                $params[] = $user['position_id'];
             }
-            
-            $whereConditions[] = "fu.file_category_id IN (" . implode(',', array_map('intval', $permittedCategories)) . ")";
         }
         
-        // Apply filters
+        // Apply additional filters
         if (!empty($filters['category_id'])) {
-            $whereConditions[] = "fu.file_category_id = ?";
+            $whereConditions[] = "fu.category_id = ?";
             $params[] = $filters['category_id'];
-        }
-        
-        if (!empty($filters['date_from'])) {
+        }        if (!empty($filters['date_from'])) {
             $whereConditions[] = "DATE(fu.datetime_uploaded) >= ?";
             $params[] = $filters['date_from'];
         }
@@ -1965,12 +2002,12 @@
 
     // Upload file with NLP
     public function uploadFile($data) {
-        require_once __DIR__ . '/google_nlp_service.php';
+        require_once __DIR__ . '/nlpcloud_service.php';
         $db = Database::getInstance();
 
         $file = $data['file'];
         $allowedTypes = $data['allowed_types'] ?? ['jpg','jpeg','png','pdf','doc','docx','xls','xlsx','ppt','pptx'];
-        $uploadDir = '../uploads/files/';
+        $baseUploadDir = '../uploads/files/';
         $uploadedBy = $data['uploaded_by'] ?? ($_SESSION['user_id'] ?? null);
 
         try {
@@ -1978,67 +2015,134 @@
                 throw new Exception('File upload failed or no file selected');
             }
 
-            if ($file['size'] > 10*1024*1024) throw new Exception('File size exceeds 10MB');
+            if ($file['size'] > 50*1024*1024) throw new Exception('File size exceeds 50MB limit');
 
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $originalFilename = $file['name'];
+            $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
             if (!in_array($extension, $allowedTypes)) {
                 throw new Exception('File type not allowed');
             }
 
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            if (!is_dir($baseUploadDir)) mkdir($baseUploadDir, 0755, true);
 
-            $filename = uniqid() . '_' . time() . '.' . $extension;
-            $fullPath = $uploadDir . $filename;
+            $systemFilename = uniqid() . '_' . time() . '.' . $extension;
+            $tempPath = $baseUploadDir . $systemFilename;
 
-            if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
                 throw new Exception('Failed to move uploaded file');
             }
 
-            // Get categories
-            $categories = $this->getFileCategories();
+            // ⭐ CHECK IF NLP DATA IS ALREADY PROVIDED (from preview) - AVOID DUPLICATE API CALL!
+            if (isset($data['nlp_analysis']) && !empty($data['nlp_analysis'])) {
+                // Reuse cached NLP results from preview
+                $nlpAnalysisData = is_string($data['nlp_analysis']) ? json_decode($data['nlp_analysis'], true) : $data['nlp_analysis'];
+                $filecategory = $data['category_tag'] ?? 'Uncategorized';
+                $score = $data['category_score'] ?? 0;
+                
+                $result = [
+                    'success' => true,
+                    'category_tag' => $filecategory,
+                    'category_score' => $score,
+                    'extracted_text' => $nlpAnalysisData['extracted_text'] ?? '',
+                    'word_count' => $nlpAnalysisData['word_count'] ?? 0,
+                    'keywords' => $nlpAnalysisData['keywords'] ?? [],
+                    'entities' => $nlpAnalysisData['entities'] ?? [],
+                    'sentiment' => $nlpAnalysisData['sentiment'] ?? null,
+                    'full_analysis' => $nlpAnalysisData,
+                    'provider' => $nlpAnalysisData['provider'] ?? 'nlpcloud',
+                    'processing_time_ms' => 0,
+                    'from_cache' => true
+                ];
+            } else {
+                // No cached data - perform NLP analysis (uses API call)
+                $nlp = new NLPCloudService();
+                $result = $nlp->analyzeFile($tempPath, $file['type']);
 
-            // NLP
-            $configFile = __DIR__ . '/../../config/google_nlp_config.php';
-            $apiKey = '';
-            if (file_exists($configFile)) {
-                $config = include($configFile);
-                $apiKey = $config['api_key'] ?? '';
+                if (!$result['success']) {
+                    throw new Exception('NLP analysis failed: ' . ($result['error'] ?? 'Unknown error'));
+                }
+
+                $filecategory = $result['category_tag'] ?? 'Uncategorized';
+                $score = $result['category_score'] ?? 0;
             }
-            $nlp = new GoogleNLPService($apiKey);
-            $result = $nlp->analyzeFileAndSuggestCategory($fullPath, $file['type'], $categories);
 
-            $filecategory = $result['suggested_category_name'] ?? 'Uncategorized';
-            $categoryid = $result['suggested_category_id'] ?? null;
-            $score = $result['confidence'] ?? 0;
-
-			$linkpath = 'uploads/files/' . $filename;
+            // ⭐ NEW: Get or create category and organize files by category
+            $categorySlug = $this->getCategorySlug($filecategory);
+            $categoryId = $this->getOrCreateCategory($filecategory, $categorySlug);
+            
+            // Create category directory
+            $categoryDir = $baseUploadDir . $categorySlug . '/';
+            if (!is_dir($categoryDir)) {
+                if (!mkdir($categoryDir, 0755, true)) {
+                    throw new Exception('Failed to create category directory: ' . $categorySlug);
+                }
+            }
+            
+            // Move file to category folder
+            $finalPath = $categoryDir . $systemFilename;
+            if (!rename($tempPath, $finalPath)) {
+                if (!copy($tempPath, $finalPath)) {
+                    throw new Exception('Failed to move file to category directory');
+                }
+                unlink($tempPath);
+            }
+            
+            $dbPath = 'uploads/files/' . $categorySlug . '/' . $systemFilename;
 
             $fileId = $db->insert("
 				INSERT INTO file_upload_tbl 
-				(file_category_id, category_tag, category_score, mime_type, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			", [
-				$categoryid,
+				$categoryId,
 				$filecategory,
 				$score,
 				$file['type'],
-				$filename,
-				$linkpath,
+				$originalFilename,
+				$systemFilename,
+				$dbPath,
 				$file['size'],
 				date('Y-m-d H:i:s'),
 				$uploadedBy
 			]);
 
+            // Save detailed NLP analysis to analysis table
+            if (isset($result['extracted_text'])) {
+                $db->insert("
+                    INSERT INTO file_nlp_analysis_tbl 
+                    (file_upload_id, extracted_text, word_count, suggested_category, category_confidence, 
+                     keywords, entities, sentiment, full_analysis, provider, processing_time_ms) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ", [
+                    $fileId,
+                    $result['extracted_text'],
+                    $result['word_count'] ?? 0,
+                    $result['category_tag'] ?? 'Uncategorized',
+                    $result['category_score'] ?? 0,
+                    json_encode($result['keywords'] ?? []),
+                    json_encode($result['entities'] ?? []),
+                    json_encode($result['sentiment'] ?? null),
+                    json_encode($result['full_analysis'] ?? $result),
+                    $result['provider'] ?? 'nlpcloud',
+                    $result['processing_time_ms'] ?? null
+                ]);
+            }
+
 			return [
 				'success' => true,
-				'file_id' => $fileId,        // 🔥 IMPORTANT
-				'filename' => $filename,
-				'original_name' => $file['name'],
-				'path' => $fullPath,
+				'file_id' => $fileId,
+				'filename' => $systemFilename,
+				'original_name' => $originalFilename,
+				'path' => $finalPath,
+				'db_path' => $dbPath,
+				'category_slug' => $categorySlug,
 				'size' => $file['size'],
 				'type' => $file['type'],
 				'extension' => $extension,
 				'upload_time' => date('Y-m-d H:i:s'),
+				'category_tag' => $filecategory,
+				'category_score' => $score,
+				'category_id' => $categoryId,
 				'nlp_result' => $result
 			];
 
@@ -2050,41 +2154,86 @@
         }
     }
 
-    // Get file categories
+    // Get file categories (deprecated - now uses OpenAI NLP categorization)
     public function getFileCategories() {
         $db = Database::getInstance();
+        // Return unique categories from existing files
         $rows = $db->select("
-            SELECT fc.file_category_id, fc.file_category, fck.keyword
-            FROM file_category_tbl fc
-            LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
-            ORDER BY fc.file_category_id, fck.keyword
+            SELECT DISTINCT category_tag as file_category
+            FROM file_upload_tbl
+            WHERE category_tag IS NOT NULL AND category_tag != ''
+            ORDER BY category_tag
         ");
 
         $categories = [];
         foreach ($rows as $row) {
-            $id = $row['file_category_id'];
-            if (!isset($categories[$id])) {
-                $categories[$id] = [
-                    'file_category_id' => $id,
-                    'file_category' => $row['file_category'],
-                    'keywords' => []
-                ];
-            }
-            if (!empty($row['keyword'])) $categories[$id]['keywords'][] = $row['keyword'];
+            $categories[] = [
+                'file_category' => $row['file_category'],
+                'keywords' => [] // No longer applicable with NLP
+            ];
         }
         return array_values($categories);
     }
 
-    // Get all file permissions
+    /**
+     * Convert category name to URL-safe slug for directory names
+     */
+    private function getCategorySlug($categoryName) {
+        $slug = strtolower(trim($categoryName));
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+        $slug = trim($slug, '-');
+        return $slug ?: 'uncategorized';
+    }
+
+    /**
+     * Get category ID from category_tbl, create if doesn't exist
+     */
+    private function getOrCreateCategory($categoryName, $categorySlug) {
+        $db = Database::getInstance();
+        
+        // Try to find existing category
+        $stmt = $db->getConnection()->prepare("SELECT category_id FROM category_tbl WHERE category_name = :name LIMIT 1");
+        $stmt->execute([':name' => $categoryName]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result) {
+            return $result['category_id'];
+        }
+        
+        // Create new category
+        $stmt = $db->getConnection()->prepare(
+            "INSERT INTO category_tbl (category_name, category_slug, description) 
+            VALUES (:name, :slug, :description)"
+        );
+        $stmt->execute([
+            ':name' => $categoryName,
+            ':slug' => $categorySlug,
+            ':description' => 'Auto-created by NLP classification'
+        ]);
+        
+        return $db->getConnection()->lastInsertId();
+    }
+
+    // Get all file permissions (deprecated - file category permissions no longer used)
     public function getFilePermissions() {
         $db = Database::getInstance();
-        return $db->select("
-            SELECT fp.file_permission_id, fp.position_id, p.position, fp.file_category_id, fc.file_category
-            FROM file_permission_tbl fp
-            JOIN position_tbl p ON fp.position_id = p.position_id
-            JOIN file_category_tbl fc ON fp.file_category_id = fc.file_category_id
-            ORDER BY fp.position_id, fp.file_category_id
+        
+        $permissions = $db->select("
+            SELECT 
+                cp.permission_id,
+                cp.position_id,
+                p.position as position_name,
+                cp.category_id,
+                c.category_name as file_category,
+                c.category_slug,
+                cp.created_at
+            FROM category_permissions_tbl cp
+            INNER JOIN position_tbl p ON cp.position_id = p.position_id
+            INNER JOIN category_tbl c ON cp.category_id = c.category_id
+            ORDER BY p.position ASC, c.category_name ASC
         ");
+        
+        return $permissions ?: [];
     }
 
     // Delete member file
@@ -2122,10 +2271,22 @@
     public function deleteFile($fileId, $userId, $reason = '') {
         $db = Database::getInstance();
         
-        // Get file details
+        // Get file details with category
         $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
         if (!$file) {
             return ['status' => 'ERROR', 'msg' => 'File not found'];
+        }
+
+        // Check category permission if category_id exists and user is not admin
+        if ($file['category_id'] && $userId) {
+            $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+            
+            // If not admin (position_id != 3), check category permission
+            if ($user && $user['position_id'] != 3) {
+                if (!$this->userCanAccessCategory($userId, $file['category_id'])) {
+                    return ['status' => 'ERROR', 'msg' => 'Access denied: You don\'t have permission to delete files in this category'];
+                }
+            }
         }
 
         // Check if file is linked to an approved task submission (only admin can delete these)
@@ -2225,12 +2386,215 @@
         $params = [$memberId];
 
         if (!empty($filters['category'])) {
-            $where .= " AND file_category_id = ?";
+            $where .= " AND category_tag = ?";
             $params[] = $filters['category'];
         }
 
         $files = $db->select("SELECT * FROM file_upload_tbl WHERE $where ORDER BY datetime_uploaded DESC", $params);
         return ['data' => $files];
+    }
+
+    /**
+     * Search files by content (full-text search)
+     * Searches both NLP extracted text AND actual file contents on disk
+     * @param string $searchText - Text to search for in file contents
+     * @param int|null $categoryId - Optional category filter
+     * @param int|null $userId - User ID for permission filtering (null for admin)
+     * @return array - Array of matching files with metadata
+     */
+    public function searchFilesByContent($searchText, $categoryId = null, $userId = null) {
+        $db = Database::getInstance();
+        
+        // Check if user is admin
+        $isAdmin = false;
+        if ($userId) {
+            $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+            $isAdmin = ($user && $user['position_id'] == 3);
+        }
+        
+        // Build query to get all files (we'll filter by content in PHP)
+        $query = "
+            SELECT DISTINCT
+                fu.file_upload_id,
+                fu.original_filename,
+                fu.file_name,
+                fu.file_path,
+                fu.file_size,
+                fu.mime_type,
+                fu.datetime_uploaded,
+                fu.uploaded_by,
+                fu.category_id,
+                c.category_name as file_category,
+                c.category_slug,
+                p.fname,
+                p.lname,
+                fna.extracted_text,
+                fna.word_count,
+                fna.category_confidence
+            FROM file_upload_tbl fu
+            LEFT JOIN category_tbl c ON fu.category_id = c.category_id
+            LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+            LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+            LEFT JOIN file_nlp_analysis_tbl fna ON fu.file_upload_id = fna.file_upload_id
+            WHERE 1=1
+        ";
+        
+        $params = [];
+        
+        // Add category filter
+        if (!empty($categoryId)) {
+            $query .= " AND fu.category_id = :categoryId";
+            $params[':categoryId'] = $categoryId;
+        }
+        
+        // Add permission filter for non-admin users
+        if ($userId && !$isAdmin) {
+            $userPosition = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+            if ($userPosition) {
+                $query .= " AND fu.category_id IN (
+                    SELECT category_id 
+                    FROM file_permission_tbl 
+                    WHERE position_id = :positionId
+                )";
+                $params[':positionId'] = $userPosition['position_id'];
+            }
+        }
+        
+        $query .= " ORDER BY fu.datetime_uploaded DESC";
+        
+        $stmt = $db->getConnection()->prepare($query);
+        $stmt->execute($params);
+        $allFiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // If no search text, return all files
+        if (empty($searchText)) {
+            return $allFiles;
+        }
+        
+        // Filter files by content - CHECK ALL FILES before returning results
+        $matchingFiles = [];
+        $searchLower = strtolower($searchText);
+        
+        require_once(__DIR__ . '/text_extractor.php');
+        $textExtractor = new TextExtractor();
+        
+        // Process EVERY file in the database
+        foreach ($allFiles as $file) {
+            $matchFound = false;
+            $fileContent = null;
+            
+            // Always read actual file content from disk first for most accurate search
+            if (!empty($file['file_path'])) {
+                $fullPath = __DIR__ . '/../../' . $file['file_path'];
+                
+                if (file_exists($fullPath)) {
+                    try {
+                        // Extract text from the actual file on disk
+                        $fileContent = $textExtractor->extractText($fullPath, $file['mime_type']);
+                        
+                        // Search in actual file content (most reliable)
+                        if (!empty($fileContent) && stripos($fileContent, $searchText) !== false) {
+                            $matchFound = true;
+                            // Update extracted_text in result for display purposes
+                            $file['extracted_text'] = $fileContent;
+                        }
+                    } catch (Exception $e) {
+                        // If extraction fails, log and continue checking other sources
+                        error_log("Failed to extract text from {$file['file_path']}: " . $e->getMessage());
+                    }
+                }
+            }
+            
+            // If no match in file content, check other sources
+            if (!$matchFound) {
+                // Check filename
+                if (stripos($file['original_filename'], $searchText) !== false) {
+                    $matchFound = true;
+                }
+                
+                // Check category name
+                if (!$matchFound && stripos($file['file_category'], $searchText) !== false) {
+                    $matchFound = true;
+                }
+                
+                // Check NLP extracted text from database (fallback if file reading failed)
+                if (!$matchFound && !empty($file['extracted_text'])) {
+                    if (stripos($file['extracted_text'], $searchText) !== false) {
+                        $matchFound = true;
+                    }
+                }
+            }
+            
+            // Add to results ONLY if match found after checking ALL sources
+            if ($matchFound) {
+                $matchingFiles[] = $file;
+            }
+        }
+        
+        // Return results only after ALL files have been checked
+        return $matchingFiles;
+    }
+
+    /**
+     * Get NLP analysis data for a specific file
+     * @param int $fileId - File upload ID
+     * @param int|null $userId - User ID for permission check
+     * @return array - NLP analysis data or error
+     */
+    public function getFileNLPAnalysis($fileId, $userId = null) {
+        $db = Database::getInstance();
+        
+        // Get file info first
+        $file = $db->selectOne("
+            SELECT fu.*, c.category_name, c.category_slug
+            FROM file_upload_tbl fu
+            LEFT JOIN category_tbl c ON fu.category_id = c.category_id
+            WHERE fu.file_upload_id = ?
+        ", [$fileId]);
+        
+        if (!$file) {
+            return ['status' => 'ERROR', 'msg' => 'File not found'];
+        }
+        
+        // Check permissions if userId provided
+        if ($userId) {
+            $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+            $isAdmin = ($user && $user['position_id'] == 3);
+            
+            // Non-admin users must have category permission
+            if (!$isAdmin && $file['category_id']) {
+                if (!$this->userCanAccessCategory($userId, $file['category_id'])) {
+                    return ['status' => 'ERROR', 'msg' => 'Access denied: You do not have permission to view this file'];
+                }
+            }
+        }
+        
+        // Get NLP analysis data
+        $nlpData = $db->selectOne("
+            SELECT * FROM file_nlp_analysis_tbl 
+            WHERE file_upload_id = ?
+        ", [$fileId]);
+        
+        if (!$nlpData) {
+            return [
+                'status' => 'WARNING',
+                'msg' => 'No NLP analysis available for this file',
+                'file' => $file,
+                'analysis' => null
+            ];
+        }
+        
+        // Parse JSON fields
+        $nlpData['keywords'] = json_decode($nlpData['keywords'] ?? '[]', true);
+        $nlpData['entities'] = json_decode($nlpData['entities'] ?? '[]', true);
+        $nlpData['sentiment'] = json_decode($nlpData['sentiment'] ?? '{}', true);
+        $nlpData['full_analysis'] = json_decode($nlpData['full_analysis'] ?? '{}', true);
+        
+        return [
+            'status' => 'SUCCESS',
+            'file' => $file,
+            'analysis' => $nlpData
+        ];
     }
 }
 
@@ -2242,7 +2606,7 @@ class DashboardManager {
         $stats['activeTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE assigned_to = ? AND task_deadline >= CURDATE()", [$memberId])['count'] ?? 0;
         //$stats['activeTasks'] = $db->select("SELECT COUNT(*) as count FROM task_tbl WHERE task_deadline >= CURDATE()")['count'] ?? 0;
 		$stats['completedTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl WHERE submitted_by = ? AND check_status = 'approved'", [$memberId])['count'] ?? 0;
-        $stats['categoryCount'] = $db->selectOne("SELECT COUNT(DISTINCT file_category_id) as count FROM file_upload_tbl WHERE uploaded_by = ?", [$memberId])['count'] ?? 0;
+        $stats['categoryCount'] = $db->selectOne("SELECT COUNT(DISTINCT category_tag) as count FROM file_upload_tbl WHERE uploaded_by = ? AND category_tag IS NOT NULL", [$memberId])['count'] ?? 0;
         return ['success' => true, 'data' => $stats];
     }
     public function getMemberRecentActivity($memberId) {

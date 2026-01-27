@@ -82,20 +82,48 @@ $currentUser = $session->getUserData();
   <!-- Comply Task Modal -->
   <div id="complyTaskModal" class="modal">
     <div class="modal-content modal-content-large">
-      <h2>Comply with Task</h2>
+      <h2>📋 Comply with Task</h2>
       <form id="complyTaskForm" enctype="multipart/form-data">
         <input type="hidden" id="complyTaskId" name="task_id" />
+        
         <div class="form-group">
-          <label for="complyFile">Upload File</label>
-          <input type="file" id="complyFile" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.ppt,.pptx" required />
+          <label for="complyFile">📎 Select File to Upload</label>
+          <input type="file" id="complyFile" name="file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx" required />
+          <small style="display: block; margin-top: 5px; color: #666;">
+            Supported formats: PDF, Word, Excel, PowerPoint, Text (Max: 50MB)
+          </small>
         </div>
-        <div id="complyNlpPreview" style="display:none; margin-top:10px;">
-          <strong>Suggested Category:</strong> <span id="complySuggestedCategory">-</span><br>
-          <strong>Confidence:</strong> <span id="complyCategoryConfidence">-</span>
+        
+        <div class="alert alert-info" style="margin-top: 15px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+          <strong>🤖 AI-Powered Classification</strong>
+          <p style="margin: 5px 0 0 0; font-size: 13px;">Your file will be analyzed using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning categorization!</p>
         </div>
-        <div class="form-actions" style="margin-top:20px;">
-          <button type="button" id="complyUploadBtn">Submit</button>
-          <button type="button" onclick="closeModal('complyTaskModal')">Cancel</button>
+        
+        <div id="complyNlpPreview" style="display:none; margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #4CAF50;">
+          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #333;">📊 Classification Preview</h4>
+          <div style="font-size: 13px; line-height: 1.8;">
+            <div style="margin: 5px 0;">
+              <strong>🏷️ Suggested Category:</strong> 
+              <span id="complySuggestedCategory" style="color: #2196F3; font-weight: 600;">-</span>
+            </div>
+            <div style="margin: 5px 0;">
+              <strong>📈 Confidence Score:</strong> 
+              <span id="complyCategoryConfidence" style="color: #4CAF50; font-weight: 600;">-</span>
+            </div>
+            <div id="complySentimentPreview" style="margin: 5px 0; display: none;">
+              <strong>😊 Sentiment:</strong> 
+              <span id="complySentiment" style="font-weight: 600;">-</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn-secondary" onclick="closeModal('complyTaskModal')" style="padding: 10px 20px;">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="button" class="btn-primary" id="complyUploadBtn" style="padding: 10px 20px;">
+            <i class="fas fa-upload"></i> Submit Task
+          </button>
         </div>
       </form>
     </div>
@@ -165,8 +193,8 @@ $currentUser = $session->getUserData();
                     </div>
                   </div>
                   <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
-                    <strong>🤖 Auto-Categorization Enabled</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using Google Cloud NLP based on their content and keywords.</p>
+                    <strong>🤖 AI-Powered Classification</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning, not just keywords!</p>
                   </div>
                 </div>
               </div>
@@ -564,6 +592,8 @@ $currentUser = $session->getUserData();
       document.getElementById('complyNlpPreview').style.display = 'none';
       document.getElementById('complySuggestedCategory').textContent = '-';
       document.getElementById('complyCategoryConfidence').textContent = '-';
+      document.getElementById('complySentimentPreview').style.display = 'none';
+      document.getElementById('complySentiment').textContent = '-';
       openModal('complyTaskModal');
     };
 
@@ -586,7 +616,20 @@ $currentUser = $session->getUserData();
             if(result.status === 'SUCCESS') {
               document.getElementById('complyNlpPreview').style.display = 'block';
               document.getElementById('complySuggestedCategory').textContent = result.category || 'Uncategorized';
-              document.getElementById('complyCategoryConfidence').textContent = result.nlp_analysis['confidence'] || '0';
+              document.getElementById('complyCategoryConfidence').textContent = (result.score || '0') + '%';
+              
+              // Show sentiment if available
+              if(result.sentiment && result.sentiment.length > 0) {
+                const topEmotion = result.sentiment[0];
+                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                   topEmotion.label === 'anger' ? '😠' : 
+                                   topEmotion.label === 'sadness' ? '😢' : 
+                                   topEmotion.label === 'fear' ? '😨' : 
+                                   topEmotion.label === 'love' ? '❤️' : '😮';
+                document.getElementById('complySentimentPreview').style.display = 'block';
+                document.getElementById('complySentiment').textContent = emotionIcon + ' ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
+              }
+              
               // Store for upload
               document.getElementById('complyFile').dataset.suggestedCategory = result.category || 'Uncategorized';
               document.getElementById('complyFile').dataset.categoryScore = result.score || '0';
@@ -630,11 +673,33 @@ $currentUser = $session->getUserData();
         dataType: 'json',
         beforeSend: function() {
           document.getElementById('complyUploadBtn').disabled = true;
-          document.getElementById('complyUploadBtn').textContent = 'Uploading...';
+          document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         },
         success: function(result) {
           if(result.status === 'SUCCESS' || result.success) {
-            openNotificationModal('Task file uploaded successfully!');
+            let notificationMsg = 'Task file uploaded successfully!';
+            
+            // Display NLP results
+            if(result.category_tag || result.nlp_result) {
+              const category = result.category_tag || result.nlp_result?.category_tag || 'Uncategorized';
+              const score = result.category_score || result.nlp_result?.category_score || 0;
+              
+              notificationMsg += '\n\n🤖 Auto-categorized as: ' + category;
+              notificationMsg += '\n📊 Confidence: ' + score + '%';
+              
+              // Add sentiment if available
+              if(result.nlp_result?.sentiment && result.nlp_result.sentiment.length > 0) {
+                const topEmotion = result.nlp_result.sentiment[0];
+                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                   topEmotion.label === 'anger' ? '😠' : 
+                                   topEmotion.label === 'sadness' ? '😢' : 
+                                   topEmotion.label === 'fear' ? '😨' : 
+                                   topEmotion.label === 'love' ? '❤️' : '😮';
+                notificationMsg += '\n' + emotionIcon + ' Sentiment: ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
+              }
+            }
+            
+            openNotificationModal(notificationMsg);
             closeModal('complyTaskModal');
             loadPendingTasks();
             updatePendingTasksBadge();
@@ -649,7 +714,7 @@ $currentUser = $session->getUserData();
         complete: function() {
           closeLoadModal();
           document.getElementById('complyUploadBtn').disabled = false;
-          document.getElementById('complyUploadBtn').textContent = 'Submit';
+          document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
         }
       });
     });
@@ -723,14 +788,30 @@ $currentUser = $session->getUserData();
           success: function(result) {
             if(result.status === "SUCCESS") {
               nlpSuggestedCategory = result.category;
-              nlpCategoryConfidence = result.nlp_analysis['confidence'];
+              nlpCategoryConfidence = result.score;
               nlpAnalysisData = result.nlp_analysis;
-              // Show NLP preview and ask for confirmation
+              
+              // Show NLP preview
               $('#nlpPreview').show();
               $('#suggestedCategory').text(nlpSuggestedCategory || 'Uncategorized');
               $('#categoryConfidence').text(nlpCategoryConfidence ? nlpCategoryConfidence + '%' : 'N/A');
-              // Show confirmation dialog
-              //confirmUploadWithCategory(file, nlpSuggestedCategory, nlpCategoryConfidence, nlpAnalysisData);
+              
+              // Display additional NLP data if available
+              if (result.keywords && result.keywords.length > 0) {
+                $('#suggestedCategory').text(nlpSuggestedCategory + ' 🔑 ' + result.keywords.slice(0, 3).join(', '));
+              }
+              
+              // Show sentiment if available
+              if (result.sentiment && result.sentiment.length > 0) {
+                const topEmotion = result.sentiment[0];
+                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                   topEmotion.label === 'anger' ? '😠' : 
+                                   topEmotion.label === 'sadness' ? '😢' : 
+                                   topEmotion.label === 'fear' ? '😨' : 
+                                   topEmotion.label === 'love' ? '❤️' : '😮';
+                $('#categoryConfidence').text(nlpCategoryConfidence + '% ' + emotionIcon + ' ' + topEmotion.label);
+              }
+              
             } else {
               openNotificationModal("ERROR! NLP analysis failed. Please try again.");
             }
@@ -897,7 +978,14 @@ $currentUser = $session->getUserData();
           formData.append('CALL', 3);
           formData.append('file', file);
           formData.append('uploaded_by', currentUserId);
-          // No category_id - NLP will auto-categorize
+          
+          // ⭐ REUSE CACHED NLP RESULTS - No duplicate API call!
+          if(nlpSuggestedCategory && nlpCategoryConfidence !== null && nlpAnalysisData) {
+            formData.append('category_tag', nlpSuggestedCategory);
+            formData.append('category_score', nlpCategoryConfidence);
+            formData.append('nlp_analysis', JSON.stringify(nlpAnalysisData));
+          }
+          
           openLoadModal();
           $.ajax({
             url: 'ajax.php',
@@ -912,13 +1000,29 @@ $currentUser = $session->getUserData();
             success: function(result) {
               let message = result.msg || result.message;
               if(result.success === true) {
+                let notificationMsg = 'File uploaded successfully!';
                 
-                if(result.nlp_result) {
-                  message += '\n\nAuto-categorized as: ' + (result.nlp_result.suggested_category_name || '-') +
-                            '\nConfidence: ' + (result.nlp_result['confidence'] || 'N/A') + '%';
+                // Display NLP results
+                if(result.category_tag || result.nlp_result) {
+                  const category = result.category_tag || result.nlp_result?.category_tag || 'Uncategorized';
+                  const score = result.category_score || result.nlp_result?.category_score || 0;
+                  
+                  notificationMsg += '\n\n🤖 Auto-categorized as: ' + category;
+                  notificationMsg += '\n📊 Confidence: ' + score + '%';
+                  
+                  // Add sentiment if available
+                  if(result.nlp_result?.sentiment && result.nlp_result.sentiment.length > 0) {
+                    const topEmotion = result.nlp_result.sentiment[0];
+                    const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
+                                       topEmotion.label === 'anger' ? '😠' : 
+                                       topEmotion.label === 'sadness' ? '😢' : 
+                                       topEmotion.label === 'fear' ? '😨' : 
+                                       topEmotion.label === 'love' ? '❤️' : '😮';
+                    notificationMsg += '\n' + emotionIcon + ' Sentiment: ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
+                  }
                 }
-                openNotificationModal("SUCCESS! Successfully uploaded file!");
-                //clearUploadForm();
+                
+                openNotificationModal("SUCCESS! " + notificationMsg);
                 $('.tab-link[data-tab="files"]').click();
               } else {
                 openNotificationModal("FAILED! Failed to upload file. Please double check file size and file extension");

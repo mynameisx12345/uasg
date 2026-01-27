@@ -26,9 +26,10 @@
 		if ($_GET['CALL'] === 'download') {
 			// ...existing code...
 			$fileId = $_GET['file_id'] ?? 0;
+			$userId = $_SESSION['user_id'] ?? null;
 			try {
 				$fileManager = new FileManager();
-				$fileManager->downloadFile($fileId);
+				$fileManager->downloadFile($fileId, $userId);
 				exit;
 			} catch(Exception $e) {
 				header("Content-Type: application/json");
@@ -138,16 +139,14 @@
 		try {
 			$db = Database::getInstance();
 			
-			// Total Files
-			$totalFiles = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl")['count'] ?? 0;
-			
-			// Total Categories
-			$totalCategories = $db->selectOne("SELECT COUNT(*) as count FROM file_category_tbl")['count'] ?? 0;
-			
-			// Total Users (excluding admin)
-			$totalUsers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type != 'admin'")['count'] ?? 0;
-			
-			// Pending Tasks
+		// Total Files
+		$totalFiles = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl")['count'] ?? 0;
+		
+		// Total Categories (unique category tags from uploaded files)
+		$totalCategories = $db->selectOne("SELECT COUNT(DISTINCT category_tag) as count FROM file_upload_tbl WHERE category_tag IS NOT NULL")['count'] ?? 0;
+		
+		// Total Users (excluding admin)
+		$totalUsers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type != 'admin'")['count'] ?? 0;			// Pending Tasks
 			$pendingTasks = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE task_id NOT IN (SELECT task_id FROM task_submission_tbl)")['count'] ?? 0;
 			
 			// Active Members (students)
@@ -159,24 +158,21 @@
 			// Task Submissions
 			$totalSubmissions = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl")['count'] ?? 0;
 			
-			// Recent Activity (last 10)
-			$recentActivity = $db->select("
-				SELECT 
-					'file_upload' as type,
-					fu.datetime_uploaded as date,
-					CONCAT(p.fname, ' ', p.lname) as user_name,
-					'Uploaded' as action,
-					fu.file_name as item,
-					fc.file_category as category
-				FROM file_upload_tbl fu
-				LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
-				LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-				LEFT JOIN file_category_tbl fc ON fu.file_category_id = fc.file_category_id
-				ORDER BY fu.datetime_uploaded DESC
-				LIMIT 10
-			") ?? [];
-			
-			echo json_encode([
+		// Recent Activity (last 10)
+		$recentActivity = $db->select("
+			SELECT 
+				'file_upload' as type,
+				fu.datetime_uploaded as date,
+				CONCAT(p.fname, ' ', p.lname) as user_name,
+				'Uploaded' as action,
+				fu.file_name as item,
+				fu.category_tag as category
+			FROM file_upload_tbl fu
+			LEFT JOIN user_tbl u ON fu.uploaded_by = u.user_id
+			LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+			ORDER BY fu.datetime_uploaded DESC
+			LIMIT 10
+		") ?? [];			echo json_encode([
 				'success' => true,
 				'data' => [
 					'totalFiles' => $totalFiles,
@@ -201,12 +197,12 @@
 			$db = Database::getInstance();
 			$stats = $db->select("
 				SELECT 
-					fc.file_category as category,
+					COALESCE(fu.category_tag, 'Uncategorized') as category,
 					COUNT(fu.file_upload_id) as count,
 					SUM(fu.file_size) as total_size
-				FROM file_category_tbl fc
-				LEFT JOIN file_upload_tbl fu ON fc.file_category_id = fu.file_category_id
-				GROUP BY fc.file_category_id, fc.file_category
+				FROM file_upload_tbl fu
+				WHERE fu.category_tag IS NOT NULL
+				GROUP BY fu.category_tag
 				ORDER BY count DESC
 			") ?? [];
 			
@@ -272,93 +268,16 @@
 			// Clean output buffer before processing
 			if (ob_get_level()) ob_clean();
 			
-			require_once '../resources/objects/google_nlp_service.php';
 			$searchWord = $_POST['SEARCH_WORD'] ?? '';
 			$categoryId = $_POST['CATEGORY_ID'] ?? '';
-			$nlp = new GoogleNLPService();
-		$results = [];
-		
-		// Get database file records for matching
-		$db = Database::getInstance();
-		$conn = $db->getConnection();
-		$stmt = $conn->prepare("SELECT file_upload_id, file_name, file_path, file_category_id FROM file_upload_tbl");
-		$stmt->execute();
-		$dbFiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-		
-		// Create lookup map: file_name => file_upload_id
-		$fileIdMap = [];
-		foreach($dbFiles as $dbFile) {
-			$fileIdMap[$dbFile['file_name']] = [
-				'id' => $dbFile['file_upload_id'],
-				'category_id' => $dbFile['file_category_id']
-			];
-		}
-		
-		// Directories to scan
-		$uploadDirs = [
-			realpath(__DIR__ . '/../uploads/files'),
-			realpath(__DIR__ . '/../admin/uploads'),
-			realpath(__DIR__ . '/../member/uploads'),
-			realpath(__DIR__ . '/../subadmin/uploads')
-		];
-		
-		foreach($uploadDirs as $dir) {
-			if(!$dir || !is_dir($dir)) continue;
-			$rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
-			foreach ($rii as $file) {
-				if ($file->isDir()) continue;
-				$filePath = $file->getPathname();
-				$mimeType = mime_content_type($filePath);
-				$fileName = $file->getFilename();
-				
-				// Extract text
-				$textResult = $nlp->extractTextFromFile($filePath, $mimeType);
-				$text = $textResult['success'] ? $textResult['text'] : '';
-				if($searchWord && stripos($text, $searchWord) === false && stripos($fileName, $searchWord) === false) continue;
-				
-				// Get file_upload_id from database if exists
-				$fileUploadId = isset($fileIdMap[$fileName]) ? $fileIdMap[$fileName]['id'] : null;
-				$fileCategoryId = isset($fileIdMap[$fileName]) ? $fileIdMap[$fileName]['category_id'] : null;
-				
-				// Get category name if category_id exists
-				$categoryName = '';
-				if($fileCategoryId) {
-					$catStmt = $conn->prepare("SELECT file_category FROM file_category_tbl WHERE file_category_id = ?");
-					$catStmt->execute([$fileCategoryId]);
-					$cat = $catStmt->fetch(PDO::FETCH_ASSOC);
-					$categoryName = $cat ? $cat['file_category'] : '';
-				}
-				
-				// Get uploader info from database if file exists in DB
-				$uploaderName = 'Unknown';
-				if($fileUploadId) {
-					$userStmt = $conn->prepare("SELECT p.fname, p.lname FROM file_upload_tbl f 
-						INNER JOIN user_tbl u ON f.uploaded_by = u.user_id 
-						INNER JOIN profile_tbl p ON u.profile_id = p.profile_id 
-						WHERE f.file_upload_id = ?");
-					$userStmt->execute([$fileUploadId]);
-					$user = $userStmt->fetch(PDO::FETCH_ASSOC);
-					if($user) {
-						$uploaderName = $user['fname'] . ' ' . $user['lname'];
-					}
-				}
-				
-				$results[] = [
-					'file_name' => $fileName,
-					'file_path' => $filePath,
-					'mime_type' => $mimeType,
-					'file_size' => $file->getSize(),
-					'datetime_uploaded' => date('Y-m-d H:i:s', $file->getMTime()),
-					'file_category' => $categoryName,
-					'file_upload_id' => $fileUploadId, // Actual DB ID or null
-					'fname' => $uploaderName ? explode(' ', $uploaderName)[0] : null,
-					'lname' => $uploaderName ? explode(' ', $uploaderName)[1] ?? '' : null
-				];
-			}
-		}
-		header('Content-Type: application/json');
-		echo json_encode(["status" => "SUCCESS", "data" => $results]);
-		exit;
+			
+			// Use new content search method from FileManager
+			$fileManager = new FileManager();
+			$results = $fileManager->searchFilesByContent($searchWord, $categoryId, null); // null = admin sees all
+			
+			header('Content-Type: application/json');
+			echo json_encode(["status" => "SUCCESS", "data" => $results]);
+			exit;
 		} catch (Exception $e) {
 			if (ob_get_level()) ob_clean();
 			header('Content-Type: application/json');
@@ -367,35 +286,68 @@
 		}
 	}
 
+	// Get all file categories
+	if($call === 'get_categories') {
+		try {
+			$categories = EntityManager::getAllFileCategories();
+			header('Content-Type: application/json');
+			echo json_encode(["status" => "SUCCESS", "data" => $categories]);
+			exit;
+		} catch (Exception $e) {
+			header('Content-Type: application/json');
+			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage(), "data" => []]);
+			exit;
+		}
+	}
+
+	// Get NLP analysis for a file
+	if($call === 'get_nlp_analysis') {
+		try {
+			$fileId = $_POST['file_id'] ?? 0;
+			
+			$fileManager = new FileManager();
+			$result = $fileManager->getFileNLPAnalysis($fileId, null); // null = admin access
+			
+			header('Content-Type: application/json');
+			echo json_encode($result);
+			exit;
+		} catch (Exception $e) {
+			header('Content-Type: application/json');
+			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
+			exit;
+		}
+	}
+
 	// NLP analysis before upload (for preview)
 	if($call === 'nlp_analyze') {
-		require_once '../resources/objects/google_nlp_service.php';
-		$m = new Main('file_upload_tbl');
+		require_once '../resources/objects/nlpcloud_service.php';
 		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
 			try {
-				//require_once '../resources/objects/nlp_helper.php'; // Helper for Google NLP
-				//$nlp = new NLPHelper();
 				$file = $_FILES['file'];
 				$tmpPath = $file['tmp_name'];
 				$mimeType = $file['type'];
 
-				$configFile = '../config/google_nlp_config.php';
-				$apiKey = '';
-				if (file_exists($configFile)) {
-					$config = include($configFile);
-					$apiKey = $config['api_key'] ?? '';
+				// Use NLP Cloud service
+				$nlp = new NLPCloudService();
+				$res = $nlp->analyzeFile($tmpPath, $mimeType);
+
+				if ($res['success']) {
+					$result = [
+						'status' => 'SUCCESS',
+						'category' => $res['category_tag'] ?? 'Uncategorized',
+						'score' => $res['category_score'] ?? 0,
+						'keywords' => $res['keywords'] ?? [],
+						'entities' => $res['entities'] ?? [],
+						'sentiment' => $res['sentiment'] ?? [],
+						'word_count' => $res['word_count'] ?? 0,
+						'nlp_analysis' => $res
+					];
+				} else {
+					$result = [
+						'status' => 'ERROR',
+						'msg' => 'NLP analysis failed: ' . ($res['error'] ?? 'Unknown error')
+					];
 				}
-
-				$nlp = new GoogleNLPService($apiKey);
-				$categories = $m->getFileCategories() ?: [];
-				$res = $nlp->analyzeFileAndSuggestCategory($tmpPath, $mimeType, $categories);
-
-				$result = [
-					'status' => 'SUCCESS',
-					'category' => $res['suggested_category_name'] ?? 'Uncategorized',
-					'score'=> $res['confidence_score'] ?? 0,
-					'nlp_analysis' => $res
-				];
 			} catch(Exception $e) {
 				$result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
 			}
@@ -416,18 +368,6 @@
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}
-		echo json_encode($result);
-	}else if($call == 2){
-		$data = $_POST["DATA"] ?? [];
-		$name = trim($data["NAME"] ?? "");
-		
-		try {
-			EntityManager::createFileCategory($name);
-			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully added new file category</span>"];
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-
 		echo json_encode($result);
 	}else if($call == 3){
 		$data = $_POST["DATA"] ?? [];
@@ -450,18 +390,16 @@
 		}
 		echo json_encode($result);
 	}else if($call == 5){
+		// Get file categories from category_tbl (NEW SYSTEM)
 		try {
-			// Get file categories with their keywords
 			$db = Database::getInstance();
-			$fileCategories = $db->select("
-				SELECT fc.file_category_id, fc.file_category,
-					   GROUP_CONCAT(fck.keyword SEPARATOR ', ') as keywords
-				FROM file_category_tbl fc
-				LEFT JOIN file_category_key_tbl fck ON fc.file_category_id = fck.file_category_id
-				GROUP BY fc.file_category_id, fc.file_category
-				ORDER BY fc.file_category
-			") ?: [];
-			$result = ["data" => $fileCategories];
+			$categories = $db->select("
+				SELECT category_id as file_category_id, category_name as file_category, category_slug,
+				       (SELECT COUNT(*) FROM file_upload_tbl WHERE category_id = c.category_id) as file_count
+				FROM category_tbl c
+				ORDER BY category_name ASC
+			");
+			$result = ["data" => $categories ?: []];
 		} catch(Exception $e) {
 			$result = ["data" => [], "error" => $e->getMessage()];
 		}
@@ -477,67 +415,20 @@
 	}else if($call == 7){
 		// Get admin users
 		try {
-			// Test with mock data first
-			$mockData = [
-				[
-					'user_id' => 1,
-					'user_name' => 'admin',
-					'fname' => 'System',
-					'lname' => 'Administrator',
-					'mname' => '',
-					'auxname' => '',
-					'email' => 'admin@uasg.edu',
-					'contact_number' => '09123456789',
-					'gender' => 'Male',
-					'birthdate' => '1990-01-01'
-				]
-			];
-			
-			// Try to get real data, fallback to mock
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByType('admin');
-				
-				if(empty($users)) {
-					// No users found, return mock data for testing
-					$result = ["data" => $mockData];
-				} else {
-					$result = ["data" => $users];
-				}
-			} else {
-				// Class not found, return mock data
-				$result = ["data" => $mockData];
-			}
-			
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByType('admin');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			error_log("Error in CALL 7: " . $e->getMessage());
-			// Return mock data on error for testing
-			$result = ["data" => [
-				[
-					'user_id' => 1,
-					'user_name' => 'admin',
-					'fname' => 'System',
-					'lname' => 'Administrator',
-					'mname' => '',
-					'auxname' => '',
-					'email' => 'admin@uasg.edu',
-					'contact_number' => '09123456789',
-					'gender' => 'Male',
-					'birthdate' => '1990-01-01'
-				]
-			]];
+			$result = ["data" => []];
 		}
 		echo json_encode($result);
 	}else if($call == 8){
 		// Get subadmin users with roles
 		try {
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByTypeWithRoles('subadmin');
-				$result = ["data" => $users ? $users : []];
-			} else {
-				$result = ["data" => []];
-			}
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByTypeWithRoles('subadmin');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			$result = ["data" => []];
 		}
@@ -545,13 +436,9 @@
 	}else if($call == 9){
 		// Get student users
 		try {
-			if(class_exists('UserManager')) {
-				$userManager = new UserManager();
-				$users = $userManager->getUsersByType('student');
-				$result = ["data" => $users ? $users : []];
-			} else {
-				$result = ["data" => []];
-			}
+			$userManager = new UserManager();
+			$users = $userManager->getUsersByType('student');
+			$result = ["data" => $users ? $users : []];
 		} catch(Exception $e) {
 			$result = ["data" => []];
 		}
@@ -744,7 +631,7 @@
 		
 		try {
 			$fileManager = new FileManager();
-			$result = $fileManager->setFilePermission($data['position_id'], $data['file_category_id']);
+			$result = $fileManager->setFilePermission($data['position_id'], $data['category_id']);
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => "Failed to set permission: " . $e->getMessage()];
 		}
@@ -755,7 +642,7 @@
 		
 		try {
 			$fileManager = new FileManager();
-			$result = $fileManager->removeFilePermission($data['position_id'], $data['file_category_id']);
+			$result = $fileManager->removeFilePermission($data['position_id'], $data['category_id']);
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => "Failed to remove permission: " . $e->getMessage()];
 		}
@@ -901,58 +788,8 @@
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
-	}else if($call == 32){
-		// Create file category keyword
-		$data = $_POST['DATA'] ?? [];
-		$categoryId = $data['category_id'] ?? 0;
-		$keyword = trim($data['keyword'] ?? "");
-		
-		try {
-			EntityManager::createFileCategoryKeyword($categoryId, $keyword);
-			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully added keyword</span>"];
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
-	}else if($call == 33){
-		// Get file category keywords
-		$categoryId = $_POST['CATEGORY_ID'] ?? null;
-		
-		try {
-			$keywords = EntityManager::getFileCategoryKeywords($categoryId);
-			$result = ["data" => $keywords];
-		} catch(Exception $e) {
-			$result = ["data" => [], "error" => $e->getMessage()];
-		}
-		echo json_encode($result);
-	}else if($call == 34){
-		// Update file category keyword
-		$data = $_POST['DATA'] ?? [];
-		$keywordId = $data['keyword_id'] ?? 0;
-		$keyword = trim($data['keyword'] ?? "");
-		
-		try {
-			EntityManager::updateFileCategoryKeyword($keywordId, $keyword);
-			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully updated keyword</span>"];
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
-	}else if($call == 35){
-		// Delete file category keyword
-		$data = $_POST['DATA'] ?? [];
-		$keywordId = $data['keyword_id'] ?? 0;
-		$reason = trim($data['reason'] ?? "Admin deletion");
-		
-		try {
-			EntityManager::deleteFileCategoryKeyword($keywordId, $reason);
-			$result = ["status" => "SUCCESS","msg" => "<span class='success'>Successfully deleted keyword</span>"];
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
 	}else if($call == 36){
-		// Test file categorization
+		// File categorization analysis
 		$filename = $_POST['FILENAME'] ?? '';
 		
 		if(empty($filename)) {
@@ -963,7 +800,7 @@
 		try {
 			$fileAnalyzer = new FileAnalyzer();
 			$extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-			$mimeType = 'application/octet-stream'; // Default mime type for testing
+			$mimeType = 'application/octet-stream';
 			
 			$analysis = $fileAnalyzer->analyzeFileContent($filename, $mimeType, $extension);
 			
@@ -978,7 +815,7 @@
 		echo json_encode($result);
 	}
 	
-	// CALL 37: Send Mobile Notification (for testing and real scenarios)
+	// CALL 37: Send Mobile Notification
 	else if($call == 37) {
 		try {
 			$data = $_POST['DATA'] ?? [];
@@ -1016,88 +853,6 @@
 					"supports_actions" => true
 				],
 				"msg" => "Mobile notification prepared successfully"
-			];
-			
-		} catch(Exception $e) {
-			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
-		}
-		echo json_encode($result);
-	}
-	
-	// CALL 38: Test Mobile Notification Features
-	else if($call == 38) {
-		try {
-			$data = $_POST['DATA'] ?? [];
-			$test_type = trim($data['TEST_TYPE'] ?? "basic");
-			
-			$notifications = [];
-			
-			switch($test_type) {
-				case 'file_upload':
-					$notifications[] = [
-						'title' => '📁 File Upload Complete',
-						'message' => 'Your file "test-document.pdf" has been uploaded successfully to the Academic category.',
-						'type' => 'success',
-						'url' => '/uasg/admin/entry-module.php',
-						'actions' => [
-							['action' => 'view', 'title' => '👁️ View File'],
-							['action' => 'dismiss', 'title' => '❌ Dismiss']
-						]
-					];
-					break;
-					
-				case 'system_alert':
-					$notifications[] = [
-						'title' => '⚠️ System Maintenance',
-						'message' => 'System maintenance scheduled for tonight at 11 PM. Please save your work.',
-						'type' => 'warning',
-						'url' => '/uasg/',
-						'requireInteraction' => true
-					];
-					break;
-					
-				case 'approval_needed':
-					$notifications[] = [
-						'title' => '📋 Document Approval Required',
-						'message' => 'A new document is waiting for your approval in the Admin panel.',
-						'type' => 'info',
-						'url' => '/uasg/admin/',
-						'badge' => '1'
-					];
-					break;
-					
-				case 'mobile_features':
-					$notifications[] = [
-						'title' => '📱 Mobile Features Test',
-						'message' => 'Testing vibration, sound, and mobile-specific notification features.',
-						'type' => 'info',
-						'vibrate' => [200, 100, 200, 100, 200],
-						'requireInteraction' => true,
-						'actions' => [
-							['action' => 'test', 'title' => '✅ Test Passed'],
-							['action' => 'dismiss', 'title' => '❌ Close']
-						]
-					];
-					break;
-					
-				default:
-					$notifications[] = [
-						'title' => '🧪 Basic Test Notification',
-						'message' => 'This is a basic test notification to verify mobile functionality.',
-						'type' => 'info',
-						'url' => '/uasg/mobile-notifications-test.html'
-					];
-			}
-			
-			$result = [
-				"status" => "SUCCESS",
-				"data" => [
-					"notifications" => $notifications,
-					"test_type" => $test_type,
-					"mobile_optimized" => true,
-					"timestamp" => time()
-				],
-				"msg" => "Test notifications prepared successfully"
 			];
 			
 		} catch(Exception $e) {
@@ -1242,23 +997,20 @@
 		try {
 			$conn = Database::getInstance()->getConnection();
 			
-			$stmt = $conn->prepare("
-				SELECT 
-					f.file_upload_id,
-					f.file_name,
-					fc.file_category as category_name,
-					f.mime_type,
-					f.datetime_uploaded
-				FROM file_upload_tbl f
-				LEFT JOIN file_category_tbl fc ON f.file_category_id = fc.file_category_id
-				WHERE f.uploaded_by = :user_id
-				ORDER BY f.datetime_uploaded DESC
-			");
-			$stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
-			$stmt->execute();
-			$uploads = $stmt->fetchAll(PDO::FETCH_ASSOC);
-			
-			echo json_encode(["status" => "SUCCESS", "data" => $uploads]);
+		$stmt = $conn->prepare("
+			SELECT 
+				f.file_upload_id,
+				f.file_name,
+				f.category_tag as category_name,
+				f.mime_type,
+				f.datetime_uploaded
+			FROM file_upload_tbl f
+			WHERE f.uploaded_by = :user_id
+			ORDER BY f.datetime_uploaded DESC
+		");
+		$stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+		$stmt->execute();
+		$uploads = $stmt->fetchAll(PDO::FETCH_ASSOC);			echo json_encode(["status" => "SUCCESS", "data" => $uploads]);
 		} catch(Exception $e) {
 			echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
 		}
@@ -1367,19 +1119,16 @@
 			
 			$sql = "
 				SELECT 
-					f.file_upload_id,
-					f.file_name,
-					fc.file_category as category_name,
-					CONCAT(p.fname, ' ', p.lname) as uploader_name,
-					f.datetime_uploaded,
-					f.mime_type
-				FROM file_upload_tbl f
-				LEFT JOIN file_category_tbl fc ON f.file_category_id = fc.file_category_id
-				LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
-				LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
-			";
-			
-			$where = [];
+				f.file_upload_id,
+				f.file_name,
+				f.category_tag as category_name,
+				CONCAT(p.fname, ' ', p.lname) as uploader_name,
+				f.datetime_uploaded,
+				f.mime_type
+			FROM file_upload_tbl f
+			LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
+			LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id
+		";			$where = [];
 			$params = [];
 			
 			if ($filters['type'] === 'month' && !empty($filters['month'])) {
@@ -1552,12 +1301,10 @@
 			$stmt->execute();
 			$tasksByCategory = $stmt->fetchAll(PDO::FETCH_ASSOC);
 			
-			// Uploads by category
-			$stmt = $conn->prepare("SELECT fc.file_category as category, COUNT(f.file_upload_id) as count FROM file_category_tbl fc LEFT JOIN file_upload_tbl f ON fc.file_category_id = f.file_category_id GROUP BY fc.file_category_id");
-			$stmt->execute();
-			$uploadsByCategory = $stmt->fetchAll(PDO::FETCH_ASSOC);
-			
-			echo json_encode([
+		// Uploads by category
+		$stmt = $conn->prepare("SELECT COALESCE(f.category_tag, 'Uncategorized') as category, COUNT(f.file_upload_id) as count FROM file_upload_tbl f GROUP BY f.category_tag");
+		$stmt->execute();
+		$uploadsByCategory = $stmt->fetchAll(PDO::FETCH_ASSOC);			echo json_encode([
 				"status" => "SUCCESS",
 				"data" => [
 					"total_tasks" => $totalTasks,
@@ -1826,6 +1573,260 @@
 			} else {
 				throw new Exception("Failed to approve submission");
 			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 'transfer_task'){
+		// Transfer task to another member
+		try {
+			$taskId = $_POST['task_id'] ?? 0;
+			$newAssignedTo = $_POST['new_assigned_to'] ?? 0;
+			$transferReason = $_POST['transfer_reason'] ?? '';
+			
+			if(!$taskId || !$newAssignedTo) {
+				throw new Exception("Task ID and new assignee are required");
+			}
+			
+			if(empty($transferReason)) {
+				throw new Exception("Transfer reason is required");
+			}
+			
+			$db = Database::getInstance();
+			
+			// Get current task info
+			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+			if(!$task) {
+				throw new Exception("Task not found");
+			}
+			
+			// Get new assignee info
+			$newMember = $db->selectOne("
+				SELECT u.user_id, p.fname, p.lname 
+				FROM user_tbl u 
+				JOIN profile_tbl p ON u.profile_id = p.profile_id 
+				WHERE u.user_id = ?
+			", [$newAssignedTo]);
+			
+			if(!$newMember) {
+				throw new Exception("New assignee not found");
+			}
+			
+			// Update task with new assignee and status
+			$updated = $db->execute("
+				UPDATE task_tbl 
+				SET assigned_to = ?, task_status = 'transferred'
+				WHERE task_id = ?
+			", [$newAssignedTo, $taskId]);
+			
+			if($updated) {
+				// Log the transfer in deletion table for audit trail
+				$logData = json_encode([
+					'task_id' => $taskId,
+					'task_title' => $task['task_title'],
+					'old_assigned_to' => $task['assigned_to'],
+					'new_assigned_to' => $newAssignedTo,
+					'new_assignee_name' => $newMember['fname'] . ' ' . $newMember['lname'],
+					'transfer_reason' => $transferReason,
+					'transferred_by' => $_SESSION['user_id'] ?? 0,
+					'transferred_at' => date('Y-m-d H:i:s')
+				]);
+				
+				$db->execute("
+					INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+					VALUES (?, ?, 'task_tbl', NOW())
+				", [$logData, 'Task Transfer: ' . $transferReason]);
+				
+				$result = ["status" => "SUCCESS", "msg" => "Task transferred successfully to " . $newMember['fname'] . ' ' . $newMember['lname']];
+			} else {
+				throw new Exception("Failed to transfer task");
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 'close_cancel_task'){
+		// Close or cancel a task
+		try {
+			$taskId = $_POST['task_id'] ?? 0;
+			$action = $_POST['action'] ?? ''; // 'close' or 'cancel'
+			$reason = $_POST['reason'] ?? '';
+			
+			if(!$taskId) {
+				throw new Exception("Task ID is required");
+			}
+			
+			if(!in_array($action, ['close', 'cancel'])) {
+				throw new Exception("Invalid action. Must be 'close' or 'cancel'");
+			}
+			
+			if(empty($reason)) {
+				throw new Exception("Reason is required");
+			}
+			
+			$db = Database::getInstance();
+			
+			// Get task info
+			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+			if(!$task) {
+				throw new Exception("Task not found");
+			}
+			
+			// Determine new status
+			$newStatus = $action === 'close' ? 'closed' : 'cancelled';
+			
+			// Update task status
+			$updated = $db->execute("
+				UPDATE task_tbl 
+				SET task_status = ?
+				WHERE task_id = ?
+			", [$newStatus, $taskId]);
+			
+			if($updated) {
+				// Log the action in deletion table for audit trail
+				$logData = json_encode([
+					'task_id' => $taskId,
+					'task_title' => $task['task_title'],
+					'task_category_id' => $task['task_category_id'],
+					'assigned_to' => $task['assigned_to'],
+					'action' => $action,
+					'new_status' => $newStatus,
+					'reason' => $reason,
+					'actioned_by' => $_SESSION['user_id'] ?? 0,
+					'actioned_at' => date('Y-m-d H:i:s')
+				]);
+				
+				$db->execute("
+					INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
+					VALUES (?, ?, 'task_tbl', NOW())
+				", [$logData, ucfirst($action) . ' Task: ' . $reason]);
+				
+				$actionText = $action === 'close' ? 'closed' : 'cancelled';
+				$result = ["status" => "SUCCESS", "msg" => "Task {$actionText} successfully"];
+			} else {
+				throw new Exception("Failed to update task status");
+			}
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 64){
+		// Generic update handler for entry module
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$id = intval($data['id'] ?? 0);
+			$table = trim($data['table'] ?? '');
+			$value = trim($data['value'] ?? '');
+			$title = trim($data['title'] ?? 'Entry');
+			
+			// Validate input
+			if($id <= 0) {
+				throw new Exception("Invalid ID");
+			}
+			if(empty($table)) {
+				throw new Exception("Invalid table");
+			}
+			if(empty($value)) {
+				throw new Exception("Value cannot be empty");
+			}
+			
+			// Whitelist allowed tables for security
+			$allowedTables = [
+				'position_tbl' => ['column' => 'position', 'id_column' => 'position_id'],
+				'file_category_tbl' => ['column' => 'file_category', 'id_column' => 'file_category_id'],
+				'task_category_tbl' => ['column' => 'task_category', 'id_column' => 'task_category_id']
+			];
+			
+			if(!isset($allowedTables[$table])) {
+				throw new Exception("Unauthorized table access");
+			}
+			
+			$column = $allowedTables[$table]['column'];
+			$idColumn = $allowedTables[$table]['id_column'];
+			
+			$db = Database::getInstance();
+			
+			// Check if entry exists
+			$exists = $db->selectOne("SELECT * FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			if(!$exists) {
+				throw new Exception("{$title} not found");
+			}
+			
+			// Update the entry
+			$updated = $db->execute("UPDATE {$table} SET {$column} = ? WHERE {$idColumn} = ?", [$value, $id]);
+			
+			if($updated) {
+				$result = ["status" => "SUCCESS", "msg" => "{$title} updated successfully"];
+			} else {
+				throw new Exception("Failed to update {$title}");
+			}
+			
+		} catch(Exception $e) {
+			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
+		}
+		echo json_encode($result);
+	}else if($call == 65){
+		// Generic delete handler for entry module
+		try {
+			$data = $_POST['DATA'] ?? [];
+			$id = intval($data['id'] ?? 0);
+			$table = trim($data['table'] ?? '');
+			$reason = trim($data['reason'] ?? '');
+			$title = trim($data['title'] ?? 'Entry');
+			
+			// Validate input
+			if($id <= 0) {
+				throw new Exception("Invalid ID");
+			}
+			if(empty($table)) {
+				throw new Exception("Invalid table");
+			}
+			if(empty($reason)) {
+				throw new Exception("Deletion reason is required");
+			}
+			
+			// Whitelist allowed tables for security
+			$allowedTables = [
+				'position_tbl' => ['column' => 'position', 'id_column' => 'position_id'],
+				'file_category_tbl' => ['column' => 'file_category', 'id_column' => 'file_category_id'],
+				'task_category_tbl' => ['column' => 'task_category', 'id_column' => 'task_category_id']
+			];
+			
+			if(!isset($allowedTables[$table])) {
+				throw new Exception("Unauthorized table access");
+			}
+			
+			$column = $allowedTables[$table]['column'];
+			$idColumn = $allowedTables[$table]['id_column'];
+			
+			$db = Database::getInstance();
+			
+			// Get entry data before deletion for logging
+			$entry = $db->selectOne("SELECT * FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			if(!$entry) {
+				throw new Exception("{$title} not found");
+			}
+			
+			// Log the deletion to deleted_record_tbl
+			$deletionData = json_encode($entry);
+			$logged = $db->execute(
+				"INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted) VALUES (?, ?, ?, NOW())",
+				[$deletionData, $reason, $table]
+			);
+			
+			if(!$logged) {
+				throw new Exception("Failed to log deletion");
+			}
+			
+			// Delete the entry
+			$deleted = $db->execute("DELETE FROM {$table} WHERE {$idColumn} = ?", [$id]);
+			
+			if($deleted) {
+				$result = ["status" => "SUCCESS", "msg" => "{$title} deleted successfully"];
+			} else {
+				throw new Exception("Failed to delete {$title}");
+			}
+			
 		} catch(Exception $e) {
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}

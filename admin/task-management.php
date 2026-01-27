@@ -204,9 +204,9 @@ if (!isset($_SESSION['user_id'])) {
                       <textarea id="taskDescription" name="task_description" rows="4" placeholder="Enter task description..." required></textarea>
                     </div>
                     <div class="form-group">
-                      <label for="assignTo">Assign To</label>
-                      <select id="assignTo" name="assigned_to">
-                          <option value="">All Student Government Members</option>
+                      <label for="assignTo">Assign To *</label>
+                      <select id="assignTo" name="assigned_to" required>
+                          <option value="">Select a member...</option>
                       </select>
                     </div>
                     
@@ -362,6 +362,70 @@ if (!isset($_SESSION['user_id'])) {
         <button id="confirmApproveSubmission" class="btn-success">Approve</button>
         <button class="btn-secondary" data-close>Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <!-- TRANSFER TASK MODAL -->
+  <div class="modal" id="transferTaskModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Transfer Task</span>
+        <span class="close-modal" data-close>&times;</span>
+      </div>
+      <form id="transferTaskForm">
+        <input type="hidden" id="transferTaskId" name="task_id" />
+        
+        <div class="form-group">
+          <label for="transferTaskTitle">Task Title</label>
+          <input type="text" id="transferTaskTitle" name="task_title" readonly style="background:#f0f0f0;">
+        </div>
+        
+        <div class="form-group">
+          <label for="transferToMember">Transfer To *</label>
+          <select id="transferToMember" name="new_assigned_to" required>
+            <option value="">Select a member...</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="transferReason">Reason for Transfer *</label>
+          <textarea id="transferReason" name="transfer_reason" rows="3" placeholder="Enter reason for transferring this task..." required></textarea>
+        </div>
+        
+        <div class="form-actions" style="justify-content:flex-end;margin-top:1.5rem;">
+          <button type="submit" class="btn-primary">Transfer Task</button>
+          <button type="button" class="btn-secondary" data-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CLOSE/CANCEL TASK MODAL -->
+  <div class="modal" id="closeTaskModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="closeTaskModalTitle">Close Task</span>
+        <span class="close-modal" data-close>&times;</span>
+      </div>
+      <form id="closeTaskForm">
+        <input type="hidden" id="closeTaskId" name="task_id" />
+        <input type="hidden" id="closeTaskAction" name="action" />
+        
+        <div class="form-group">
+          <label for="closeTaskTitle">Task Title</label>
+          <input type="text" id="closeTaskTitle" name="task_title" readonly style="background:#f0f0f0;">
+        </div>
+        
+        <div class="form-group">
+          <label for="closeTaskReason">Reason *</label>
+          <textarea id="closeTaskReason" name="reason" rows="3" placeholder="Enter reason for closing/cancelling this task..." required></textarea>
+        </div>
+        
+        <div class="form-actions" style="justify-content:flex-end;margin-top:1.5rem;">
+          <button type="submit" class="btn-primary" id="confirmCloseTask">Confirm</button>
+          <button type="button" class="btn-secondary" data-close>Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -550,11 +614,7 @@ function showNotification(message, type = 'info', title = '') {
             {
                 data: null,
                 render: function(data, type, row) {
-                    if (row.assigned_to === null || row.assigned_to === '') {
-                        return '<span style="color: #6c757d; font-style: italic;">All Members</span>';
-                    } else {
-                        return row.assigned_member_name || 'Unknown';
-                    }
+                    return row.assigned_member_name || '<span style="color: #999;">Unassigned</span>';
                 }
             },
             {
@@ -605,19 +665,62 @@ function showNotification(message, type = 'info', title = '') {
                 data: null, 
                 orderable: false,
                 render: function(data, type, row) {
-                    return `
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const deadline = new Date(row.task_deadline);
+                    deadline.setHours(0, 0, 0, 0);
+                    const isOverdue = deadline < today;
+                    const hasSubmissions = row.submission_count > 0;
+                    const taskStatus = row.task_status || 'active';
+                    
+                    // Don't show actions for closed or cancelled tasks
+                    if (taskStatus === 'closed' || taskStatus === 'cancelled') {
+                        return `<span class="status-badge" style="background: #6c757d;">Task ${taskStatus}</span>`;
+                    }
+                    
+                    let actions = `
                         <div class="dropdown-container">
                             <button class="dropdown-btn" onclick="toggleDropdown(event)">⋮</button>
-                            <div class="dropdown-menu">
+                            <div class="dropdown-menu">`;
+                    
+                    // Edit button (always available for active tasks)
+                    actions += `
                                 <button class="dropdown-item edit editTaskBtn" data-id="${row.task_id}">
                                     <i class="fas fa-edit"></i> Edit
-                                </button>
+                                </button>`;
+                    
+                    // Transfer button (only if overdue and assigned to someone)
+                    if (isOverdue && row.assigned_to) {
+                        actions += `
+                                <button class="dropdown-item transferTaskBtn" style="color: #ff9800;" data-id="${row.task_id}" data-title="${row.task_title}">
+                                    <i class="fas fa-exchange-alt"></i> Transfer
+                                </button>`;
+                    }
+                    
+                    // Close button (mark as closed/completed)
+                    actions += `
+                                <button class="dropdown-item closeTaskBtn" style="color: #28a745;" data-id="${row.task_id}" data-title="${row.task_title}" data-action="close">
+                                    <i class="fas fa-check-circle"></i> Close Task
+                                </button>`;
+                    
+                    // Cancel button (mark as cancelled)
+                    actions += `
+                                <button class="dropdown-item cancelTaskBtn" style="color: #ffc107;" data-id="${row.task_id}" data-title="${row.task_title}" data-action="cancel">
+                                    <i class="fas fa-times-circle"></i> Cancel Task
+                                </button>`;
+                    
+                    // Delete button
+                    actions += `
                                 <button class="dropdown-item delete deleteTaskBtn" data-id="${row.task_id}">
                                     <i class="fas fa-trash"></i> Delete
-                                </button>
+                                </button>`;
+                    
+                    actions += `
                             </div>
                         </div>
                     `;
+                    
+                    return actions;
                 }
             }
         ]
@@ -828,6 +931,106 @@ function showNotification(message, type = 'info', title = '') {
                 approveSubmissionId = null;
             } else {
                 showNotification(resp.msg || 'Failed to approve submission', 'error', 'Approval Failed');
+            }
+        }, 'json');
+    });
+
+    // Transfer task button
+    $(document).on('click', '.transferTaskBtn', function() {
+        const taskId = $(this).data('id');
+        const taskTitle = $(this).data('title');
+        
+        $('#transferTaskId').val(taskId);
+        $('#transferTaskTitle').val(taskTitle);
+        $('#transferToMember').val('');
+        $('#transferReason').val('');
+        
+        // Load members for transfer dropdown
+        $.post('ajax.php', { CALL: 63 }, function(resp) {
+            if (resp.status === 'SUCCESS' && resp.data && Array.isArray(resp.data)) {
+                const options = '<option value="">Select a member...</option>' + resp.data.map(m =>
+                    `<option value="${m.user_id}">${m.full_name} - ${m.position}</option>`
+                ).join('');
+                $('#transferToMember').html(options);
+            }
+        }, 'json');
+        
+        openModal('transferTaskModal');
+    });
+
+    // Transfer task form submission
+    $('#transferTaskForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const payload = {
+            CALL: 'transfer_task',
+            task_id: $('#transferTaskId').val(),
+            new_assigned_to: $('#transferToMember').val(),
+            transfer_reason: $('#transferReason').val()
+        };
+        
+        $.post('ajax.php', payload, function(resp) {
+            if (resp.status === 'SUCCESS') {
+                showNotification('Task transferred successfully', 'success', 'Task Transferred');
+                closeModal();
+                tasksTable.ajax.reload();
+            } else {
+                showNotification(resp.msg || 'Failed to transfer task', 'error', 'Transfer Failed');
+            }
+        }, 'json');
+    });
+
+    // Close task button
+    $(document).on('click', '.closeTaskBtn', function() {
+        const taskId = $(this).data('id');
+        const taskTitle = $(this).data('title');
+        
+        $('#closeTaskId').val(taskId);
+        $('#closeTaskTitle').val(taskTitle);
+        $('#closeTaskAction').val('close');
+        $('#closeTaskModalTitle').text('Close Task');
+        $('#closeTaskReason').val('');
+        $('#confirmCloseTask').text('Close Task').removeClass('btn-warning').addClass('btn-primary');
+        
+        openModal('closeTaskModal');
+    });
+
+    // Cancel task button
+    $(document).on('click', '.cancelTaskBtn', function() {
+        const taskId = $(this).data('id');
+        const taskTitle = $(this).data('title');
+        
+        $('#closeTaskId').val(taskId);
+        $('#closeTaskTitle').val(taskTitle);
+        $('#closeTaskAction').val('cancel');
+        $('#closeTaskModalTitle').text('Cancel Task');
+        $('#closeTaskReason').val('');
+        $('#confirmCloseTask').text('Cancel Task').removeClass('btn-primary').addClass('btn-warning');
+        
+        openModal('closeTaskModal');
+    });
+
+    // Close/Cancel task form submission
+    $('#closeTaskForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const action = $('#closeTaskAction').val();
+        const payload = {
+            CALL: 'close_cancel_task',
+            task_id: $('#closeTaskId').val(),
+            action: action,
+            reason: $('#closeTaskReason').val()
+        };
+        
+        $.post('ajax.php', payload, function(resp) {
+            if (resp.status === 'SUCCESS') {
+                const message = action === 'close' ? 'Task closed successfully' : 'Task cancelled successfully';
+                const title = action === 'close' ? 'Task Closed' : 'Task Cancelled';
+                showNotification(message, 'success', title);
+                closeModal();
+                tasksTable.ajax.reload();
+            } else {
+                showNotification(resp.msg || 'Failed to update task', 'error', 'Update Failed');
             }
         }, 'json');
     });
