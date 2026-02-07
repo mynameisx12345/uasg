@@ -309,6 +309,8 @@
 					$entities = $nlpAnalysisData['entities'] ?? [];
 					$fullAnalysis = json_encode($nlpAnalysisData);
 					$processingTime = 0; // Already processed
+					$classificationMethod = 'cached';
+					$mlModelId = null;
 					
 					$nlpResult = [
 						'success' => true,
@@ -323,24 +325,110 @@
 						'from_cache' => true // Indicate this was cached
 					];
 				} else {
-					// No cached data - perform NLP analysis (uses API call)
-					$nlp = new NLPCloudService();
-					$nlpResult = $nlp->analyzeFile($tempPath, $file['type']);
-
-					if (!$nlpResult['success']) {
-						// NLP failed, but we still upload the file
-						error_log('NLP analysis failed: ' . ($nlpResult['error'] ?? 'Unknown error'));
+					// 🤖 ML CLASSIFICATION INTEGRATION
+					// Check ML settings to determine classification method
+					require_once __DIR__ . '/ml_service.php';
+					$mlService = new MLClassificationService();
+					$classificationMethodSetting = $mlService->getSetting('classification_method') ?? 'hybrid';
+					$mlConfidenceThreshold = floatval($mlService->getSetting('ml_confidence_threshold') ?? 60);
+					$nlpFallbackEnabled = ($mlService->getSetting('nlp_fallback_enabled') ?? '1') === '1';
+					
+					$useML = in_array($classificationMethodSetting, ['custom_ml', 'hybrid']);
+					$mlModelId = null;
+					$classificationMethod = $classificationMethodSetting;
+					$mlPrediction = null;
+					
+					// Try ML classification first if enabled
+					if ($useML) {
+						require_once __DIR__ . '/text_extractor.php';
+						$extractor = new TextExtractor();
+						$extractedText = $extractor->extractText($tempPath);
+						
+						if (!empty($extractedText)) {
+							try {
+								$mlPrediction = $mlService->predict($extractedText);
+								
+								if ($mlPrediction['success']) {
+									$mlModelId = $mlPrediction['model_id'];
+									$mlConfidence = $mlPrediction['confidence'] * 100; // Convert to percentage
+									
+									// Check if ML confidence meets threshold
+									if ($mlConfidence >= $mlConfidenceThreshold) {
+										// Use ML prediction
+										$categoryTag = $mlPrediction['category'];
+										$categoryScore = $mlPrediction['confidence'];
+										$keywords = []; // ML doesn't extract keywords
+										$entities = []; // ML doesn't extract entities
+										$wordCount = str_word_count($extractedText);
+										$fullAnalysis = [
+											'method' => 'custom_ml',
+											'model_id' => $mlModelId,
+											'model_name' => $mlPrediction['model_name'],
+											'predicted_category' => $categoryTag,
+											'confidence' => $categoryScore,
+											'all_predictions' => $mlPrediction['all_predictions'],
+											'extracted_text' => substr($extractedText, 0, 500) // Store first 500 chars
+										];
+										$processingTime = $mlPrediction['prediction_time_ms'];
+										
+										$nlpResult = [
+											'success' => true,
+											'category_tag' => $categoryTag,
+											'category_score' => $categoryScore,
+											'extracted_text' => $extractedText,
+											'word_count' => $wordCount,
+											'keywords' => $keywords,
+											'entities' => $entities,
+											'full_analysis' => $fullAnalysis,
+											'processing_time_ms' => $processingTime,
+											'provider' => 'Custom ML',
+											'from_ml' => true
+										];
+									} else {
+										// ML confidence too low, fallback to NLP if enabled
+										$useML = false; // Trigger NLP fallback below
+										error_log("ML confidence ($mlConfidence%) below threshold ($mlConfidenceThreshold%). Falling back to NLP.");
+									}
+								} else {
+									// ML prediction failed
+									$useML = false;
+									error_log('ML prediction failed: ' . ($mlPrediction['error'] ?? 'Unknown error'));
+								}
+							} catch (Exception $e) {
+								$useML = false;
+								error_log('ML prediction exception: ' . $e->getMessage());
+							}
+						} else {
+							$useML = false;
+							error_log('Text extraction failed for ML prediction');
+						}
 					}
+					
+					// If ML not used or failed, use NLP Cloud
+					if (!$useML || !isset($nlpResult)) {
+						$nlp = new NLPCloudService();
+						$nlpResult = $nlp->analyzeFile($tempPath, $file['type']);
 
-					// Extract NLP data
-					$categoryTag = $nlpResult['category_tag'] ?? 'Uncategorized';
-					$categoryScore = $nlpResult['category_score'] ?? 0;
-					$extractedText = $nlpResult['extracted_text'] ?? '';
-					$wordCount = $nlpResult['word_count'] ?? 0;
-					$keywords = $nlpResult['keywords'] ?? [];
-					$entities = $nlpResult['entities'] ?? [];
-					$fullAnalysis = $nlpResult['full_analysis'] ?? [];
-					$processingTime = $nlpResult['processing_time_ms'] ?? 0;
+						if (!$nlpResult['success']) {
+							// NLP failed, but we still upload the file
+							error_log('NLP analysis failed: ' . ($nlpResult['error'] ?? 'Unknown error'));
+						}
+
+						// Extract NLP data
+						$categoryTag = $nlpResult['category_tag'] ?? 'Uncategorized';
+						$categoryScore = $nlpResult['category_score'] ?? 0;
+						$extractedText = $nlpResult['extracted_text'] ?? '';
+						$wordCount = $nlpResult['word_count'] ?? 0;
+						$keywords = $nlpResult['keywords'] ?? [];
+						$entities = $nlpResult['entities'] ?? [];
+						$fullAnalysis = $nlpResult['full_analysis'] ?? [];
+						$processingTime = $nlpResult['processing_time_ms'] ?? 0;
+						
+						// If we tried ML but fell back, note that in the method
+						if ($mlPrediction && !empty($mlPrediction['category'])) {
+							$classificationMethod = 'hybrid_nlp_fallback';
+						}
+					}
 				}
 				
 				// Common processing for both cached and fresh NLP results
@@ -372,12 +460,12 @@
 			// Database path (relative from project root)
 			$dbPath = 'uploads/files/' . $categorySlug . '/' . $systemFilename;
 
-			// Insert into file_upload_tbl with ALL required fields
+			// Insert into file_upload_tbl with ALL required fields including ML classification data
 
 			$stmt = $db->prepare(
 				"INSERT INTO file_upload_tbl 
-				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by) 
-				VALUES (:category_id, :category_tag, :category_score, :mime_type, :original_filename, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by)"
+				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by, classification_method, ml_model_id) 
+				VALUES (:category_id, :category_tag, :category_score, :mime_type, :original_filename, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by, :classification_method, :ml_model_id)"
 			);
 			$stmt->execute([
 				':category_id' => $categoryId,
@@ -389,7 +477,9 @@
 				':file_path' => $dbPath,
 				':file_size' => $file['size'],
 				':datetime_uploaded' => date('Y-m-d H:i:s'),
-				':uploaded_by' => $uploadedBy
+				':uploaded_by' => $uploadedBy,
+				':classification_method' => $classificationMethod ?? 'nlpcloud',
+				':ml_model_id' => $mlModelId
 			]);				// Get last inserted file_upload_id
 				$fileId = $db->lastInsertId();
 				
@@ -1968,7 +2058,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
             if (!$isAdmin) {
                 $whereConditions[] = "fu.category_id IN (
                     SELECT category_id 
-                    FROM category_permissions_tbl 
+                    FROM file_permission_tbl 
                     WHERE position_id = ?
                 )";
                 $params[] = $user['position_id'];
@@ -2490,7 +2580,14 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
                 if (file_exists($fullPath)) {
                     try {
                         // Extract text from the actual file on disk
-                        $fileContent = $textExtractor->extractText($fullPath, $file['mime_type']);
+                        $extractionResult = $textExtractor->extractText($fullPath, $file['mime_type']);
+                        
+                        // TextExtractor returns an array with 'text' key
+                        if (is_array($extractionResult) && !empty($extractionResult['text'])) {
+                            $fileContent = $extractionResult['text'];
+                        } elseif (is_string($extractionResult)) {
+                            $fileContent = $extractionResult;
+                        }
                         
                         // Search in actual file content (most reliable)
                         if (!empty($fileContent) && stripos($fileContent, $searchText) !== false) {

@@ -114,7 +114,7 @@ header("Expires: 0");
 								<div class="form-row">
 									<div class="form-group">
 										<label for="nlpSearchWord">Search Word</label>
-										<input type="text" id="nlpSearchWord" placeholder="Enter keyword or phrase">
+										<input type="text" id="nlpSearchWord" placeholder="Try: 'show me all resolutions' or 'find memorandums'">
 									</div>
 									<div class="form-group">
 										<label for="nlpCategoryFilter">Category</label>
@@ -533,7 +533,21 @@ header("Expires: 0");
 						CATEGORY_ID: categoryId
 					},
 					dataType: 'json',
-					dataSrc: 'data',
+					dataSrc: function(json) {
+						// Display conversational response message if available
+						if (json.message) {
+							showNotification(json.message, 'success');
+							
+							// Show parsed query info if available
+							if (json.parsed) {
+								console.log('Conversational Query Parsed:', json.parsed);
+								if (json.parsed.category) {
+									$('#nlpSearchWord').attr('placeholder', 'Understood: Looking for ' + json.parsed.category + ' files');
+								}
+							}
+						}
+						return json.data;
+					},
 					beforeSend: function(xhr) {
 						xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 						$('#loadingModal').show();

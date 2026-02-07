@@ -1,0 +1,9 @@
+# Python ML Classification System - Required Packages
+# Install with: pip install -r requirements.txt
+
+pandas>=1.5.0
+numpy>=1.23.0
+scikit-learn>=1.2.0
+
+# Optional but recommended for better performance
+joblib>=1.2.0

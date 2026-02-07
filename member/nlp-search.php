@@ -100,7 +100,7 @@ if (!$userId) {
 									<h4>Search Options</h4>
 									<div class="form-group">
 										<label for="nlpSearchWord">Search Word</label>
-										<input type="text" id="nlpSearchWord" name="search_word" placeholder="Enter keyword or phrase">
+										<input type="text" id="nlpSearchWord" name="search_word" placeholder="Try: 'show me all resolutions' or 'find memorandums'">
 									</div>
 									<div class="form-group">
 										<label for="nlpCategoryFilter">Category</label>
@@ -387,7 +387,21 @@ if (!$userId) {
 						CATEGORY_ID: categoryId
 					},
 					dataType: 'json',
-					dataSrc: 'data',
+					dataSrc: function(json) {
+						// Display conversational response message if available
+						if (json.message) {
+							openModal('SUCCESS', json.message);
+							
+							// Show parsed query info if available
+							if (json.parsed) {
+								console.log('Conversational Query Parsed:', json.parsed);
+								if (json.parsed.category) {
+									$('#nlpSearchWord').attr('placeholder', 'Understood: Looking for ' + json.parsed.category + ' files');
+								}
+							}
+						}
+						return json.data;
+					},
 					beforeSend: function() {
 						$('#loadingModal').show();
 					},

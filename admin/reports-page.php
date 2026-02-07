@@ -171,14 +171,16 @@ if (!isset($_SESSION['user_id'])) {
       </div>
 
       <!-- CHARTS -->
-      <div class="chart-container">
-        <h3>Tasks Overview</h3>
-        <canvas id="tasksChart" height="80"></canvas>
-      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="chart-container" style="margin-bottom: 0;">
+          <h3>Tasks Overview</h3>
+          <canvas id="tasksChart" height="100"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <h3>Uploads by Category</h3>
-        <canvas id="uploadsChart" height="80"></canvas>
+        <div class="chart-container" style="margin-bottom: 0;">
+          <h3>Uploads by Category</h3>
+          <canvas id="uploadsChart" height="100"></canvas>
+        </div>
       </div>
 
       <!-- TABS -->

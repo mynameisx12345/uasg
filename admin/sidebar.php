@@ -8,6 +8,8 @@
     <li><a href="task-management.php">📝 Task Management</a></li>
     <li><a href="file-management.php">📁 File Management</a></li>
     <li><a href="members-management.php">👥 Members</a></li>
+    <li><a href="ml-management.php">🤖 ML Classification</a></li>
+    <li><a href="ml-feedback.php">🔍 ML Feedback Review</a></li>
     <li><a href="reports-page.php">📊 Reports & Analytics</a></li>
     <li><a href="account-security.php">🔒 Account Security</a></li>
     <li><a href="#" id="logoutLink" style="color: #e74c3c;">🚪 Logout</a></li>
