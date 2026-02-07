@@ -99,6 +99,30 @@
 				exit;
 			}
 		}
+		
+		// Download ML Training Dataset Template
+		if ($_GET['CALL'] === 'download_template') {
+			ob_end_clean();
+			
+			// Create CSV template content with text,category format (matches ml_classifier.py)
+			$csvContent = "text,category\n";
+			$csvContent .= "\"This is a sample resolution regarding the budget approval for the fiscal year\",Resolution\n";
+			$csvContent .= "\"This memorandum is to inform all staff about the upcoming policy changes\",Memorandum\n";
+			$csvContent .= "\"Ordinance establishing regulations for local business operations\",Ordinance\n";
+			$csvContent .= "\"Amendment to the existing bylaws regarding membership requirements\",Amendment\n";
+			$csvContent .= "\"Contract agreement between the municipality and the contractor\",Contract\n";
+			$csvContent .= "\"Minutes of the meeting held on January 15, 2026\",Minutes\n";
+			$csvContent .= "\"Official letter addressed to the department head\",Letter\n";
+			$csvContent .= "\"Proposal for the new community development project\",Proposal\n";
+			
+			// Set headers for CSV download
+			header('Content-Type: text/csv; charset=utf-8');
+			header('Content-Disposition: attachment; filename="ml_training_template.csv"');
+			header('Content-Length: ' . strlen($csvContent));
+			
+			echo $csvContent;
+			exit;
+		}
 	}
 	
 	// Clear any previous output and set headers for normal AJAX
@@ -271,13 +295,37 @@
 			$searchWord = $_POST['SEARCH_WORD'] ?? '';
 			$categoryId = $_POST['CATEGORY_ID'] ?? '';
 			
-			// Use new content search method from FileManager
-			$fileManager = new FileManager();
-			$results = $fileManager->searchFilesByContent($searchWord, $categoryId, null); // null = admin sees all
+			// Check if conversational mode is enabled
+			$useConversational = !empty($searchWord) && (
+				stripos($searchWord, 'show') !== false || 
+				stripos($searchWord, 'find') !== false || 
+				stripos($searchWord, 'get') !== false ||
+				stripos($searchWord, 'all') !== false ||
+				str_word_count($searchWord) > 3 // Likely a question/sentence
+			);
 			
-			header('Content-Type: application/json');
-			echo json_encode(["status" => "SUCCESS", "data" => $results]);
-			exit;
+			if ($useConversational && empty($categoryId)) {
+				// Use conversational NLP processing
+				require_once(__DIR__ . '/../resources/objects/conversational_nlp_service.php');
+				$searchData = ConversationalNLPService::processConversationalSearch($searchWord, null);
+				
+				header('Content-Type: application/json');
+				echo json_encode([
+					"status" => "SUCCESS", 
+					"data" => $searchData['results'],
+					"message" => ConversationalNLPService::generateResponseMessage($searchData),
+					"parsed" => $searchData['parsed_query']
+				]);
+				exit;
+			} else {
+				// Use traditional keyword search
+				$fileManager = new FileManager();
+				$results = $fileManager->searchFilesByContent($searchWord, $categoryId, null); // null = admin sees all
+				
+				header('Content-Type: application/json');
+				echo json_encode(["status" => "SUCCESS", "data" => $results]);
+				exit;
+			}
 		} catch (Exception $e) {
 			if (ob_get_level()) ob_clean();
 			header('Content-Type: application/json');
@@ -320,39 +368,109 @@
 
 	// NLP analysis before upload (for preview)
 	if($call === 'nlp_analyze') {
-		require_once '../resources/objects/nlpcloud_service.php';
+		require_once '../resources/objects/ml_service.php';
+		require_once '../resources/objects/text_extractor.php';
+		
 		if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
 			try {
 				$file = $_FILES['file'];
 				$tmpPath = $file['tmp_name'];
 				$mimeType = $file['type'];
 
-				// Use NLP Cloud service
-				$nlp = new NLPCloudService();
-				$res = $nlp->analyzeFile($tmpPath, $mimeType);
+				// Extract text from file
+				$textExtractor = new TextExtractor();
+				$extractResult = $textExtractor->extractText($tmpPath, $mimeType);
+				
+				// Handle both array and string responses from TextExtractor
+				if (is_array($extractResult)) {
+					if (!$extractResult['success']) {
+						throw new Exception($extractResult['error'] ?? "Could not extract text from file");
+					}
+					$extractedText = $extractResult['text'] ?? '';
+				} else {
+					$extractedText = $extractResult;
+				}
+				
+				if (empty($extractedText)) {
+					throw new Exception("Could not extract text from file");
+				}
 
-				if ($res['success']) {
+				// Use ML model for classification
+				$mlService = new MLClassificationService();
+				$prediction = $mlService->predict($extractedText);
+
+				if ($prediction['success']) {
+					// Check confidence threshold - if too low, use "Others" category
+					$confidence = $prediction['confidence'] ?? 0;
+					$confidenceThreshold = 0.50; // 50% minimum confidence
+					
+					if ($confidence < $confidenceThreshold) {
+						// Low confidence - fallback to "Others"
+						$category = 'Others';
+						$score = round($confidence * 100, 2);
+						$fallbackReason = 'Low confidence prediction';
+					} else {
+						// Good confidence - use ML prediction
+						$category = $prediction['category'] ?? 'Others';
+						$score = round($confidence * 100, 2);
+						$fallbackReason = null;
+					}
+					
 					$result = [
 						'status' => 'SUCCESS',
-						'category' => $res['category_tag'] ?? 'Uncategorized',
-						'score' => $res['category_score'] ?? 0,
-						'keywords' => $res['keywords'] ?? [],
-						'entities' => $res['entities'] ?? [],
-						'sentiment' => $res['sentiment'] ?? [],
-						'word_count' => $res['word_count'] ?? 0,
-						'nlp_analysis' => $res
+						'category' => $category,
+						'score' => $score,
+						'confidence' => $score,
+						'original_prediction' => $prediction['category'] ?? null,
+						'fallback_used' => $category === 'Others',
+						'fallback_reason' => $fallbackReason,
+						'keywords' => [], // ML doesn't extract keywords
+						'entities' => [], // ML doesn't extract entities
+						'sentiment' => [], // ML doesn't analyze sentiment
+						'word_count' => str_word_count($extractedText),
+						'extracted_text' => substr($extractedText, 0, 1000), // First 1000 chars
+						'nlp_analysis' => [
+							'provider' => 'ML Model',
+							'model_id' => $prediction['model_id'] ?? null,
+							'suggested_category' => $category,
+							'category_confidence' => $score,
+							'original_prediction' => $prediction['category'] ?? null,
+							'fallback_used' => $category === 'Others',
+							'word_count' => str_word_count($extractedText),
+							'extracted_text' => substr($extractedText, 0, 1000)
+						]
 					];
 				} else {
+					// ML prediction completely failed - use "Others"
 					$result = [
-						'status' => 'ERROR',
-						'msg' => 'NLP analysis failed: ' . ($res['error'] ?? 'Unknown error')
+						'status' => 'SUCCESS', // Still success, but with fallback
+						'category' => 'Others',
+						'score' => 0,
+						'confidence' => 0,
+						'fallback_used' => true,
+						'fallback_reason' => 'ML prediction failed: ' . ($prediction['error'] ?? 'Unknown error'),
+						'keywords' => [],
+						'entities' => [],
+						'sentiment' => [],
+						'word_count' => str_word_count($extractedText),
+						'extracted_text' => substr($extractedText, 0, 1000),
+						'nlp_analysis' => [
+							'provider' => 'ML Model (Fallback)',
+							'model_id' => null,
+							'suggested_category' => 'Others',
+							'category_confidence' => 0,
+							'fallback_used' => true,
+							'error' => $prediction['error'] ?? 'ML model error',
+							'word_count' => str_word_count($extractedText),
+							'extracted_text' => substr($extractedText, 0, 1000)
+						]
 					];
 				}
 			} catch(Exception $e) {
-				$result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
+				$result = ["status" => "ERROR", "msg" => "ML analysis failed: " . $e->getMessage()];
 			}
 		} else {
-			$result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
+			$result = ["status" => "ERROR", "msg" => "No file uploaded for ML analysis."];
 		}
 		echo json_encode($result);
 		exit;
@@ -1831,6 +1949,387 @@
 			$result = ["status" => "ERROR", "msg" => $e->getMessage()];
 		}
 		echo json_encode($result);
+	}
+
+	// ML Classification System AJAX Handlers
+	if ($_POST['CALL'] === 'ml_operations') {
+		require_once("../resources/objects/ml_service.php");
+		
+		$action = $_POST['action'] ?? '';
+		$mlService = new MLClassificationService();
+		$result = ['success' => false];
+		
+		try {
+			switch($action) {
+			case 'upload_ml_dataset':
+				// Validate file upload
+				if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+					throw new Exception("No file uploaded or upload error");
+				}
+				
+				$datasetName = $_POST['dataset_name'] ?? '';
+				$description = $_POST['description'] ?? '';
+				
+				if (empty($datasetName)) {
+					throw new Exception("Dataset name is required");
+				}
+				
+				// Upload and validate dataset
+				$uploadResult = $mlService->uploadDataset(
+					$_FILES['csv_file'],
+					$datasetName,
+					$description,
+					$_SESSION['user_id']
+				);
+				
+				// Check if upload was successful
+				if (!$uploadResult['success']) {
+					throw new Exception($uploadResult['error'] ?? 'Upload failed');
+				}
+				
+				$result = [
+					'success' => true,
+					'dataset_id' => $uploadResult['dataset_id'] ?? 0,
+					'dataset_name' => $datasetName,
+					'total_samples' => $uploadResult['total_samples'] ?? 0,
+					'categories_count' => $uploadResult['categories_count'] ?? 0,
+					'message' => 'Dataset uploaded successfully'
+				];
+				break;				case 'train_ml_model':
+					$datasetId = intval($_POST['dataset_id'] ?? 0);
+					$modelName = $_POST['model_name'] ?? '';
+					$algorithm = $_POST['algorithm'] ?? 'svm';
+					$testSize = floatval($_POST['test_size'] ?? 20) / 100;
+					
+					if ($datasetId <= 0 || empty($modelName)) {
+						throw new Exception("Invalid parameters");
+					}
+					
+					// Train the model
+					$trainResult = $mlService->trainModel(
+						$datasetId,
+						$modelName,
+						$algorithm,
+						$_SESSION['user_id'],
+						$testSize
+					);
+					
+					// Check if training was successful
+					if (!isset($trainResult['success']) || !$trainResult['success']) {
+						throw new Exception($trainResult['error'] ?? 'Training failed');
+					}
+					
+					$result = [
+						'success' => true,
+						'model_id' => $trainResult['model_id'] ?? 0,
+						'model_name' => $modelName,
+						'accuracy' => $trainResult['accuracy'] ?? 0,
+						'precision' => $trainResult['precision'] ?? 0,
+						'recall' => $trainResult['recall'] ?? 0,
+						'f1_score' => $trainResult['f1_score'] ?? 0,
+						'categories_count' => $trainResult['categories_count'] ?? 0,
+						'message' => 'Model trained successfully'
+					];
+					break;
+					
+				case 'activate_ml_model':
+					$modelId = intval($_POST['model_id'] ?? 0);
+					
+					if ($modelId <= 0) {
+						throw new Exception("Invalid model ID");
+					}
+					
+					if ($mlService->activateModel($modelId)) {
+						$result = [
+							'success' => true,
+							'message' => 'Model activated successfully'
+						];
+					} else {
+						throw new Exception("Failed to activate model");
+					}
+					break;
+					
+				case 'delete_ml_model':
+					$modelId = intval($_POST['model_id'] ?? 0);
+					
+					if ($modelId <= 0) {
+						throw new Exception("Invalid model ID");
+					}
+					
+					if ($mlService->deleteModel($modelId)) {
+						$result = [
+							'success' => true,
+							'message' => 'Model deleted successfully'
+						];
+					} else {
+						throw new Exception("Failed to delete model");
+					}
+					break;
+					
+				case 'delete_ml_dataset':
+					$datasetId = intval($_POST['dataset_id'] ?? 0);
+					
+					if ($datasetId <= 0) {
+						throw new Exception("Invalid dataset ID");
+					}
+					
+					// Delete dataset and associated models
+					$db = Database::getInstance();
+					
+					// Get dataset file path
+					$dataset = $db->selectOne("SELECT file_path FROM ml_training_datasets_tbl WHERE dataset_id = ?", [$datasetId]);
+					
+					if (!$dataset) {
+						throw new Exception("Dataset not found");
+					}
+					
+					// Delete associated models first
+					$models = $db->select("SELECT model_id FROM ml_models_tbl WHERE dataset_id = ?", [$datasetId]);
+					foreach ($models as $model) {
+						$mlService->deleteModel($model['model_id']);
+					}
+					
+					// Delete dataset file
+					$filePath = __DIR__ . '/../' . $dataset['file_path'];
+					if (file_exists($filePath)) {
+						unlink($filePath);
+					}
+					
+					// Delete dataset record
+					$db->execute("DELETE FROM ml_training_datasets_tbl WHERE dataset_id = ?", [$datasetId]);
+					
+					$result = [
+						'success' => true,
+						'message' => 'Dataset deleted successfully'
+					];
+					break;
+					
+				case 'save_ml_settings':
+					$settings = [
+						'classification_method' => $_POST['classification_method'] ?? 'hybrid',
+						'ml_confidence_threshold' => $_POST['ml_confidence_threshold'] ?? 60,
+						'default_ml_algorithm' => $_POST['default_ml_algorithm'] ?? 'svm',
+						'nlp_fallback_enabled' => $_POST['nlp_fallback_enabled'] ?? '1'
+					];
+					
+					foreach ($settings as $key => $value) {
+						$mlService->updateSetting($key, $value, $_SESSION['user_id']);
+					}
+					
+					$result = [
+						'success' => true,
+						'message' => 'Settings saved successfully'
+					];
+					break;
+					
+				// ML Feedback Operations
+				case 'accept_prediction':
+					$predictionId = intval($_POST['prediction_id'] ?? 0);
+					$actualCategory = $_POST['actual_category'] ?? '';
+					
+					if ($predictionId <= 0) {
+						throw new Exception("Invalid prediction ID");
+					}
+					
+					$updated = $db->execute(
+						"UPDATE ml_prediction_history_tbl 
+						 SET was_accepted = 1, actual_category = ? 
+						 WHERE prediction_id = ?",
+						[$actualCategory, $predictionId]
+					);
+					
+					$result = [
+						'success' => $updated,
+						'message' => $updated ? 'Prediction accepted' : 'Failed to accept prediction'
+					];
+					break;
+					
+				case 'reject_prediction':
+					$predictionId = intval($_POST['prediction_id'] ?? 0);
+					
+					if ($predictionId <= 0) {
+						throw new Exception("Invalid prediction ID");
+					}
+					
+					$updated = $db->execute(
+						"UPDATE ml_prediction_history_tbl 
+						 SET was_accepted = 0 
+						 WHERE prediction_id = ?",
+						[$predictionId]
+					);
+					
+					$result = [
+						'success' => $updated,
+						'message' => $updated ? 'Prediction rejected' : 'Failed to reject prediction'
+					];
+					break;
+					
+				case 'edit_prediction_category':
+					$predictionId = intval($_POST['prediction_id'] ?? 0);
+					$fileUploadId = intval($_POST['file_upload_id'] ?? 0);
+					$correctCategory = $_POST['correct_category'] ?? '';
+					
+					if ($predictionId <= 0 || $fileUploadId <= 0 || empty($correctCategory)) {
+						throw new Exception("Invalid parameters");
+					}
+					
+					// Update prediction as accepted with corrected category
+					$db->execute(
+						"UPDATE ml_prediction_history_tbl 
+						 SET was_accepted = 1, actual_category = ? 
+						 WHERE prediction_id = ?",
+						[$correctCategory, $predictionId]
+					);
+					
+					// Also update the file's actual category
+					$db->execute(
+						"UPDATE file_upload_tbl 
+						 SET category_tag = ? 
+						 WHERE file_upload_id = ?",
+						[$correctCategory, $fileUploadId]
+					);
+					
+					$result = [
+						'success' => true,
+						'message' => 'Category corrected and accepted'
+					];
+					break;
+					
+				case 'accept_all_high_confidence':
+					$updated = $db->execute(
+						"UPDATE ml_prediction_history_tbl 
+						 SET was_accepted = 1, actual_category = predicted_category 
+						 WHERE was_accepted IS NULL 
+						   AND confidence_score >= 0.90"
+					);
+					
+					$count = $db->selectOne(
+						"SELECT ROW_COUNT() as count"
+					)['count'] ?? 0;
+					
+					$result = [
+						'success' => true,
+						'count' => $count,
+						'message' => "Accepted $count high-confidence predictions"
+					];
+					break;
+					
+				case 'export_accepted_predictions':
+					// Get all accepted predictions
+					$predictions = $db->select("
+						SELECT 
+							nlp.extracted_text as text,
+							mlp.actual_category as category
+						FROM ml_prediction_history_tbl mlp
+						JOIN file_upload_tbl f ON mlp.file_upload_id = f.file_upload_id
+						JOIN file_nlp_analysis_tbl nlp ON f.file_upload_id = nlp.file_upload_id
+						WHERE mlp.was_accepted = 1
+						  AND nlp.extracted_text IS NOT NULL
+						  AND nlp.extracted_text != ''
+						ORDER BY mlp.predicted_at DESC
+					");
+					
+					if (empty($predictions)) {
+						throw new Exception("No accepted predictions to export");
+					}
+					
+					// Generate CSV
+					$csv = "text,category\n";
+					foreach ($predictions as $pred) {
+						$text = str_replace('"', '""', $pred['text']); // Escape quotes
+						$category = str_replace('"', '""', $pred['category']);
+						$csv .= "\"$text\",\"$category\"\n";
+					}
+					
+					// Send as download
+					header('Content-Type: text/csv');
+					header('Content-Disposition: attachment; filename="ml_feedback_' . date('Y-m-d') . '.csv"');
+					echo $csv;
+					exit;
+					
+				case 'retrain_with_feedback':
+					// Get accepted predictions and create temporary dataset
+					$predictions = $db->select("
+						SELECT 
+							nlp.extracted_text as text,
+							mlp.actual_category as category
+						FROM ml_prediction_history_tbl mlp
+						JOIN file_upload_tbl f ON mlp.file_upload_id = f.file_upload_id
+						JOIN file_nlp_analysis_tbl nlp ON f.file_upload_id = nlp.file_upload_id
+						WHERE mlp.was_accepted = 1
+						  AND nlp.extracted_text IS NOT NULL
+						  AND nlp.extracted_text != ''
+					");
+					
+					if (empty($predictions)) {
+						throw new Exception("No accepted predictions available for retraining");
+					}
+					
+					// Create temporary CSV file
+					$tempDir = __DIR__ . '/../uploads/ml_datasets/';
+					$tempFile = $tempDir . 'feedback_' . time() . '.csv';
+					
+					$csv = "text,category\n";
+					foreach ($predictions as $pred) {
+						$text = str_replace('"', '""', $pred['text']);
+						$category = str_replace('"', '""', $pred['category']);
+						$csv .= "\"$text\",\"$category\"\n";
+					}
+					
+					file_put_contents($tempFile, $csv);
+					
+					// Upload as new dataset
+					$uploadResult = $mlService->uploadDataset(
+						[
+							'tmp_name' => $tempFile,
+							'name' => 'feedback_' . time() . '.csv',
+							'size' => filesize($tempFile),
+							'error' => UPLOAD_ERR_OK
+						],
+						'Feedback Training Data ' . date('Y-m-d'),
+						$_SESSION['user_id'],
+						'Automatically generated from accepted ML predictions'
+					);
+					
+					// Train new model
+					$algorithm = $mlService->getSetting('default_ml_algorithm') ?? 'svm';
+					$trainResult = $mlService->trainModel(
+						$uploadResult['dataset_id'],
+						'Feedback Model ' . date('Y-m-d H:i'),
+						$algorithm,
+						$_SESSION['user_id'],
+						0.2
+					);
+					
+					// Clean up temp file
+					unlink($tempFile);
+					
+					// Activate the new model
+					$mlService->activateModel($trainResult['model_id']);
+					
+					$result = [
+						'success' => true,
+						'model_id' => $trainResult['model_id'],
+						'accuracy' => $trainResult['accuracy'],
+						'training_samples' => $uploadResult['total_samples'],
+						'message' => 'Model retrained and activated successfully'
+					];
+					break;
+					
+				default:
+					throw new Exception("Unknown action: $action");
+			}
+			
+		} catch (Exception $e) {
+			$result = [
+				'success' => false,
+				'message' => $e->getMessage()
+			];
+		}
+		
+		header('Content-Type: application/json');
+		echo json_encode($result);
+		exit;
 	}
 
 

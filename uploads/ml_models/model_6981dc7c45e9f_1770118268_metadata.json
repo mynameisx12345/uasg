@@ -1,0 +1,14 @@
+{
+  "categories": [
+    "letter",
+    "resolution"
+  ],
+  "model_type": "svm",
+  "metrics": {
+    "accuracy": 100.0,
+    "precision": 100.0,
+    "recall": 100.0,
+    "f1_score": 100.0
+  },
+  "saved_at": "2026-02-03T19:31:11.799993"
+}

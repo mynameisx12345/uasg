@@ -26,7 +26,7 @@ class TextExtractor {
             $text = '';
             
             // Extract based on MIME type
-            if (strpos($mimeType, 'text/') === 0) {
+            if (strpos($mimeType, 'text/') === 0 || $mimeType === 'text/csv' || $mimeType === 'application/csv') {
                 $text = $this->extractFromText($filePath);
             } elseif ($mimeType === 'application/pdf') {
                 $text = $this->extractFromPDF($filePath);
@@ -36,8 +36,14 @@ class TextExtractor {
                       strpos($mimeType, 'application/vnd.ms-') === 0) {
                 $text = $this->extractFromOldOffice($filePath);
             } else {
-                // Try as text file for unknown types
-                $text = $this->extractFromText($filePath);
+                // Check file extension for CSV (fallback detection)
+                $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                if ($extension === 'csv') {
+                    $text = $this->extractFromCSV($filePath);
+                } else {
+                    // Try as text file for unknown types
+                    $text = $this->extractFromText($filePath);
+                }
             }
             
             // Check if we got any text (reduced threshold)
@@ -69,6 +75,42 @@ class TextExtractor {
             throw new Exception("Failed to read file contents");
         }
         return $content;
+    }
+    
+    /**
+     * Extract from CSV file
+     * Converts CSV data into readable text format
+     */
+    private function extractFromCSV($filePath) {
+        $text = '';
+        $handle = fopen($filePath, 'r');
+        
+        if ($handle === false) {
+            throw new Exception("Failed to open CSV file");
+        }
+        
+        $rowCount = 0;
+        $maxRows = 1000; // Limit to prevent huge files from consuming too much memory
+        
+        while (($row = fgetcsv($handle)) !== false && $rowCount < $maxRows) {
+            // Join all cells with space, filter empty values
+            $rowText = implode(' ', array_filter($row, function($cell) {
+                return !empty(trim($cell));
+            }));
+            
+            if (!empty($rowText)) {
+                $text .= $rowText . ' ';
+            }
+            $rowCount++;
+        }
+        
+        fclose($handle);
+        
+        if (empty($text)) {
+            throw new Exception("No data found in CSV file");
+        }
+        
+        return trim($text);
     }
     
     /**
@@ -191,23 +233,53 @@ class TextExtractor {
     
     /**
      * Extract from XLSX
+     * Extracts text from Excel spreadsheet cells
      */
     private function extractFromXLSX($zip) {
         $text = '';
+        
+        // Extract from shared strings (most common cell data storage)
         $content = $zip->getFromName('xl/sharedStrings.xml');
         
         if ($content) {
+            libxml_use_internal_errors(true);
             $xml = simplexml_load_string($content);
+            libxml_clear_errors();
+            
             if ($xml) {
                 foreach ($xml->si as $si) {
                     if (isset($si->t)) {
                         $text .= (string)$si->t . ' ';
+                    } elseif (isset($si->r)) {
+                        // Rich text format
+                        foreach ($si->r as $r) {
+                            if (isset($r->t)) {
+                                $text .= (string)$r->t . ' ';
+                            }
+                        }
                     }
                 }
             }
         }
         
-        return $text;
+        // Also try to extract from worksheet data (inline strings and numeric values)
+        for ($i = 1; $i <= 10; $i++) { // Check first 10 sheets
+            $sheetContent = $zip->getFromName("xl/worksheets/sheet{$i}.xml");
+            if ($sheetContent) {
+                // Extract inline string values
+                if (preg_match_all('/<v>(.*?)<\/v>/s', $sheetContent, $matches)) {
+                    foreach ($matches[1] as $value) {
+                        if (!is_numeric($value)) { // Skip pure numbers to reduce noise
+                            $text .= $value . ' ';
+                        }
+                    }
+                }
+            } else {
+                break; // No more sheets
+            }
+        }
+        
+        return trim($text);
     }
     
     /**

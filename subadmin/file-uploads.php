@@ -256,7 +256,7 @@ if (!$canView) {
                     <h4>File Information</h4>
                     <div class="alert alert-info" style="margin-bottom: 15px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
                       <strong>🤖 AI-Powered Classification</strong>
-                      <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning categorization!</p>
+                      <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using your <strong>Trained ML Model</strong> for intelligent classification based on document content!</p>
                     </div>
                     <div class="form-row">
                       <label for="uploadTitle">File Title:</label>
@@ -292,7 +292,7 @@ if (!$canView) {
                     <div class="form-row">
                       <label>Select File: *</label>
                       <div class="upload-area" id="uploadArea">
-                        <input type="file" id="fileInput" name="file" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
+                        <input type="file" id="fileInput" name="file" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.html,.rtf" required>
                         <p>📁 Click or drag file here to upload</p>
                         <p style="font-size: 12px; color: #666; margin-top: 10px;">Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, HTML, RTF</p>
                         <p style="font-size: 12px; color: #666;">Max size: 10MB</p>

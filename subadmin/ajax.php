@@ -61,39 +61,109 @@ $result = [];
 
 // NLP analysis before upload (for preview)
 if($call === 'nlp_analyze') {
-    require_once '../resources/objects/nlpcloud_service.php';
+    require_once '../resources/objects/ml_service.php';
+    require_once '../resources/objects/text_extractor.php';
+    
     if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
         try {
             $file = $_FILES['file'];
             $tmpPath = $file['tmp_name'];
             $mimeType = $file['type'];
 
-            // Use NLP Cloud service
-            $nlp = new NLPCloudService();
-            $res = $nlp->analyzeFile($tmpPath, $mimeType);
+            // Extract text from file
+            $textExtractor = new TextExtractor();
+            $extractResult = $textExtractor->extractText($tmpPath, $mimeType);
+            
+            // Handle both array and string responses from TextExtractor
+            if (is_array($extractResult)) {
+                if (!$extractResult['success']) {
+                    throw new Exception($extractResult['error'] ?? "Could not extract text from file");
+                }
+                $extractedText = $extractResult['text'] ?? '';
+            } else {
+                $extractedText = $extractResult;
+            }
+            
+            if (empty($extractedText)) {
+                throw new Exception("Could not extract text from file");
+            }
 
-            if ($res['success']) {
+            // Use ML model for classification
+            $mlService = new MLClassificationService();
+            $prediction = $mlService->predict($extractedText);
+
+            if ($prediction['success']) {
+                // Check confidence threshold - if too low, use "Others" category
+                $confidence = $prediction['confidence'] ?? 0;
+                $confidenceThreshold = 0.50; // 50% minimum confidence
+                
+                if ($confidence < $confidenceThreshold) {
+                    // Low confidence - fallback to "Others"
+                    $category = 'Others';
+                    $score = round($confidence * 100, 2);
+                    $fallbackReason = 'Low confidence prediction';
+                } else {
+                    // Good confidence - use ML prediction
+                    $category = $prediction['category'] ?? 'Others';
+                    $score = round($confidence * 100, 2);
+                    $fallbackReason = null;
+                }
+                
                 $result = [
                     'status' => 'SUCCESS',
-                    'category' => $res['category_tag'] ?? 'Uncategorized',
-                    'score' => $res['category_score'] ?? 0,
-                    'keywords' => $res['keywords'] ?? [],
-                    'entities' => $res['entities'] ?? [],
-                    'sentiment' => $res['sentiment'] ?? [],
-                    'word_count' => $res['word_count'] ?? 0,
-                    'nlp_analysis' => $res
+                    'category' => $category,
+                    'score' => $score,
+                    'confidence' => $score,
+                    'original_prediction' => $prediction['category'] ?? null,
+                    'fallback_used' => $category === 'Others',
+                    'fallback_reason' => $fallbackReason,
+                    'keywords' => [], // ML doesn't extract keywords
+                    'entities' => [], // ML doesn't extract entities
+                    'sentiment' => [], // ML doesn't analyze sentiment
+                    'word_count' => str_word_count($extractedText),
+                    'extracted_text' => substr($extractedText, 0, 1000), // First 1000 chars
+                    'nlp_analysis' => [
+                        'provider' => 'ML Model',
+                        'model_id' => $prediction['model_id'] ?? null,
+                        'suggested_category' => $category,
+                        'category_confidence' => $score,
+                        'original_prediction' => $prediction['category'] ?? null,
+                        'fallback_used' => $category === 'Others',
+                        'word_count' => str_word_count($extractedText),
+                        'extracted_text' => substr($extractedText, 0, 1000)
+                    ]
                 ];
             } else {
+                // ML prediction completely failed - use "Others"
                 $result = [
-                    'status' => 'ERROR',
-                    'msg' => 'NLP analysis failed: ' . ($res['error'] ?? 'Unknown error')
+                    'status' => 'SUCCESS', // Still success, but with fallback
+                    'category' => 'Others',
+                    'score' => 0,
+                    'confidence' => 0,
+                    'fallback_used' => true,
+                    'fallback_reason' => 'ML prediction failed: ' . ($prediction['error'] ?? 'Unknown error'),
+                    'keywords' => [],
+                    'entities' => [],
+                    'sentiment' => [],
+                    'word_count' => str_word_count($extractedText),
+                    'extracted_text' => substr($extractedText, 0, 1000),
+                    'nlp_analysis' => [
+                        'provider' => 'ML Model (Fallback)',
+                        'model_id' => null,
+                        'suggested_category' => 'Others',
+                        'category_confidence' => 0,
+                        'fallback_used' => true,
+                        'error' => $prediction['error'] ?? 'ML model error',
+                        'word_count' => str_word_count($extractedText),
+                        'extracted_text' => substr($extractedText, 0, 1000)
+                    ]
                 ];
             }
         } catch(Exception $e) {
-            $result = ["status" => "ERROR", "msg" => "NLP analysis failed: " . $e->getMessage()];
+            $result = ["status" => "ERROR", "msg" => "ML analysis failed: " . $e->getMessage()];
         }
     } else {
-        $result = ["status" => "ERROR", "msg" => "No file uploaded for NLP analysis."];
+        $result = ["status" => "ERROR", "msg" => "No file uploaded for ML analysis."];
     }
     echo json_encode($result);
     exit;
@@ -137,11 +207,33 @@ if($call === 'nlp_search_files'){
             exit;
         }
         
-        // Use new content search method from FileManager
-        $fileManager = new FileManager();
-        $results = $fileManager->searchFilesByContent($searchWord, $categoryId, $userId);
+        // Check if conversational mode is enabled
+        $useConversational = !empty($searchWord) && (
+            stripos($searchWord, 'show') !== false || 
+            stripos($searchWord, 'find') !== false || 
+            stripos($searchWord, 'get') !== false ||
+            stripos($searchWord, 'all') !== false ||
+            str_word_count($searchWord) > 3 // Likely a question/sentence
+        );
         
-        echo json_encode(['status' => 'SUCCESS', 'data' => $results]);
+        if ($useConversational && empty($categoryId)) {
+            // Use conversational NLP processing
+            require_once(__DIR__ . '/../resources/objects/conversational_nlp_service.php');
+            $searchData = ConversationalNLPService::processConversationalSearch($searchWord, $userId);
+            
+            echo json_encode([
+                'status' => 'SUCCESS', 
+                'data' => $searchData['results'],
+                'message' => ConversationalNLPService::generateResponseMessage($searchData),
+                'parsed' => $searchData['parsed_query']
+            ]);
+        } else {
+            // Use traditional keyword search
+            $fileManager = new FileManager();
+            $results = $fileManager->searchFilesByContent($searchWord, $categoryId, $userId);
+            
+            echo json_encode(['status' => 'SUCCESS', 'data' => $results]);
+        }
         
         // Log activity
         SubadminPermission::logActivity($userId, 'nlp_search', 'file_management', 'Performed content search: ' . $searchWord);

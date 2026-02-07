@@ -1,0 +1,578 @@
+<?php
+session_start();
+
+// Check if user is logged in and is admin
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
+    header("Location: ../index.php");
+    exit();
+}
+
+// Prevent caching
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+require_once("../resources/class.php");
+
+$db = Database::getInstance();
+
+// Get filter parameters
+$confidenceFilter = $_GET['confidence'] ?? 'all';
+$categoryFilter = $_GET['category'] ?? 'all';
+$statusFilter = $_GET['status'] ?? 'pending';
+$dateRange = $_GET['date_range'] ?? '30';
+
+// Build query for predictions
+$query = "
+    SELECT 
+        mlp.*,
+        f.original_filename,
+        f.file_path,
+        f.category_tag as actual_category,
+        f.mime_type,
+        f.datetime_uploaded,
+        nlp.extracted_text,
+        nlp.word_count,
+        m.model_name,
+        u.user_name as uploaded_by_name
+    FROM ml_prediction_history_tbl mlp
+    JOIN file_upload_tbl f ON mlp.file_upload_id = f.file_upload_id
+    LEFT JOIN file_nlp_analysis_tbl nlp ON f.file_upload_id = nlp.file_upload_id
+    LEFT JOIN ml_models_tbl m ON mlp.model_id = m.model_id
+    LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id
+    WHERE 1=1
+";
+
+$params = [];
+
+// Date range filter
+if ($dateRange != 'all') {
+    $query .= " AND mlp.predicted_at >= DATE_SUB(NOW(), INTERVAL :days DAY)";
+    $params[':days'] = intval($dateRange);
+}
+
+// Confidence filter
+if ($confidenceFilter == 'high') {
+    $query .= " AND mlp.confidence_score >= 0.80";
+} elseif ($confidenceFilter == 'medium') {
+    $query .= " AND mlp.confidence_score >= 0.60 AND mlp.confidence_score < 0.80";
+} elseif ($confidenceFilter == 'low') {
+    $query .= " AND mlp.confidence_score < 0.60";
+}
+
+// Category filter
+if ($categoryFilter != 'all') {
+    $query .= " AND mlp.predicted_category = :category";
+    $params[':category'] = $categoryFilter;
+}
+
+// Status filter
+if ($statusFilter == 'accepted') {
+    $query .= " AND mlp.was_accepted = 1";
+} elseif ($statusFilter == 'rejected') {
+    $query .= " AND mlp.was_accepted = 0";
+} elseif ($statusFilter == 'pending') {
+    $query .= " AND mlp.was_accepted IS NULL";
+}
+
+$query .= " ORDER BY mlp.predicted_at DESC LIMIT 100";
+
+$stmt = $db->getConnection()->prepare($query);
+$stmt->execute($params);
+$predictions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get statistics
+$stats = $db->selectOne("
+    SELECT 
+        COUNT(*) as total_predictions,
+        SUM(CASE WHEN was_accepted = 1 THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN was_accepted = 0 THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN was_accepted IS NULL THEN 1 ELSE 0 END) as pending,
+        AVG(confidence_score) as avg_confidence
+    FROM ml_prediction_history_tbl
+    WHERE predicted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+");
+
+// Get all categories for filter
+$categories = $db->select("
+    SELECT DISTINCT predicted_category 
+    FROM ml_prediction_history_tbl 
+    ORDER BY predicted_category
+");
+
+include("header.php");
+?>
+
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">🔍 ML Prediction Feedback</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="index.php">Home</a></li>
+                        <li class="breadcrumb-item"><a href="ml-management.php">ML Management</a></li>
+                        <li class="breadcrumb-item active">Feedback Review</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- Statistics Cards -->
+            <div class="row">
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-info">
+                        <div class="inner">
+                            <h3><?= $stats['total_predictions'] ?? 0 ?></h3>
+                            <p>Total Predictions (30 days)</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-success">
+                        <div class="inner">
+                            <h3><?= $stats['accepted'] ?? 0 ?></h3>
+                            <p>Accepted</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-danger">
+                        <div class="inner">
+                            <h3><?= $stats['rejected'] ?? 0 ?></h3>
+                            <p>Rejected</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-warning">
+                        <div class="inner">
+                            <h3><?= $stats['pending'] ?? 0 ?></h3>
+                            <p>Pending Review</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🔍 Filters</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="filterForm" method="GET">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>Status</label>
+                                            <select class="form-control" name="status" onchange="this.form.submit()">
+                                                <option value="pending" <?= $statusFilter == 'pending' ? 'selected' : '' ?>>Pending Review</option>
+                                                <option value="accepted" <?= $statusFilter == 'accepted' ? 'selected' : '' ?>>Accepted</option>
+                                                <option value="rejected" <?= $statusFilter == 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                                                <option value="all" <?= $statusFilter == 'all' ? 'selected' : '' ?>>All</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>Confidence Level</label>
+                                            <select class="form-control" name="confidence" onchange="this.form.submit()">
+                                                <option value="all" <?= $confidenceFilter == 'all' ? 'selected' : '' ?>>All Levels</option>
+                                                <option value="high" <?= $confidenceFilter == 'high' ? 'selected' : '' ?>>High (≥80%)</option>
+                                                <option value="medium" <?= $confidenceFilter == 'medium' ? 'selected' : '' ?>>Medium (60-80%)</option>
+                                                <option value="low" <?= $confidenceFilter == 'low' ? 'selected' : '' ?>>Low (<60%)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>Category</label>
+                                            <select class="form-control" name="category" onchange="this.form.submit()">
+                                                <option value="all">All Categories</option>
+                                                <?php foreach ($categories as $cat): ?>
+                                                    <option value="<?= htmlspecialchars($cat['predicted_category']) ?>" 
+                                                            <?= $categoryFilter == $cat['predicted_category'] ? 'selected' : '' ?>>
+                                                        <?= htmlspecialchars($cat['predicted_category']) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>Date Range</label>
+                                            <select class="form-control" name="date_range" onchange="this.form.submit()">
+                                                <option value="7" <?= $dateRange == '7' ? 'selected' : '' ?>>Last 7 Days</option>
+                                                <option value="30" <?= $dateRange == '30' ? 'selected' : '' ?>>Last 30 Days</option>
+                                                <option value="90" <?= $dateRange == '90' ? 'selected' : '' ?>>Last 90 Days</option>
+                                                <option value="all" <?= $dateRange == 'all' ? 'selected' : '' ?>>All Time</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <button class="btn btn-success" id="exportAcceptedBtn">
+                        <i class="fas fa-download"></i> Export Accepted as CSV (<?= $stats['accepted'] ?? 0 ?> items)
+                    </button>
+                    <button class="btn btn-primary" id="retrainWithFeedbackBtn">
+                        <i class="fas fa-sync"></i> Retrain with Accepted Data
+                    </button>
+                    <button class="btn btn-info" id="acceptAllHighConfidenceBtn">
+                        <i class="fas fa-check-double"></i> Accept All High Confidence (≥90%)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Predictions List -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">📋 Predictions (<?= count($predictions) ?> results)</h3>
+                        </div>
+                        <div class="card-body">
+                            <?php if (empty($predictions)): ?>
+                                <p class="text-center text-muted py-5">No predictions found with current filters.</p>
+                            <?php else: ?>
+                                <?php foreach ($predictions as $pred): ?>
+                                    <div class="prediction-item card mb-3" data-prediction-id="<?= $pred['prediction_id'] ?>">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <!-- File Info -->
+                                                <div class="col-md-8">
+                                                    <h5>
+                                                        <i class="fas fa-file-pdf"></i> 
+                                                        <?= htmlspecialchars($pred['original_filename']) ?>
+                                                    </h5>
+                                                    <p class="mb-2">
+                                                        <strong>Predicted Category:</strong> 
+                                                        <span class="badge badge-primary"><?= htmlspecialchars($pred['predicted_category']) ?></span>
+                                                        <strong class="ml-3">Confidence:</strong> 
+                                                        <span class="badge badge-<?= $pred['confidence_score'] >= 0.8 ? 'success' : ($pred['confidence_score'] >= 0.6 ? 'warning' : 'danger') ?>">
+                                                            <?= number_format($pred['confidence_score'] * 100, 2) ?>%
+                                                        </span>
+                                                        <strong class="ml-3">Model:</strong> 
+                                                        <span class="badge badge-secondary"><?= htmlspecialchars($pred['model_name'] ?? 'Unknown') ?></span>
+                                                    </p>
+                                                    <p class="mb-2">
+                                                        <strong>Uploaded:</strong> <?= date('M d, Y H:i', strtotime($pred['datetime_uploaded'])) ?>
+                                                        by <?= htmlspecialchars($pred['uploaded_by_name'] ?? 'Unknown') ?>
+                                                    </p>
+                                                    
+                                                    <!-- Text Preview -->
+                                                    <div class="text-preview bg-light p-2 rounded" style="max-height: 100px; overflow-y: auto;">
+                                                        <small>
+                                                            <?php 
+                                                            $text = $pred['extracted_text'] ?? 'No text extracted';
+                                                            echo htmlspecialchars(substr($text, 0, 300));
+                                                            echo strlen($text) > 300 ? '...' : '';
+                                                            ?>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Actions -->
+                                                <div class="col-md-4 text-right">
+                                                    <?php if ($pred['was_accepted'] === null): ?>
+                                                        <!-- Pending -->
+                                                        <div class="btn-group-vertical mb-2" role="group">
+                                                            <button class="btn btn-success accept-btn" 
+                                                                    data-id="<?= $pred['prediction_id'] ?>"
+                                                                    data-category="<?= htmlspecialchars($pred['predicted_category']) ?>">
+                                                                <i class="fas fa-check"></i> Accept
+                                                            </button>
+                                                            <button class="btn btn-danger reject-btn" 
+                                                                    data-id="<?= $pred['prediction_id'] ?>">
+                                                                <i class="fas fa-times"></i> Reject
+                                                            </button>
+                                                            <button class="btn btn-warning edit-category-btn" 
+                                                                    data-id="<?= $pred['prediction_id'] ?>"
+                                                                    data-file-id="<?= $pred['file_upload_id'] ?>"
+                                                                    data-current="<?= htmlspecialchars($pred['predicted_category']) ?>">
+                                                                <i class="fas fa-edit"></i> Edit Category
+                                                            </button>
+                                                        </div>
+                                                    <?php elseif ($pred['was_accepted'] == 1): ?>
+                                                        <!-- Accepted -->
+                                                        <span class="badge badge-success p-2">
+                                                            <i class="fas fa-check-circle"></i> Accepted
+                                                        </span>
+                                                        <?php if ($pred['actual_category'] != $pred['predicted_category']): ?>
+                                                            <br><small class="text-muted">
+                                                                Corrected to: <?= htmlspecialchars($pred['actual_category']) ?>
+                                                            </small>
+                                                        <?php endif; ?>
+                                                    <?php else: ?>
+                                                        <!-- Rejected -->
+                                                        <span class="badge badge-danger p-2">
+                                                            <i class="fas fa-times-circle"></i> Rejected
+                                                        </span>
+                                                        <?php if ($pred['actual_category']): ?>
+                                                            <br><small class="text-muted">
+                                                                Actual: <?= htmlspecialchars($pred['actual_category']) ?>
+                                                            </small>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+                                                    
+                                                    <div class="mt-2">
+                                                        <small class="text-muted">
+                                                            ID: <?= $pred['prediction_id'] ?><br>
+                                                            Time: <?= $pred['prediction_time_ms'] ?>ms
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Category</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="editCategoryForm">
+                <input type="hidden" name="prediction_id" id="edit_prediction_id">
+                <input type="hidden" name="file_upload_id" id="edit_file_upload_id">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="icon fas fa-info-circle"></i>
+                        Correct the category if the ML prediction was wrong. This will mark the prediction as accepted with the corrected category.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ML Predicted:</label>
+                        <input type="text" class="form-control" id="edit_predicted_category" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Correct Category <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="correct_category" id="edit_correct_category" 
+                               placeholder="Enter the correct category" required>
+                        <small class="form-text text-muted">This will be used for retraining</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Save & Accept
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Accept prediction
+    $('.accept-btn').click(function() {
+        const predictionId = $(this).data('id');
+        const category = $(this).data('category');
+        
+        $.post('ajax.php', {
+            CALL: 'ml_operations',
+            action: 'accept_prediction',
+            prediction_id: predictionId,
+            actual_category: category
+        }, function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Accepted!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                location.reload();
+            } else {
+                Swal.fire('Error', response.message, 'error');
+            }
+        });
+    });
+    
+    // Reject prediction
+    $('.reject-btn').click(function() {
+        const predictionId = $(this).data('id');
+        
+        Swal.fire({
+            title: 'Reject this prediction?',
+            text: 'This will not be included in training data',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, Reject'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('ajax.php', {
+                    CALL: 'ml_operations',
+                    action: 'reject_prediction',
+                    prediction_id: predictionId
+                }, function(response) {
+                    if (response.success) {
+                        Swal.fire('Rejected!', '', 'success');
+                        location.reload();
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                });
+            }
+        });
+    });
+    
+    // Edit category
+    $('.edit-category-btn').click(function() {
+        const predictionId = $(this).data('id');
+        const fileId = $(this).data('file-id');
+        const currentCategory = $(this).data('current');
+        
+        $('#edit_prediction_id').val(predictionId);
+        $('#edit_file_upload_id').val(fileId);
+        $('#edit_predicted_category').val(currentCategory);
+        $('#edit_correct_category').val(currentCategory);
+        
+        $('#editCategoryModal').modal('show');
+    });
+    
+    // Submit category edit
+    $('#editCategoryForm').submit(function(e) {
+        e.preventDefault();
+        
+        $.post('ajax.php', {
+            CALL: 'ml_operations',
+            action: 'edit_prediction_category',
+            prediction_id: $('#edit_prediction_id').val(),
+            file_upload_id: $('#edit_file_upload_id').val(),
+            correct_category: $('#edit_correct_category').val()
+        }, function(response) {
+            if (response.success) {
+                Swal.fire('Saved!', 'Category corrected and accepted', 'success');
+                $('#editCategoryModal').modal('hide');
+                location.reload();
+            } else {
+                Swal.fire('Error', response.message, 'error');
+            }
+        });
+    });
+    
+    // Export accepted predictions
+    $('#exportAcceptedBtn').click(function() {
+        window.location.href = 'ajax.php?CALL=ml_operations&action=export_accepted_predictions';
+    });
+    
+    // Retrain with feedback
+    $('#retrainWithFeedbackBtn').click(function() {
+        Swal.fire({
+            title: 'Retrain with Accepted Data?',
+            html: 'This will create a new model using accepted predictions as additional training data.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Retrain',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return $.post('ajax.php', {
+                    CALL: 'ml_operations',
+                    action: 'retrain_with_feedback'
+                });
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Model Retrained!',
+                    html: `<strong>New Accuracy:</strong> ${(result.value.accuracy * 100).toFixed(2)}%<br>
+                           <strong>Training Samples:</strong> ${result.value.training_samples}`,
+                    timer: 5000
+                }).then(() => {
+                    window.location.href = 'ml-management.php';
+                });
+            } else if (result.isConfirmed) {
+                Swal.fire('Error', result.value.message || 'Retraining failed', 'error');
+            }
+        });
+    });
+    
+    // Accept all high confidence
+    $('#acceptAllHighConfidenceBtn').click(function() {
+        Swal.fire({
+            title: 'Accept All High Confidence?',
+            text: 'This will accept all pending predictions with ≥90% confidence',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Accept All'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('ajax.php', {
+                    CALL: 'ml_operations',
+                    action: 'accept_all_high_confidence'
+                }, function(response) {
+                    if (response.success) {
+                        Swal.fire('Success!', `Accepted ${response.count} predictions`, 'success');
+                        location.reload();
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.prediction-item {
+    transition: all 0.3s;
+}
+.prediction-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.text-preview {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+</style>
+
+<?php include("../resources/components/footer.php"); ?>

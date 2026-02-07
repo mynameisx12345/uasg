@@ -122,12 +122,12 @@ header("Expires: 0");
                   <div class="form-row">
                     <div class="form-group">
                       <label for="uploadFile">Select File</label>
-                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
+                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.html,.rtf" required>
                     </div>
                   </div>
                   <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
                     <strong>🤖 AI-Powered Auto-Categorization</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using <strong>NLP Cloud AI</strong> for classification and <strong>Google NLP</strong> for keyword extraction - combining the best of both services!</p>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be automatically categorized using your <strong>Trained ML Model</strong> for intelligent classification based on document content!</p>
                   </div>
                 </div>
               </div>

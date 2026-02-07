@@ -88,7 +88,7 @@ $currentUser = $session->getUserData();
         
         <div class="form-group">
           <label for="complyFile">📎 Select File to Upload</label>
-          <input type="file" id="complyFile" name="file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx" required />
+          <input type="file" id="complyFile" name="file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.csv,.ppt,.pptx" required />
           <small style="display: block; margin-top: 5px; color: #666;">
             Supported formats: PDF, Word, Excel, PowerPoint, Text (Max: 50MB)
           </small>
@@ -96,7 +96,7 @@ $currentUser = $session->getUserData();
         
         <div class="alert alert-info" style="margin-top: 15px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
           <strong>🤖 AI-Powered Classification</strong>
-          <p style="margin: 5px 0 0 0; font-size: 13px;">Your file will be analyzed using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning categorization!</p>
+          <p style="margin: 5px 0 0 0; font-size: 13px;">Your file will be analyzed using your <strong>Trained ML Model</strong> for intelligent classification based on document content!</p>
         </div>
         
         <div id="complyNlpPreview" style="display:none; margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #4CAF50;">
@@ -189,12 +189,12 @@ $currentUser = $session->getUserData();
                   <div class="form-row">
                     <div class="form-group">
                       <label for="uploadFile">Select File</label>
-                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.html,.rtf" required>
+                      <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.html,.rtf" required>
                     </div>
                   </div>
                   <div class="alert alert-info" style="margin-top: 10px; padding: 12px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
                     <strong>🤖 AI-Powered Classification</strong>
-                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using <strong>NLP Cloud AI</strong> with zero-shot learning - real machine learning, not just keywords!</p>
+                    <p style="margin: 5px 0 0 0; font-size: 13px;">Files will be categorized using your <strong>Trained ML Model</strong> for intelligent classification based on document content!</p>
                   </div>
                 </div>
               </div>
