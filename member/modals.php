@@ -561,14 +561,169 @@ window.openSubmissionModal = function(taskId) {
 
 window.submitTask = function() {
     const form = document.getElementById('submitTaskForm');
-    const formData = new FormData(form);
-    formData.append('CALL', 'submit_task');
     
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
+    
+    // STEP 1: Validate if file matches task requirements (NEW!)
+    const taskId = document.getElementById('submit_task_id').value;
+    const fileInput = document.getElementById('submissionFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        openNotificationModal('Please select a file to upload.', 'error');
+        return;
+    }
+    
+    // Show validation progress
+    Swal.fire({
+        title: 'Validating File...',
+        html: `
+            <p>🤖 AI is analyzing if your file matches the task requirements...</p>
+            <div class="swal-spinner" style="margin: 20px auto;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #2196F3;"></i>
+            </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Create FormData for validation
+    const validationData = new FormData();
+    validationData.append('CALL', 'validate_task_file');
+    validationData.append('task_id', taskId);
+    validationData.append('file', file);
+    
+    // Validate file against task
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: validationData,
+        processData: false,
+        contentType: false,
+        success: function(validationResult) {
+            const result = typeof validationResult === 'string' ? JSON.parse(validationResult) : validationResult;
+            
+            if (!result.success) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Failed',
+                    text: result.error || 'Could not validate file. Please try again.',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+            
+            // Check if file is valid for this task
+            if (!result.is_valid) {
+                // File does NOT match task - show warning and block upload
+                Swal.fire({
+                    icon: 'error',
+                    title: '❌ File Does Not Match Task!',
+                    html: `
+                        <div style="text-align: left; padding: 15px;">
+                            <p style="margin-bottom: 15px;"><strong>This file does not appear to match the task requirements.</strong></p>
+                            
+                            <div style="background: #f8d7da; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                                <strong>📋 Task:</strong> ${result.task_info.title}<br>
+                                <strong>📁 Required Category:</strong> ${result.task_info.category}<br>
+                                <strong>🤖 File Detected As:</strong> ${result.validation_details.category_match.predicted_category}
+                            </div>
+                            
+                            <p style="margin-bottom: 10px;"><strong>Issues Found:</strong></p>
+                            <ul style="text-align: left; color: #721c24;">
+                                ${result.recommendation.reasons.map(r => `<li>${r}</li>`).join('')}
+                            </ul>
+                            
+                            <p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                <strong>💡 Suggestion:</strong> ${result.recommendation.suggestion || 'Please upload the correct document for this task.'}
+                            </p>
+                            
+                            <p style="margin-top: 15px; font-size: 13px; color: #666;">
+                                <strong>Match Score:</strong> ${result.overall_score}% (minimum: 60%)
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Choose Different File',
+                    confirmButtonColor: '#dc3545',
+                    showCancelButton: false,
+                    width: 600
+                });
+                return;
+            }
+            
+            // File IS valid - show success and proceed with upload
+            let confirmMessage = `
+                <div style="text-align: left; padding: 15px;">
+                    <p style="margin-bottom: 15px;"><strong>✓ File validated successfully!</strong></p>
+                    
+                    <div style="background: #d4edda; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <strong>📋 Task:</strong> ${result.task_info.title}<br>
+                        <strong>📁 Category:</strong> ${result.task_info.category}<br>
+                        <strong>🤖 AI Confidence:</strong> ${result.confidence}
+                    </div>
+                    
+                    <p style="margin-bottom: 10px;"><strong>Validation Results:</strong></p>
+                    <ul style="text-align: left; color: #155724;">
+                        <li>✓ Category Match: ${result.validation_details.category_match.score}%</li>
+                        <li>✓ Keyword Match: ${result.validation_details.keyword_match.score}%</li>
+                        <li>✓ Content Relevance: ${result.validation_details.relevance_score.score}%</li>
+                    </ul>
+                    
+                    <p style="margin-top: 15px; font-size: 13px; color: #666;">
+                        <strong>Overall Match Score:</strong> ${result.overall_score}%
+                    </p>
+                    
+                    <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                        ${result.recommendation.message}
+                    </p>
+                </div>
+            `;
+            
+            Swal.fire({
+                icon: 'success',
+                title: '✓ File Matches Task!',
+                html: confirmMessage,
+                confirmButtonText: 'Proceed with Upload',
+                confirmButtonColor: '#28a745',
+                showCancelButton: true,
+                cancelButtonText: 'Cancel',
+                width: 600
+            }).then((confirmResult) => {
+                if (confirmResult.isConfirmed) {
+                    // STEP 2: Proceed with actual upload
+                    proceedWithTaskSubmission(form);
+                }
+            });
+            
+        },
+        error: function() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Validation Unavailable',
+                text: 'Could not validate file automatically. Proceed with caution.',
+                confirmButtonText: 'Upload Anyway',
+                showCancelButton: true,
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    proceedWithTaskSubmission(form);
+                }
+            });
+        }
+    });
+};
+
+// Separate function to handle the actual upload after validation
+function proceedWithTaskSubmission(form) {
+    const formData = new FormData(form);
+    formData.append('CALL', '11'); // Use the existing submit task endpoint
     
     // Show progress
     document.getElementById('submitProgress').style.display = 'block';

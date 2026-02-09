@@ -580,6 +580,37 @@ if($call == 1){
         echo json_encode(['status' => 'ERROR', 'data' => [], 'msg' => $e->getMessage()]);
     }
     
+}else if($call === 'validate_task_file'){
+    // NEW: Validate if uploaded file matches task requirements
+    try {
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('File upload error');
+        }
+        
+        $taskId = $_POST['task_id'] ?? 0;
+        if (!$taskId) {
+            throw new Exception('Task ID required');
+        }
+        
+        require_once '../resources/objects/task_file_validator.php';
+        
+        $file = $_FILES['file'];
+        $tmpPath = $file['tmp_name'];
+        $mimeType = $file['type'];
+        
+        $validator = new TaskFileValidator();
+        $validationResult = $validator->validateFileForTask($taskId, $tmpPath, $mimeType);
+        
+        echo json_encode($validationResult);
+        
+    } catch(Exception $e) {
+        error_log("Task file validation error: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+    
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }

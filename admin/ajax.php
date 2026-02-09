@@ -2316,6 +2316,15 @@
 					];
 					break;
 					
+				case 'process_ml_queue':
+					// Process incremental ML training queue
+					require_once '../resources/objects/ml_service_incremental.php';
+					$incrementalML = new IncrementalMLService();
+					
+					$batchSize = $_POST['batch_size'] ?? 20; // Process 20 by default
+					$result = $incrementalML->processTrainingQueue($batchSize);
+					break;
+					
 				default:
 					throw new Exception("Unknown action: $action");
 			}
