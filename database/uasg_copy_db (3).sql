@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Feb 03, 2026 at 12:42 PM
+-- Generation Time: Feb 09, 2026 at 05:06 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=111 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -225,7 +225,29 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (102, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', 0, 'User not found', '2026-01-26 05:43:13'),
 (103, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', 0, NULL, '2026-01-26 05:43:13'),
 (104, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', 0, 'Account locked', '2026-01-26 05:43:16'),
-(108, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-03 09:16:18');
+(110, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-09 05:05:20');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ml_incremental_training_queue_tbl`
+--
+
+DROP TABLE IF EXISTS `ml_incremental_training_queue_tbl`;
+CREATE TABLE IF NOT EXISTS `ml_incremental_training_queue_tbl` (
+  `queue_id` int NOT NULL AUTO_INCREMENT,
+  `file_upload_id` int DEFAULT NULL COMMENT 'Reference to uploaded file',
+  `training_text` text COLLATE utf8mb4_general_ci NOT NULL COMMENT 'Extracted text for training',
+  `confirmed_category` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'User-confirmed category',
+  `prediction_confidence` decimal(5,4) DEFAULT NULL COMMENT 'Original ML confidence (0-1)',
+  `status` enum('pending','processed','failed') COLLATE utf8mb4_general_ci DEFAULT 'pending',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `processed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`queue_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_file_upload` (`file_upload_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Queues training samples for incremental ML learning';
 
 -- --------------------------------------------------------
 
@@ -253,20 +275,25 @@ CREATE TABLE IF NOT EXISTS `ml_models_tbl` (
   `trained_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `last_used_at` datetime DEFAULT NULL,
   `usage_count` int DEFAULT '0' COMMENT 'Number of times model was used for prediction',
+  `is_incremental` tinyint(1) DEFAULT '0' COMMENT '1 if model supports incremental learning',
+  `total_incremental_samples` int DEFAULT '0' COMMENT 'Total samples learned incrementally',
+  `last_incremental_update` datetime DEFAULT NULL COMMENT 'Last time model was updated incrementally',
   PRIMARY KEY (`model_id`),
   KEY `dataset_id` (`dataset_id`),
   KEY `trained_by` (`trained_by`),
   KEY `idx_active` (`is_active`),
-  KEY `idx_trained_at` (`trained_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
+  KEY `idx_trained_at` (`trained_at`),
+  KEY `idx_is_incremental` (`is_incremental`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
 
 --
 -- Dumping data for table `ml_models_tbl`
 --
 
-INSERT INTO `ml_models_tbl` (`model_id`, `model_name`, `dataset_id`, `model_type`, `model_path`, `vectorizer_path`, `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `categories`, `training_samples`, `test_samples`, `is_active`, `trained_by`, `trained_at`, `last_used_at`, `usage_count`) VALUES
-(2, 'Retraining Model', 5, 'svm', 'uploads/ml_models/model_6981dfd127b01_1770119121.pkl', 'uploads/ml_models/model_6981dfd127b01_1770119121_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 0, 4, '2026-02-03 19:45:24', NULL, 0),
-(3, 'Retraining Model', 5, 'svm', 'uploads/ml_models/model_6981e0b46b1c8_1770119348.pkl', 'uploads/ml_models/model_6981e0b46b1c8_1770119348_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 1, 4, '2026-02-03 19:49:12', '2026-02-03 20:24:22', 8);
+INSERT INTO `ml_models_tbl` (`model_id`, `model_name`, `dataset_id`, `model_type`, `model_path`, `vectorizer_path`, `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `categories`, `training_samples`, `test_samples`, `is_active`, `trained_by`, `trained_at`, `last_used_at`, `usage_count`, `is_incremental`, `total_incremental_samples`, `last_incremental_update`) VALUES
+(2, 'Retraining Model', 5, 'svm', 'uploads/ml_models/model_6981dfd127b01_1770119121.pkl', 'uploads/ml_models/model_6981dfd127b01_1770119121_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 0, 4, '2026-02-03 19:45:24', NULL, 0, 0, 0, NULL),
+(3, 'Retraining Model', 5, 'svm', 'uploads/ml_models/model_6981e0b46b1c8_1770119348.pkl', 'uploads/ml_models/model_6981e0b46b1c8_1770119348_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 0, 4, '2026-02-03 19:49:12', '2026-02-03 20:24:22', 8, 0, 0, NULL),
+(4, 'Training Set 2', 5, 'svm', 'uploads/ml_models/model_698211f25ef55_1770131954.pkl', 'uploads/ml_models/model_698211f25ef55_1770131954_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 1, 4, '2026-02-03 23:19:31', NULL, 0, 0, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -309,7 +336,7 @@ CREATE TABLE IF NOT EXISTS `ml_settings_tbl` (
   PRIMARY KEY (`setting_id`),
   UNIQUE KEY `unique_setting_key` (`setting_key`),
   KEY `updated_by` (`updated_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='ML system configuration settings';
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='ML system configuration settings';
 
 --
 -- Dumping data for table `ml_settings_tbl`
@@ -317,10 +344,13 @@ CREATE TABLE IF NOT EXISTS `ml_settings_tbl` (
 
 INSERT INTO `ml_settings_tbl` (`setting_id`, `setting_key`, `setting_value`, `setting_description`, `updated_by`, `updated_at`) VALUES
 (1, 'classification_method', 'hybrid', 'Classification method: nlp_cloud, google_nlp, custom_ml, hybrid', NULL, '2026-01-28 13:21:35'),
-(2, 'active_ml_model_id', '3', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-02-03 19:49:12'),
+(2, 'active_ml_model_id', '4', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-02-09 13:05:41'),
 (3, 'ml_confidence_threshold', '60', 'Minimum confidence percentage to auto-categorize with ML', NULL, '2026-01-28 13:21:35'),
 (4, 'ml_fallback_enabled', '1', 'Enable fallback to NLP services if ML fails (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
-(5, 'ml_priority', '1', 'Try ML before NLP services in hybrid mode (1=yes, 0=no)', NULL, '2026-01-28 13:21:35');
+(5, 'ml_priority', '1', 'Try ML before NLP services in hybrid mode (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
+(6, 'incremental_learning_enabled', '0', 'Enable automatic incremental learning from uploaded files', NULL, '2026-02-08 15:29:00'),
+(7, 'incremental_batch_size', '10', 'Number of samples to accumulate before incremental training', NULL, '2026-02-08 15:29:00'),
+(8, 'incremental_auto_process', '1', 'Automatically process training queue when batch size is reached', NULL, '2026-02-08 15:29:00');
 
 -- --------------------------------------------------------
 
@@ -644,7 +674,7 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '3b18712e64b1b63f88aace806f45735716ba4f0f9c5d657af6821e05e5806b25', 1, NULL, NULL),
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '6f609eab681a84b09a11492e0d0884afc5368f26f3fd9c7498a5cbeaafa3b5f3', 1, NULL, NULL),
 (5, 'justin.abuela', '$2y$10$JgDETuF/mZ0gTkqD9ZPN.Oa/bEkhF2Kzr7KSVXqPQ.nRIkBV/M6SG', 2, 5, 'student', 'cec22757baf73f2336fabd3ee39f13c2a47419c71256e4cd5d1441ab383e6404', 1, NULL, NULL),
 (8, 'juan.perez', '$2y$10$GMFRwhedcv2cNjcT6/jTLuReP3De0NjI393u8JqtfEj4mi1hNTkEa', 2, 8, 'student', '4df74ecefda40d16f25d9cc0f5485eb7e753a49348018dad48da6ad2156bb7f0', 1, NULL, NULL),
 (11, 'userstaff123', '$2y$10$s1jwpyM.vpxS4eEzHwgXE.SyzaPEwzTDeYm4odnyKm8R1H1RPSM6y', 5, 11, 'subadmin', NULL, 1, NULL, NULL);
