@@ -5,6 +5,9 @@
  * Supports continuous learning from uploaded files
  */
 
+// Ensure MLClassificationService is loaded
+require_once __DIR__ . '/ml_service.php';
+
 class IncrementalMLService extends MLClassificationService {
     
     private $incrementalScriptPath;

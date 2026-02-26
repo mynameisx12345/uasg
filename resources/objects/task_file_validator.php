@@ -30,7 +30,7 @@ class TaskFileValidator {
         try {
             // Get task details
             $task = $this->db->selectOne(
-                "SELECT t.*, tc.category_name as task_category 
+                "SELECT t.*, tc.task_category as task_category 
                  FROM task_tbl t
                  LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
                  WHERE t.task_id = ?",
@@ -140,32 +140,58 @@ class TaskFileValidator {
      * Analyze if ML-predicted category matches task category
      */
     private function analyzeMLCategoryMatch($task, $fileText) {
-        $prediction = $this->mlService->predict($fileText);
-        
-        if (!$prediction['success']) {
-            return [
-                'score' => 0,
-                'predicted_category' => null,
-                'task_category' => $task['task_category'],
-                'match' => false,
-                'confidence' => 0,
-                'error' => $prediction['error'] ?? 'ML prediction failed'
-            ];
+        // Predict category for the uploaded file
+        $filePrediction = $this->mlService->predict($fileText);
+
+        // Build task text from title + description and predict its category
+        $taskText = trim(($task['task_title'] ?? '') . ' ' . ($task['task_description'] ?? ''));
+        $taskPrediction = $this->mlService->predict($taskText);
+
+        // Normalize results and handle prediction failures
+        $filePredSuccess = !empty($filePrediction) && !empty($filePrediction['success']);
+        $taskPredSuccess = !empty($taskPrediction) && !empty($taskPrediction['success']);
+
+        $predictedFileCategory = $filePredSuccess ? strtolower(trim($filePrediction['category'] ?? '')) : '';
+        $fileConfidence = $filePredSuccess ? ($filePrediction['confidence'] ?? 0) : 0;
+
+        // If task prediction failed or low confidence, fall back to stored DB task category
+        $predictedTaskCategory = '';
+        $taskConfidence = 0;
+        $taskPredictionFallbackToDB = false;
+        if ($taskPredSuccess && !empty($taskPrediction['category'])) {
+            $predictedTaskCategory = strtolower(trim($taskPrediction['category'] ?? ''));
+            $taskConfidence = $taskPrediction['confidence'] ?? 0;
+        } else {
+            $predictedTaskCategory = strtolower(trim($task['task_category'] ?? ''));
+            $taskConfidence = 0;
+            $taskPredictionFallbackToDB = true;
         }
-        
-        $predictedCategory = strtolower(trim($prediction['category']));
-        $taskCategory = strtolower(trim($task['task_category']));
-        
-        // Check if categories match or are similar
-        $isMatch = ($predictedCategory === $taskCategory);
-        $score = $isMatch ? 100 : $this->calculateCategorySimilarity($predictedCategory, $taskCategory);
-        
+
+        // Compute match/similarity
+        $isMatch = ($predictedFileCategory !== '' && $predictedTaskCategory !== '' && $predictedFileCategory === $predictedTaskCategory);
+        if ($isMatch) {
+            $score = 100;
+        } else {
+            if ($predictedFileCategory === '' || $predictedTaskCategory === '') {
+                $score = 0;
+            } else {
+                $score = $this->calculateCategorySimilarity($predictedFileCategory, $predictedTaskCategory);
+            }
+        }
+
         return [
             'score' => round($score, 2),
-            'predicted_category' => $prediction['category'],
-            'task_category' => $task['task_category'],
+            'predicted_file_category' => $filePredSuccess ? ($filePrediction['category'] ?? null) : null,
+            'file_prediction_confidence' => round($fileConfidence * 100, 2),
+            'predicted_task_category' => $taskPredSuccess ? ($taskPrediction['category'] ?? null) : ($task['task_category'] ?? null),
+            'task_prediction_confidence' => round($taskConfidence * 100, 2),
+            'task_category_db' => $task['task_category'] ?? null,
             'match' => $isMatch,
-            'confidence' => round($prediction['confidence'] * 100, 2)
+            'task_prediction_fallback_to_db' => $taskPredictionFallbackToDB,
+            'errors' => [
+                'file_prediction_error' => $filePredSuccess ? null : ($filePrediction['error'] ?? 'File prediction failed'),
+                'task_prediction_error' => $taskPredSuccess ? null : ($taskPrediction['error'] ?? null)
+            ]
         ];
     }
     

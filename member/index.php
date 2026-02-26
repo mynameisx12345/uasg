@@ -655,64 +655,101 @@ $currentUser = $session->getUserData();
         return;
       }
       const taskId = document.getElementById('complyTaskId').value;
-      // Step 2: Finalize upload with NLP data
-      const formData = new FormData();
-      formData.append('CALL', 11); // Submit task file
-      formData.append('task_id', taskId);
-      formData.append('file', file);
-      formData.append('category_tag', fileInput.dataset.suggestedCategory || 'Uncategorized');
-      formData.append('category_score', fileInput.dataset.categoryScore || '0');
-      formData.append('nlp_analysis', fileInput.dataset.nlpAnalysis || '');
+      // Step A: Validate file against task requirements before uploading
+      const validationForm = new FormData();
+      validationForm.append('CALL', 'validate_task_file');
+      validationForm.append('task_id', taskId);
+      validationForm.append('file', file);
+
       openLoadModal();
+      document.getElementById('complyUploadBtn').disabled = true;
+      document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validating...';
+
       $.ajax({
         url: 'ajax.php',
         type: 'POST',
-        data: formData,
+        data: validationForm,
         processData: false,
         contentType: false,
         dataType: 'json',
-        beforeSend: function() {
-          document.getElementById('complyUploadBtn').disabled = true;
-          document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-        },
-        success: function(result) {
-          if(result.status === 'SUCCESS' || result.success) {
-            let notificationMsg = 'Task file uploaded successfully!';
-            
-            // Display NLP results
-            if(result.category_tag || result.nlp_result) {
-              const category = result.category_tag || result.nlp_result?.category_tag || 'Uncategorized';
-              const score = result.category_score || result.nlp_result?.category_score || 0;
-              
-              notificationMsg += '\n\n🤖 Auto-categorized as: ' + category;
-              notificationMsg += '\n📊 Confidence: ' + score + '%';
-              
-              // Add sentiment if available
-              if(result.nlp_result?.sentiment && result.nlp_result.sentiment.length > 0) {
-                const topEmotion = result.nlp_result.sentiment[0];
-                const emotionIcon = topEmotion.label === 'joy' ? '😊' : 
-                                   topEmotion.label === 'anger' ? '😠' : 
-                                   topEmotion.label === 'sadness' ? '😢' : 
-                                   topEmotion.label === 'fear' ? '😨' : 
-                                   topEmotion.label === 'love' ? '❤️' : '😮';
-                notificationMsg += '\n' + emotionIcon + ' Sentiment: ' + topEmotion.label + ' (' + (topEmotion.score * 100).toFixed(1) + '%)';
-              }
-            }
-            
-            openNotificationModal(notificationMsg);
-            closeModal('complyTaskModal');
-            loadPendingTasks();
-            updatePendingTasksBadge();
-            updatePendingTasksNotification();
-          } else {
-            openNotificationModal('Upload failed: ' + (result.msg || 'Unknown error'));
+        success: function(validationResult) {
+          // Close load modal but keep button disabled until flow completes
+          closeLoadModal();
+
+          if(!validationResult || validationResult.success === false) {
+            const err = validationResult?.error || validationResult?.msg || 'Validation failed. Upload prevented.';
+            openNotificationModal('Validation error: ' + err, 'error');
+            document.getElementById('complyUploadBtn').disabled = false;
+            document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
+            return;
           }
+
+          if(!validationResult.is_valid) {
+            // Show reason(s) and prevent upload
+            let msg = 'This file does not comply with task requirements.';
+            if(validationResult.recommendation && validationResult.recommendation.message) {
+              msg += '\n\nRecommendation: ' + validationResult.recommendation.message;
+            }
+            if(validationResult.validation_details) {
+              msg += '\n\nDetails: ' + JSON.stringify(validationResult.validation_details);
+            }
+            openNotificationModal(msg, 'warning');
+            document.getElementById('complyUploadBtn').disabled = false;
+            document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
+            return;
+          }
+
+          // Passed validation — proceed to final upload (server will re-validate as well)
+          const formData = new FormData();
+          formData.append('CALL', 11); // Submit task file
+          formData.append('task_id', taskId);
+          formData.append('file', file);
+          formData.append('category_tag', fileInput.dataset.suggestedCategory || 'Uncategorized');
+          formData.append('category_score', fileInput.dataset.categoryScore || '0');
+          formData.append('nlp_analysis', fileInput.dataset.nlpAnalysis || '');
+
+          // Show uploading state
+          openLoadModal();
+          document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+          $.ajax({
+            url: 'ajax.php',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(result) {
+              if(result.status === 'SUCCESS' || result.success) {
+                let notificationMsg = 'Task file uploaded successfully!';
+                if(result.category_tag || result.nlp_result) {
+                  const category = result.category_tag || result.nlp_result?.category_tag || 'Uncategorized';
+                  const score = result.category_score || result.nlp_result?.category_score || 0;
+                  notificationMsg += '\n\n🤖 Auto-categorized as: ' + category;
+                  notificationMsg += '\n📊 Confidence: ' + score + '%';
+                }
+                openNotificationModal(notificationMsg, 'success');
+                closeModal('complyTaskModal');
+                loadPendingTasks();
+                updatePendingTasksBadge();
+                updatePendingTasksNotification();
+              } else {
+                openNotificationModal('Upload failed: ' + (result.msg || 'Unknown error'), 'error');
+              }
+            },
+            error: function(xhr) {
+              openNotificationModal('Upload failed. Please try again.', 'error');
+            },
+            complete: function() {
+              closeLoadModal();
+              document.getElementById('complyUploadBtn').disabled = false;
+              document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
+            }
+          });
         },
         error: function(xhr) {
-          openNotificationModal('Upload failed. Please try again.');
-        },
-        complete: function() {
           closeLoadModal();
+          openNotificationModal('Validation failed. Please try again.', 'error');
           document.getElementById('complyUploadBtn').disabled = false;
           document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
         }
