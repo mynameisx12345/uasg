@@ -749,7 +749,7 @@ $currentUser = $session->getUserData();
         },
         error: function(xhr) {
           closeLoadModal();
-          openNotificationModal('Validation failed. Please try again.', 'error');
+          openNotificationModal('Task submission failed. File Category does not comply with the task.', 'error');
           document.getElementById('complyUploadBtn').disabled = false;
           document.getElementById('complyUploadBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Task';
         }

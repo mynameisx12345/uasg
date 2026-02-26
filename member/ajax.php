@@ -378,6 +378,32 @@ if($call == 1){
             'submitted_by'=> $memberId,
         ];
 
+        // SERVER-SIDE: Re-validate file against task and queue for incremental learning if it matches
+        try {
+            require_once __DIR__ . '/../resources/objects/task_file_validator.php';
+            require_once __DIR__ . '/../resources/objects/ml_service_incremental.php';
+
+            $validator = new TaskFileValidator();
+            // Use the stored file path and mime type from the upload result
+            $validation = $validator->validateFileForTask($data['task_id'], $upload['path'], $upload['type'] ?? null);
+
+            if (!empty($validation['success']) && !empty($validation['is_valid'])) {
+                // If validation passed, queue sample for incremental learning using the task-inferred category
+                $predTaskCat = $validation['validation_details']['category_match']['predicted_task_category'] ?? ($validation['task_info']['category'] ?? null);
+                $extractedText = $upload['nlp_result']['extracted_text'] ?? ($validation['file_info']['preview'] ?? '');
+                $filePredConfidence = $validation['validation_details']['category_match']['file_prediction_confidence'] ?? ($upload['category_score'] ?? 0);
+
+                if (!empty($predTaskCat) && !empty($extractedText)) {
+                    $mlInc = new IncrementalMLService();
+                    // learnFromUpload will queue the sample and may process the queue when threshold reached
+                    $mlInc->learnFromUpload($file_id, $extractedText, $predTaskCat, $filePredConfidence);
+                }
+            }
+        } catch (Exception $e) {
+            // Do not block the upload flow if incremental learning hooks fail; just log
+            error_log('Incremental learning hook failed: ' . $e->getMessage());
+        }
+
         $taskManager = new TaskManager();
         $result = $taskManager->submitMemberTaskFile($data);
 
