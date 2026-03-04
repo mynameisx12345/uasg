@@ -56,12 +56,30 @@
   </div>
 </header>
 
+<!-- Mobile sidebar overlay -->
+<div id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
 <script>
   function toggleMobileSidebar() {
     const sidebar = document.querySelector('.github-sidebar');
-    if (sidebar) {
-      sidebar.classList.toggle('mobile-open');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+      closeMobileSidebar();
+    } else {
+      sidebar.classList.add('mobile-open');
+      overlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
     }
+  }
+
+  function closeMobileSidebar() {
+    const sidebar = document.querySelector('.github-sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (overlay) overlay.classList.remove('visible');
+    document.body.style.overflow = '';
   }
 
   function toggleNotifications() {

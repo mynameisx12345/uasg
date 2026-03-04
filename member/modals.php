@@ -107,7 +107,7 @@ window.openModal = function(status, message) {
         </div>
         <div class="modal-footer">
             <button type="button" class="btn-secondary" onclick="closeModal('viewTaskModal')">Close</button>
-            <button type="button" class="btn-primary" id="submitFromViewBtn" onclick="submitFromView()" style="display: none;">Submit Task</button>
+            <button type="button" class="btn-primary btn-gold" id="submitFromViewBtn" onclick="submitFromView()" style="display: none;">Submit Task</button>
         </div>
     </div>
 </div>
@@ -151,7 +151,7 @@ window.openModal = function(status, message) {
                 <span id="progressText" style="font-size:12px;color:#2196F3;">Uploading...</span>
             </div>
             <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:1rem;">
-                <button type="submit" class="btn-primary" style="min-width:120px;font-size:1rem;"><i class="fas fa-paper-plane"></i> Upload</button>
+                <button type="submit" class="btn-primary btn-gold" style="min-width:120px;font-size:1rem;"><i class="fas fa-paper-plane"></i> Upload</button>
                 <button type="button" class="btn-secondary" data-close style="min-width:80px;">Cancel</button>
             </div>
         </form>

@@ -37,6 +37,7 @@ $userName = $session->getFullName();
   <title>Task Management - UASG Subadmin</title>
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
   <style>
     .actions {
@@ -399,7 +400,7 @@ $userName = $session->getFullName();
         </p>
       </div>
       <div class="form-actions" style="justify-content:flex-end;margin-top:1.5rem;">
-        <button id="confirmApproveSubmission" class="btn-success">Approve</button>
+  <button id="confirmApproveSubmission" class="btn-success btn-gold">Approve</button>
         <button class="btn-secondary" data-close>Cancel</button>
       </div>
     </div>

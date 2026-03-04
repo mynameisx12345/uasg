@@ -19,6 +19,7 @@ $stats = $mlService->getIncrementalStats();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incremental ML Learning - UASG</title>
     <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
     <link rel="stylesheet" href="../resources/datatable.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>

@@ -32,6 +32,7 @@ $currentUser = $session->getUserData();
   <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>
@@ -121,7 +122,7 @@ $currentUser = $session->getUserData();
           <button type="button" class="btn-secondary" onclick="closeModal('complyTaskModal')" style="padding: 10px 20px;">
             <i class="fas fa-times"></i> Cancel
           </button>
-          <button type="button" class="btn-primary" id="complyUploadBtn" style="padding: 10px 20px;">
+          <button type="button" class="btn-primary btn-gold" id="complyUploadBtn" style="padding: 10px 20px;">
             <i class="fas fa-upload"></i> Submit Task
           </button>
         </div>

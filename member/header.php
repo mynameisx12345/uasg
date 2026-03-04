@@ -61,11 +61,99 @@
   </div>
 </header>
 
+<!-- Mobile sidebar overlay -->
+<div id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- Mobile bottom navigation bar -->
+<nav id="mobileBottomNav" aria-label="Mobile navigation">
+  <button class="bnav-item active" data-bnav="dashboard" onclick="mobileNavClick('dashboard',this)">
+    <span class="bnav-icon">📊</span>
+    <span>Dashboard</span>
+  </button>
+  <button class="bnav-item" data-bnav="file-upload" onclick="mobileNavClick('file-upload',this)">
+    <span class="bnav-icon">📤</span>
+    <span>Upload</span>
+  </button>
+  <button class="bnav-item" data-bnav="pending-tasks" onclick="mobileNavClick('pending-tasks',this)">
+    <span class="bnav-icon">📋</span>
+    <span>Tasks</span>
+    <span class="bnav-badge" id="bnavTaskBadge" style="display:none">0</span>
+  </button>
+  <button class="bnav-item" data-bnav="my-files" onclick="mobileNavClick('my-files',this)">
+    <span class="bnav-icon">📁</span>
+    <span>My Files</span>
+  </button>
+  <button class="bnav-item" data-bnav="account-management" onclick="mobileNavClick('account-management',this)">
+    <span class="bnav-icon">⚙️</span>
+    <span>Account</span>
+  </button>
+</nav>
+
 <script>
   function toggleMobileSidebar() {
     const sidebar = document.querySelector('.github-sidebar');
-    sidebar.classList.toggle('mobile-open');
+    const overlay = document.getElementById('sidebarOverlay');
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+      closeMobileSidebar();
+    } else {
+      sidebar.classList.add('mobile-open');
+      overlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
   }
+
+  function closeMobileSidebar() {
+    const sidebar = document.querySelector('.github-sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
+  function mobileNavClick(tabName, btn) {
+    // Switch tab content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const target = document.getElementById(tabName);
+    if (target) target.classList.add('active');
+    // Update tab-nav bar buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (tabBtn) tabBtn.classList.add('active');
+    // Update bottom nav active state
+    document.querySelectorAll('#mobileBottomNav .bnav-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Update header subtitle
+    const names = { 'dashboard':'Dashboard','file-upload':'File Upload','my-files':'My Files','pending-tasks':'Pending Tasks','task-submissions':'Task Submissions','account-management':'Account Settings' };
+    const sub = document.getElementById('currentSection');
+    if (sub) sub.textContent = names[tabName] || tabName;
+    // Close sidebar if open
+    closeMobileSidebar();
+  }
+
+  // Keep bottom nav in sync when desktop tab-btns are clicked
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const tab = this.dataset.tab;
+        document.querySelectorAll('#mobileBottomNav .bnav-item').forEach(b => b.classList.remove('active'));
+        const bnavBtn = document.querySelector(`#mobileBottomNav .bnav-item[data-bnav="${tab}"]`);
+        if (bnavBtn) bnavBtn.classList.add('active');
+      });
+    });
+    // Sync task badge with sidebar badge
+    const obs = new MutationObserver(() => {
+      const src = document.getElementById('pendingTasksBadge');
+      const dest = document.getElementById('bnavTaskBadge');
+      if (src && dest) {
+        const txt = src.textContent;
+        dest.textContent = txt;
+        dest.style.display = (src.style.display === 'none' || !txt) ? 'none' : '';
+      }
+    });
+    const badge = document.getElementById('pendingTasksBadge');
+    if (badge) obs.observe(badge, { childList: true, attributes: true });
+  });
 
   function openQuickUpload() {
     // Open file upload modal directly

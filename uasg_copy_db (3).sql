@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Feb 26, 2026 at 02:00 AM
+-- Generation Time: Mar 04, 2026 at 06:31 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS `file_nlp_analysis_tbl` (
   KEY `idx_suggested_category` (`suggested_category`),
   KEY `idx_analyzed_at` (`analyzed_at`),
   KEY `idx_provider` (`provider`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores NLP analysis results from various NLP service providers';
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores NLP analysis results from various NLP service providers';
 
 --
 -- Dumping data for table `file_nlp_analysis_tbl`
@@ -133,7 +133,8 @@ INSERT INTO `file_nlp_analysis_tbl` (`analysis_id`, `file_upload_id`, `extracted
 (9, 8, 'Republic of the Philippines Department of Education (Region ___) (Schools Division Office of __________) (Name of School) (School Address) (Contact Number / Email) Date:  __________________ Supplier / Company Name:  __________________ Address:  ________________________________ Subject: Request for Quotation / Procurement of Supplies and Equipment Dear Sir/Madam: Greetings from the Department of Education. In line with the school’s operational requirements and pursuant to existing government procurement policies and guidelines, this office intends to procure the following supplies/equipment for official use: Description of Items: The purpose of this procurement is to support school operations and ensure the efficient delivery of services to learners, teachers, and other stakeholders. In this regard, may we respectfully request your good office to submit a quotation indicating the unit price, total cost, specifications, availability, and delivery terms for the above-mentioned items on or before __________________. Your prompt response will be highly appreciated. Thank you for your continued support to our educational programs. Very truly yours, ____________________________ (Name of School Head) School Head Noted: (Property Custodian / BAC Chairperson / Authorized Personnel)', 163, 'Memorandum', 20.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Memorandum\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 20}', 'nlpcloud', 6492, '2026-02-24 08:53:27'),
 (10, 9, 'WHEREAS,  the organization incurs recurring expenses for utilities, services, subscriptions, and other operational requirements necessary for its continuous and efficient  operations; WHEREAS,  there is a need to authorize the proper processing and payment of billing obligations to avoid service interruptions and  penalties; NOW, THEREFORE, BE IT RESOLVED, that the organization hereby authorizes the processing and payment of all duly verified and approved billing statements, subject to existing accounting and auditing rules and  regulations; RESOLVED FURTHER, that the authorized signatory/ ies  are empowered to review, approve, and facilitate payment of such billing obligations in accordance with established financial policies.', 98, 'Resolution', 60.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Resolution\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 60}', 'nlpcloud', 7248, '2026-02-24 08:54:04'),
 (11, 10, 'WHEREAS,  the organization incurs recurring expenses for utilities, services, subscriptions, and other operational requirements necessary for its continuous and efficient  operations; WHEREAS,  there is a need to authorize the proper processing and payment of billing obligations to avoid service interruptions and  penalties; NOW, THEREFORE, BE IT RESOLVED, that the organization hereby authorizes the processing and payment of all duly verified and approved billing statements, subject to existing accounting and auditing rules and  regulations; RESOLVED FURTHER, that the authorized signatory/ ies  are empowered to review, approve, and facilitate payment of such billing obligations in accordance with established financial policies.', 98, 'Resolution', 60.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Resolution\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 60}', 'nlpcloud', 8244, '2026-02-24 08:58:22'),
-(12, 11, 'WHEREAS,  the organization incurs recurring expenses for utilities, services, subscriptions, and other operational requirements necessary for its continuous and efficient  operations; WHEREAS,  there is a need to authorize the proper processing and payment of billing obligations to avoid service interruptions and  penalties; NOW, THEREFORE, BE IT RESOLVED, that the organization hereby authorizes the processing and payment of all duly verified and approved billing statements, subject to existing accounting and auditing rules and  regulations; RESOLVED FURTHER, that the authorized signatory/ ies  are empowered to review, approve, and facilitate payment of such billing obligations in accordance with established financial policies.', 98, 'Resolution', 60.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Resolution\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 60}', 'nlpcloud', 8908, '2026-02-24 09:00:03');
+(12, 11, 'WHEREAS,  the organization incurs recurring expenses for utilities, services, subscriptions, and other operational requirements necessary for its continuous and efficient  operations; WHEREAS,  there is a need to authorize the proper processing and payment of billing obligations to avoid service interruptions and  penalties; NOW, THEREFORE, BE IT RESOLVED, that the organization hereby authorizes the processing and payment of all duly verified and approved billing statements, subject to existing accounting and auditing rules and  regulations; RESOLVED FURTHER, that the authorized signatory/ ies  are empowered to review, approve, and facilitate payment of such billing obligations in accordance with established financial policies.', 98, 'Resolution', 60.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Resolution\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 60}', 'nlpcloud', 8908, '2026-02-24 09:00:03'),
+(13, 12, 'WHEREAS,  the organization incurs recurring expenses for utilities, services, subscriptions, and other operational requirements necessary for its continuous and efficient  operations; WHEREAS,  there is a need to authorize the proper processing and payment of billing obligations to avoid service interruptions and  penalties; NOW, THEREFORE, BE IT RESOLVED, that the organization hereby authorizes the processing and payment of all duly verified and approved billing statements, subject to existing accounting and auditing rules and  regulations; RESOLVED FURTHER, that the authorized signatory/ ies  are empowered to review, approve, and facilitate payment of such billing obligations in accordance with established financial policies.', 98, 'Resolution', 60.00, '[]', '[]', 'null', '{\"method\": \"Pattern Matching\", \"category\": \"Resolution\", \"entities\": [], \"keywords\": [], \"provider\": \"Keyword Fallback\", \"sentiment\": [], \"confidence\": 60}', 'nlpcloud', 7925, '2026-02-26 03:11:50');
 
 -- --------------------------------------------------------
 
@@ -178,7 +179,7 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   KEY `category_id` (`category_id`),
   KEY `idx_category_uploaded` (`category_id`,`datetime_uploaded`),
   KEY `idx_ml_model` (`ml_model_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `file_upload_tbl`
@@ -195,7 +196,8 @@ INSERT INTO `file_upload_tbl` (`file_upload_id`, `category_id`, `category_tag`, 
 (8, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d670090d61_1771923200.docx', 'uploads/files/memorandum/699d670090d61_1771923200.docx', 16107, NULL, '2026-02-24 08:53:27', 5),
 (9, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d6724cb70f_1771923236.docx', 'uploads/files/resolution/699d6724cb70f_1771923236.docx', 14093, NULL, '2026-02-24 08:54:04', 5),
 (10, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d6826530ea_1771923494.docx', 'uploads/files/resolution/699d6826530ea_1771923494.docx', 14093, NULL, '2026-02-24 08:58:22', 5),
-(11, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d688a4728c_1771923594.docx', 'uploads/files/resolution/699d688a4728c_1771923594.docx', 14093, NULL, '2026-02-24 09:00:03', 5);
+(11, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d688a4728c_1771923594.docx', 'uploads/files/resolution/699d688a4728c_1771923594.docx', 14093, NULL, '2026-02-24 09:00:03', 5),
+(12, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699fb9ee26d6b_1772075502.docx', 'uploads/files/resolution/699fb9ee26d6b_1772075502.docx', 14093, NULL, '2026-02-26 03:11:50', 5);
 
 -- --------------------------------------------------------
 
@@ -215,7 +217,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=129 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=135 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -249,8 +251,8 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (113, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 0, 'User not found', '2026-02-24 08:11:09'),
 (114, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 0, NULL, '2026-02-24 08:11:09'),
 (116, 'userstaff123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-24 08:14:06'),
-(126, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-25 01:04:07'),
-(128, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-25 10:01:29');
+(131, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-26 02:32:09'),
+(134, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-03-04 06:17:56');
 
 -- --------------------------------------------------------
 
@@ -309,16 +311,14 @@ CREATE TABLE IF NOT EXISTS `ml_models_tbl` (
   KEY `idx_active` (`is_active`),
   KEY `idx_trained_at` (`trained_at`),
   KEY `idx_is_incremental` (`is_incremental`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
 
 --
 -- Dumping data for table `ml_models_tbl`
 --
 
 INSERT INTO `ml_models_tbl` (`model_id`, `model_name`, `dataset_id`, `model_type`, `model_path`, `vectorizer_path`, `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `categories`, `training_samples`, `test_samples`, `is_active`, `trained_by`, `trained_at`, `last_used_at`, `usage_count`, `is_incremental`, `total_incremental_samples`, `last_incremental_update`) VALUES
-(4, 'Training Set 2', 5, 'svm', 'uploads/ml_models/model_698211f25ef55_1770131954.pkl', 'uploads/ml_models/model_698211f25ef55_1770131954_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"letter\", \"resolution\"]', 32, 8, 0, 4, '2026-02-03 23:19:31', NULL, 0, 0, 0, NULL),
-(5, 'Basic Training Model for Basic Recognition', 6, 'svm', 'uploads/ml_models/model_699d5ef318963_1771921139.pkl', 'uploads/ml_models/model_699d5ef318963_1771921139_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"Letter\", \"Resolution\"]', 32, 9, 0, 4, '2026-02-24 16:19:14', '2026-02-24 16:59:53', 12, 0, 0, NULL),
-(6, 'Training for Basic Recognition', 7, 'svm', 'uploads/ml_models/model_699e4ad123cef_1771981521.pkl', 'uploads/ml_models/model_699e4ad123cef_1771981521_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"Letter\", \"Resolution\"]', 32, 9, 1, 4, '2026-02-25 09:05:39', '2026-02-25 17:53:09', 20, 0, 0, NULL);
+(7, 'Basic Training Model', 8, 'svm', 'uploads/ml_models/model_699fae4d65667_1772072525.pkl', 'uploads/ml_models/model_699fae4d65667_1772072525_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"Letter\", \"Resolution\"]', 32, 9, 1, 4, '2026-02-26 10:22:21', '2026-02-26 11:20:07', 20, 0, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -369,7 +369,7 @@ CREATE TABLE IF NOT EXISTS `ml_settings_tbl` (
 
 INSERT INTO `ml_settings_tbl` (`setting_id`, `setting_key`, `setting_value`, `setting_description`, `updated_by`, `updated_at`) VALUES
 (1, 'classification_method', 'hybrid', 'Classification method: nlp_cloud, google_nlp, custom_ml, hybrid', 4, '2026-02-25 09:03:26'),
-(2, 'active_ml_model_id', '6', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-02-25 09:05:39'),
+(2, 'active_ml_model_id', '7', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-02-26 10:22:21'),
 (3, 'ml_confidence_threshold', '50', 'Minimum confidence percentage to auto-categorize with ML', 4, '2026-02-25 09:04:18'),
 (4, 'ml_fallback_enabled', '1', 'Enable fallback to NLP services if ML fails (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
 (5, 'ml_priority', '1', 'Try ML before NLP services in hybrid mode (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
@@ -398,17 +398,14 @@ CREATE TABLE IF NOT EXISTS `ml_training_datasets_tbl` (
   PRIMARY KEY (`dataset_id`),
   KEY `uploaded_by` (`uploaded_by`),
   KEY `idx_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores ML training datasets uploaded via CSV';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores ML training datasets uploaded via CSV';
 
 --
 -- Dumping data for table `ml_training_datasets_tbl`
 --
 
 INSERT INTO `ml_training_datasets_tbl` (`dataset_id`, `dataset_name`, `file_path`, `total_samples`, `categories_count`, `categories`, `uploaded_by`, `uploaded_at`, `is_active`, `description`) VALUES
-(3, 'Migration Test Dataset', 'uploads/ml_datasets/test.csv', 100, 5, '[\"Category1\", \"Category2\", \"Category3\", \"Category4\", \"Category5\"]', 5, '2026-01-28 13:24:38', 1, 'Automated test dataset created during migration verification'),
-(5, 'Training Dataset', 'uploads/ml_datasets/dataset_6981d777dc04d_1770116983.csv', 40, 2, '[\"letter\", \"resolution\"]', 4, '2026-02-03 19:09:43', 1, ''),
-(6, 'Training Data Set', 'uploads/ml_datasets/dataset_699d5eda91a99_1771921114.csv', 41, 2, '[\"Letter\", \"Resolution\"]', 4, '2026-02-24 16:18:34', 1, ''),
-(7, 'Basic Training DataSet', 'uploads/ml_datasets/dataset_699e4ac056590_1771981504.csv', 41, 2, '[\"Letter\", \"Resolution\"]', 4, '2026-02-25 09:05:04', 1, '');
+(8, 'Basic Training Data Set', 'uploads/ml_datasets/dataset_699fae411344a_1772072513.csv', 41, 2, '[\"Letter\", \"Resolution\"]', 4, '2026-02-26 10:21:53', 1, '');
 
 -- --------------------------------------------------------
 
@@ -619,7 +616,7 @@ CREATE TABLE IF NOT EXISTS `task_submission_tbl` (
   KEY `task_id` (`task_id`),
   KEY `file_upload_id` (`file_upload_id`),
   KEY `submitted_by` (`submitted_by`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `task_submission_tbl`
@@ -631,7 +628,8 @@ INSERT INTO `task_submission_tbl` (`task_submission_id`, `task_id`, `file_upload
 (6, 11, 4, 'Pending', 5),
 (7, 11, 5, 'Pending', 5),
 (8, 11, 6, 'Pending', 5),
-(9, 11, 7, 'Pending', 5);
+(9, 11, 7, 'Pending', 5),
+(10, 11, 12, 'Pending', 5);
 
 -- --------------------------------------------------------
 
@@ -715,8 +713,8 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '7625780a9e4baa150fbe86698ed7566a3fae927dc68e98e78b3a248042720ab1', 1, NULL, NULL),
-(5, 'justin.abuela', '$2y$10$bIid6Kvmv60BwiJ0yCYypep3sCXco.UQuNHyXRMinq4SdqwVMxsd6', 2, 5, 'student', '22d5fe4ae34463c5c846220927563b601b3009d414fc7df60b599c76b727ed21', 1, NULL, NULL),
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '235cabebd7ecf52da310e1146af8c08f3763f2fea4adbb6862d9e842a21743e8', 1, NULL, NULL),
+(5, 'justin.abuela', '$2y$10$bIid6Kvmv60BwiJ0yCYypep3sCXco.UQuNHyXRMinq4SdqwVMxsd6', 2, 5, 'student', '7929999e2f258fcdd79e998c74999e349277a1197448b36d87f40852bb2b815a', 1, NULL, NULL),
 (8, 'juan.perez', '$2y$10$GMFRwhedcv2cNjcT6/jTLuReP3De0NjI393u8JqtfEj4mi1hNTkEa', 2, 8, 'student', '4df74ecefda40d16f25d9cc0f5485eb7e753a49348018dad48da6ad2156bb7f0', 1, NULL, NULL),
 (11, 'userstaff123', '$2y$10$IvGGgxzVPujgYlBvC4NIsOTCkFl1TzeKUOCEoELBt876iGbfPMJjy', 5, 11, 'subadmin', '8455f9ebc7660893181179da8a62da974313473c8239232805da2b26727ebce0', 1, NULL, NULL);
 

@@ -46,6 +46,7 @@ $activeModel = $db->selectOne("SELECT * FROM ml_models_tbl WHERE is_active = 1")
     <title>ML Management - UASG</title>
     
     <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     

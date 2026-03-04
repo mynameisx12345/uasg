@@ -50,6 +50,7 @@ if (!$canView) {
   <link rel="apple-touch-icon" href="../resources/icons/icon-152x152.png">
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>

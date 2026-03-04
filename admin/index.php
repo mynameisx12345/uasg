@@ -6,6 +6,7 @@
   <title>Admin Dashboard - UASG</title>
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>

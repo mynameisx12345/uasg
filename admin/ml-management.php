@@ -45,6 +45,7 @@ $activeModel = $db->selectOne("SELECT * FROM ml_models_tbl WHERE is_active = 1")
   <title>ML Classification Management - UASG</title>
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
   <style>
     .alert {

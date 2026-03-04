@@ -16,6 +16,7 @@ if (!isset($_SESSION['user_id'])) {
   <title>Account Security - UASG</title>
   
   <link rel="stylesheet" href="../resources/style.css">
+  <link rel="stylesheet" href="../resources/theme-overrides.css">
   <style>
     .security-container {
       max-width: 600px;

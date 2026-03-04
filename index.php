@@ -6,6 +6,7 @@
     <title>UASG - Sign in</title>
     
     <link rel="stylesheet" href="resources/style.css">
+    <link rel="stylesheet" href="resources/theme-overrides.css">
     <script src="js/jquery.js"></script>
 </head>
 <body>
@@ -13,7 +14,7 @@
         <div class="github-login-box">
             <div class="github-logo">
                 <h1>UASG</h1>
-                <p>University Academic Student Government</p>
+                <p>UASG Repository System</p>
             </div>
             
             <div class="github-login-form">
