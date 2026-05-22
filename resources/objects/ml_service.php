@@ -518,11 +518,7 @@ PYTHON;
             ]);
             
             // Update settings to use this model
-            $this->db->execute(
-                "UPDATE ml_settings_tbl SET setting_value = ? WHERE setting_key = 'active_ml_model_id'",
-                [$modelId]
-            );
-            
+            $this->updateSetting('active_ml_model_id', $modelId);            
             return [
                 'success' => true,
                 'model_id' => $modelId,
