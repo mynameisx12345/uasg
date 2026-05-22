@@ -449,6 +449,13 @@ INSERT INTO `profile_tbl` (`profile_id`, `fname`, `mname`, `lname`, `auxname`, `
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `is_active`) VALUES
 (4, 'admin', '$2y$12$En0QtO3TQ4/YsmtEObtzgO1FWRqABNWWaLC0tSY.HkFxtFm7KKVEC', 2, 1, 'admin', 1);
 
+-- Default categories
+INSERT INTO `category_tbl` (`category_name`, `category_slug`, `description`) VALUES
+('Accomplishment Report', 'accomplishment-report', 'Accomplishment report documents'),
+('Activity Design', 'activity-design', 'Activity design documents'),
+('Letter', 'letter', 'Letter documents'),
+('Resolution', 'resolution', 'Resolution documents');
+
 -- Default ML settings
 INSERT INTO `ml_settings_tbl` (`setting_key`, `setting_value`, `setting_description`) VALUES
 ('classification_method', 'ml_primary', 'Primary classification method'),
