@@ -13,7 +13,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <aside class="github-sidebar">
   <div class="sidebar-brand">
     <img src="../images/uasglogo.png" alt="UASG Logo">
-    <span class="sidebar-brand-text">UASG Adviser</span>
+    <span class="sidebar-brand-text">UASG <?= $_SESSION['position'] ?? 'Adviser' ?></span>
   </div>
 
   <nav class="sidebar-nav">
