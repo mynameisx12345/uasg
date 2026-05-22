@@ -1,157 +1,58 @@
-<?php
-// Member sidebar with navigation menu
-?>
+<?php $currentPage = basename($_SERVER['PHP_SELF']); ?>
 <aside class="github-sidebar">
-  <div class="sidebar-header">
-    <h3 class="sidebar-title">Member Portal</h3>
+  <div class="sidebar-brand">
+    <img src="../images/uasglogo.png" alt="UASG Logo">
+    <span class="sidebar-brand-text">UASG Member</span>
   </div>
-  
+
   <nav class="sidebar-nav">
-    <ul class="nav-list">
-      <li class="nav-section">MAIN NAVIGATION</li>
-      
-      <li class="nav-item">
-        <a href="index.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : '' ?>">
-          <span class="nav-icon">📊</span>
-          <span class="nav-text">Dashboard</span>
-        </a>
-      </li>
+    <div class="nav-section-label">Main</div>
+    <a href="dashboard.php" class="nav-item <?= $currentPage === 'dashboard.php' ? 'active' : '' ?>"><span class="nav-icon">📊</span> Dashboard</a>
+    <a href="file-center.php" class="nav-item <?= $currentPage === 'file-center.php' ? 'active' : '' ?>"><span class="nav-icon">📂</span> File Center</a>
+    <a href="tasks.php" class="nav-item <?= $currentPage === 'tasks.php' ? 'active' : '' ?>"><span class="nav-icon">📝</span> Tasks <span id="navTaskBadge" style="display:none;background:#c0392b;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:4px;"></span></a>
 
-      <li class="nav-item">
-        <a href="nlp-search.php" class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'nlp-search.php' ? 'active' : '' ?>">
-          <span class="nav-icon">🔍</span>
-          <span class="nav-text">NLP File Search</span>
-        </a>
-      </li>
+    <div class="nav-section-label">System</div>
+    <a href="security.php" class="nav-item <?= $currentPage === 'security.php' ? 'active' : '' ?>"><span class="nav-icon">🔒</span> Security</a>
 
-      <!--li class="nav-item has-submenu">
-        <a href="#" class="nav-link" onclick="toggleSubmenu(this)">
-          <span class="nav-icon">📁</span>
-          <span class="nav-text">File Management</span>
-          <span class="nav-arrow">▶</span>
-        </a>
-        <ul class="submenu">
-          <li><a href="#" class="nav-link" onclick="switchTab('file-upload')">
-            <span class="nav-icon">📤</span>
-            <span class="nav-text">Upload Files</span>
-          </a></li>
-          <li><a href="#" class="nav-link" onclick="switchTab('my-files')">
-            <span class="nav-icon">📄</span>
-            <span class="nav-text">My Files</span>
-          </a></li>
-          <li><a href="#" class="nav-link" onclick="openModal('fileCategoryModal')">
-            <span class="nav-icon">🗂️</span>
-            <span class="nav-text">File Categories</span>
-          </a></li>
-        </ul>
-      </li>
-
-      <li class="nav-item has-submenu">
-        <a href="#" class="nav-link" onclick="toggleSubmenu(this)">
-          <span class="nav-icon">📋</span>
-          <span class="nav-text">Task Management</span>
-          <span class="nav-arrow">▶</span>
-        </a>
-        <ul class="submenu">
-          <li><a href="#" class="nav-link" onclick="switchTab('task-submissions')">
-            <span class="nav-icon">✅</span>
-            <span class="nav-text">My Tasks</span>
-          </a></li>
-          <li><a href="#" class="nav-link" onclick="openModal('submitTaskModal')">
-            <span class="nav-icon">📝</span>
-            <span class="nav-text">Submit Task</span>
-          </a></li>
-          <li><a href="#" class="nav-link" onclick="loadTaskProgress()">
-            <span class="nav-icon">📈</span>
-            <span class="nav-text">Track Progress</span>
-          </a></li>
-        </ul>
-      </li>
-
-      <li class="nav-item">
-        <a href="#" class="nav-link" onclick="openNotifications()">
-          <span class="nav-icon">🔔</span>
-          <span class="nav-text">Notifications</span>
-          <span class="notification-badge" id="sidebarNotificationBadge" style="display: none;">0</span>
-        </a>
-      </li>
-
-      <li class="nav-section">ACCOUNT</li-->
-
-      <!--li class="nav-item">
-        <a href="#" class="nav-link" onclick="switchTab('account-management')">
-          <span class="nav-icon">⚙️</span>
-          <span class="nav-text">Settings</span>
-        </a>
-      </li>
-
-      <li class="nav-item">
-        <a href="#" class="nav-link" onclick="openHelpModal()">
-          <span class="nav-icon">❓</span>
-          <span class="nav-text">Help & Support</span>
-        </a>
-      </li>
-    </ul-->
-    
     <div class="sidebar-footer">
-      <a href="#" class="logout-link" onclick="openModal('logoutModal'); return false;">
-        <span class="nav-icon">🚪</span>
-        <span class="nav-text">Logout</span>
-      </a>
+      <a href="#" id="logoutLink" class="nav-item nav-logout"><span class="nav-icon">🚪</span> Logout</a>
     </div>
   </nav>
 </aside>
 
+<!-- Logout Modal -->
+<div id="logoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:#fff;padding:28px;border-radius:14px;max-width:360px;width:90%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.3);">
+    <p style="font-size:18px;font-weight:600;margin-bottom:8px;color:#1a0a0e;">Confirm Logout</p>
+    <p style="color:#64748b;font-size:14px;margin-bottom:20px;">Are you sure you want to logout?</p>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="window.location.href='logout.php'" style="padding:10px 22px;background:linear-gradient(135deg,#7b1228,#5f0e20);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">Logout</button>
+      <button onclick="document.getElementById('logoutModal').style.display='none'" style="padding:10px 22px;background:#f1f5f9;color:#333;border:none;border-radius:8px;cursor:pointer;font-weight:500;font-size:14px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  function toggleSubmenu(element) {
-    const submenu = element.nextElementSibling;
-    const parent = element.parentElement;
-    const arrow = element.querySelector('.nav-arrow');
-    
-    if (submenu.style.display === 'block') {
-      submenu.style.display = 'none';
-      parent.classList.remove('active');
-      arrow.style.transform = 'rotate(0deg)';
-    } else {
-      // Close other submenus
-      document.querySelectorAll('.submenu').forEach(sub => {
-        sub.style.display = 'none';
-        sub.parentElement.classList.remove('active');
-        const arrow = sub.parentElement.querySelector('.nav-arrow');
-        if (arrow) arrow.style.transform = 'rotate(0deg)';
-      });
-      
-      submenu.style.display = 'block';
-      parent.classList.add('active');
-      arrow.style.transform = 'rotate(90deg)';
-    }
-  }
+document.getElementById('logoutLink').addEventListener('click', function(e){
+  e.preventDefault();
+  document.getElementById('logoutModal').style.display = 'flex';
+});
+document.getElementById('logoutModal').addEventListener('click', function(e){
+  if(e.target === this) this.style.display = 'none';
+});
+</script>
 
-  function switchTab(tabName) {
-    // Remove active class from all tabs and content
-    document.querySelectorAll('.nav-link').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    // Add active class to clicked tab and corresponding content
-    const tabLink = document.querySelector(`[data-tab="${tabName}"]`);
-    const tabContent = document.getElementById(tabName);
-    
-    if (tabLink) tabLink.classList.add('active');
-    if (tabContent) tabContent.classList.add('active');
-  }
-
-  function openNotifications() {
-    // Implementation for opening notifications
-    console.log('Opening notifications...');
-  }
-
-  function openHelpModal() {
-    // Implementation for opening help modal
-    console.log('Opening help modal...');
-  }
-
-  function loadTaskProgress() {
-    // Implementation for loading task progress
-    console.log('Loading task progress...');
-  }
+<script>
+function updateNavTaskBadge(){
+  if(typeof $==='undefined') return;
+  $.post('ajax.php',{CALL:9},function(r){
+    var p=(r.data||[]).length;
+    $.post('ajax.php',{CALL:22},function(r2){
+      var total=p+(r2.data||[]).length;
+      var badge=$('#navTaskBadge');
+      if(total>0) badge.text(total).show(); else badge.hide();
+    },'json');
+  },'json');
+}
+$(function(){ updateNavTaskBadge(); });
 </script>

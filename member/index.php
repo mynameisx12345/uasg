@@ -1,4 +1,6 @@
 <?php
+header("Location: dashboard.php");
+exit;
 session_start();
 require_once("../resources/session.php");
 
@@ -34,9 +36,85 @@ $currentUser = $session->getUserData();
   <link rel="stylesheet" href="../resources/style.css">
   <link rel="stylesheet" href="../resources/theme-overrides.css">
   <link rel='stylesheet' href='https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css'>
+  <link rel='stylesheet' href='https://cdn.datatables.net/responsive/3.0.3/css/responsive.dataTables.min.css'>
   <script src='../js/all.js'></script>
   <script src='../js/jquery.js'></script>
   <script src='../js/datatable.js'></script>
+  <script src='https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js'></script>
+  <style>
+    /* ── Password field with eye toggle ── */
+    .password-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .password-input-wrap input[type="password"],
+    .password-input-wrap input[type="text"] {
+      flex: 1;
+      padding-right: 2.6rem !important;
+    }
+    .pwd-toggle-btn {
+      position: absolute;
+      right: 0.55rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      color: #888;
+      display: flex;
+      align-items: center;
+      line-height: 1;
+    }
+    .pwd-toggle-btn:hover { color: #7b1228; }
+    .pwd-toggle-btn:focus { outline: none; }
+    .eye-icon { width: 18px; height: 18px; }
+
+    /* ── DataTable Action Dropdown ── */
+    .dt-action-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dt-action-toggle {
+      background: #7b1228;
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .dt-action-toggle:hover { background: #5a0d1d; }
+    .dt-action-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      min-width: 140px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 9999;
+      overflow: hidden;
+    }
+    .dt-action-dropdown.open .dt-action-menu { display: block; }
+    .dt-action-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 7px 14px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: #333;
+      white-space: nowrap;
+    }
+    .dt-action-menu button:hover { background: #f5e6e9; color: #7b1228; }
+    .dt-action-menu button.action-danger:hover { background: #fdecea; color: #c62828; }
+    /* close dropdown when clicking elsewhere */
+  </style>
 </head>
 <body>
   <!-- MAIN LAYOUT -->
@@ -71,7 +149,23 @@ $currentUser = $session->getUserData();
                   <th>Task</th>
                   <th>Category</th>
                   <th>Deadline</th>
-                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <h2 style="color:#c0392b;">⚠️ Overdue Tasks</h2>
+          <p style="color:#888;font-size:13px;margin-top:-8px;margin-bottom:12px;">These tasks are still active but have passed their deadline.</p>
+          <div class="table-container">
+            <table id="overdueTasksTable" class="display" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Category</th>
+                  <th>Deadline</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -139,9 +233,9 @@ $currentUser = $session->getUserData();
             <span class="sub">Total Uploaded</span>
           </div>
           <div class="card stat-card">
-            <h2>Active Tasks</h2>
+            <h2>Pending Tasks</h2>
             <p class="stat" id="activeTasks">0</p>
-            <span class="sub">Pending Submission</span>
+            <span class="sub">Awaiting Submission</span>
           </div>
           <div class="card stat-card">
             <h2>Completed</h2>
@@ -379,43 +473,7 @@ $currentUser = $session->getUserData();
               <tbody></tbody>
             </table>
           </div>
-            <script>
-            $(document).ready(function() {
-              // Initialize Task Submissions Table
-              if (!$.fn.DataTable.isDataTable('#taskSubmissionsTable')) {
-                window.taskSubmissionsTable = $('#taskSubmissionsTable').DataTable({
-                  ajax: {
-                    url: 'ajax.php',
-                    type: 'POST',
-                    data: { CALL: 10 },
-                    dataSrc: function(json) {
-                      return json.data || [];
-                    }
-                  },
-                  columns: [
-                    { data: 'task_title' },
-                    { data: 'task_category' },
-                    { data: 'task_deadline', render: function(data) { return data ? new Date(data).toLocaleDateString() : 'N/A'; } },
-                    { data: 'check_status', render: function(data) { return `<span class="status-badge status-${data}">${data || 'Not submitted'}</span>`; } },
-                    { data: 'file_name', render: function(data) { return data || 'No file submitted'; } },
-                    //{ data: 'grade', render: function(data) { return data || '-'; } },
-                    { data: null, render: function(data, type, row) {
-                        let actions = '';
-                        if (!row.task_submission_id || row.check_status === 'rejected') {
-                          actions += `<button class="btn-sm btn-primary" onclick="openSubmitTaskModal(${row.task_id})">Submit/Resubmit</button>`;
-                        }
-                        if (row.file_upload_id) {
-                          actions += ` <button class="btn-sm btn-secondary" onclick="downloadFile(${row.file_upload_id})">Download</button>`;
-                        }
-                        return actions || 'No actions available';
-                      }, orderable: false }
-                  ],
-                  pageLength: 10,
-                  order: [[2, 'asc']]
-                });
-              }
-            });
-            </script>
+          <!-- taskSubmissionsTable is initialized by member.js -->
         </div>
       </div>
 
@@ -434,19 +492,37 @@ $currentUser = $session->getUserData();
                   <div class="form-row">
                     <div class="form-group">
                       <label for="currentPassword">Current Password</label>
-                      <input type="password" id="currentPassword" name="currentPassword" placeholder="Enter current password..." required>
+                      <div class="password-input-wrap">
+                        <input type="password" id="currentPassword" name="currentPassword" placeholder="Enter current password..." required>
+                        <button type="button" class="pwd-toggle-btn" data-target="currentPassword" title="Show/hide password">
+                          <svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div class="form-row">
                     <div class="form-group">
                       <label for="newPassword">New Password</label>
-                      <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password..." required>
+                      <div class="password-input-wrap">
+                        <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password..." required>
+                        <button type="button" class="pwd-toggle-btn" data-target="newPassword" title="Show/hide password">
+                          <svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div class="form-row">
                     <div class="form-group">
                       <label for="confirmPassword">Confirm New Password</label>
-                      <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm new password..." required>
+                      <div class="password-input-wrap">
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm new password..." required>
+                        <button type="button" class="pwd-toggle-btn" data-target="confirmPassword" title="Show/hide password">
+                          <svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -471,7 +547,18 @@ $currentUser = $session->getUserData();
   <?php require_once('modals.php'); ?>
 
   <script>
-    
+    // ── Action dropdown toggle ──
+    $(document).on('click', '.dt-action-toggle', function(e) {
+      e.stopPropagation();
+      var $wrap = $(this).closest('.dt-action-dropdown');
+      // close all others
+      $('.dt-action-dropdown').not($wrap).removeClass('open');
+      $wrap.toggleClass('open');
+    });
+    $(document).on('click', function() {
+      $('.dt-action-dropdown').removeClass('open');
+    });
+
     // GitHub-style tab switcher
     const tabBtns = document.querySelectorAll(".tab-btn");
     const tabPanes = document.querySelectorAll(".tab-content");
@@ -492,26 +579,20 @@ $currentUser = $session->getUserData();
   $(document).ready(function() {
       // --- Update Header Notification Count for Pending Tasks ---
       window.updatePendingTasksNotification = function() {
-        $.ajax({
-          url: 'ajax.php',
-          type: 'POST',
-          data: { CALL: 9 },
-          dataType: 'json',
-          success: function(json) {
-            let count = 0;
-            if(json && json.data && Array.isArray(json.data)) {
-              count = json.data.filter(t => t.task_status === 'active').length;
-            } else if(Array.isArray(json)) {
-              count = json.filter(t => t.task_status === 'active').length;
-            }
-            const notificationBadge = document.getElementById('headerNotificationCount');
-            if(count > 0) {
-              notificationBadge.textContent = count;
-              notificationBadge.style.display = 'inline-block';
-            } else {
-              notificationBadge.textContent = '';
-              notificationBadge.style.display = 'none';
-            }
+        // Fetch both pending and overdue in parallel
+        var pendingReq = $.ajax({ url: 'ajax.php', type: 'POST', data: { CALL: 9 },  dataType: 'json' });
+        var overdueReq = $.ajax({ url: 'ajax.php', type: 'POST', data: { CALL: 22 }, dataType: 'json' });
+        $.when(pendingReq, overdueReq).done(function(pendingRes, overdueRes) {
+          var pendingData  = (pendingRes[0]  && pendingRes[0].data)  ? pendingRes[0].data  : [];
+          var overdueData  = (overdueRes[0]  && overdueRes[0].data)  ? overdueRes[0].data  : [];
+          var count = pendingData.length + overdueData.length;
+          var notificationBadge = document.getElementById('headerNotificationCount');
+          if(count > 0) {
+            notificationBadge.textContent = count;
+            notificationBadge.style.display = 'inline-block';
+          } else {
+            notificationBadge.textContent = '';
+            notificationBadge.style.display = 'none';
           }
         });
       }
@@ -524,36 +605,27 @@ $currentUser = $session->getUserData();
       
       // --- Pending Tasks Badge ---
       function updatePendingTasksBadge() {
-        $.ajax({
-          url: 'ajax.php',
-          type: 'POST',
-          data: { CALL: 9 },
-          dataType: 'json',
-          success: function(json) {
-            let count = 0;
-            if(json && json.data && Array.isArray(json.data)) {
-              count = json.data.filter(t => t.task_status === 'active').length;
-            } else if(Array.isArray(json)) {
-              count = json.filter(t => t.task_status === 'active').length;
-            }
-            const badge = document.getElementById('pendingTasksBadge');
-            if(count > 0) {
-              badge.textContent = count;
-              badge.style.display = 'inline-block';
-            } else {
-              badge.textContent = '';
-              badge.style.display = 'none';
-            }
+        var pendingReq = $.ajax({ url: 'ajax.php', type: 'POST', data: { CALL: 9 },  dataType: 'json' });
+        var overdueReq = $.ajax({ url: 'ajax.php', type: 'POST', data: { CALL: 22 }, dataType: 'json' });
+        $.when(pendingReq, overdueReq).done(function(pendingRes, overdueRes) {
+          var pendingData = (pendingRes[0] && pendingRes[0].data) ? pendingRes[0].data : [];
+          var overdueData = (overdueRes[0] && overdueRes[0].data) ? overdueRes[0].data : [];
+          var count = pendingData.length + overdueData.length;
+          var badge = document.getElementById('pendingTasksBadge');
+          if(count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
           }
         });
       }
       // Update badge on page load and when switching tabs
       updatePendingTasksBadge();
-      document.querySelector("[data-tab='pending-tasks']").addEventListener('click', function() {
-        updatePendingTasksBadge();
-      });
     // --- Pending Tasks Table ---
     let pendingTasksTable;
+    let overdueTasksTable;
     function loadPendingTasks() {
       pendingTasksTable = $('#pendingTasksTable').DataTable({
         ajax: {
@@ -563,21 +635,63 @@ $currentUser = $session->getUserData();
           dataSrc: function(json) { return json.data || []; }
         },
         destroy: true,
+        responsive: true,
         columns: [
           { data: 'task_title' },
           { data: 'task_category' },
-          { data: 'task_deadline' },
-          { data: 'task_status', render: function(data) { return data === 'active' ? 'Pending' : data; } },
-          { data: null, render: function(data, type, row) {
-              if(row.task_status === 'active') {
-                return `<button class='btn btn-primary btn-sm' onclick='openComplyTaskModal(${row.task_id})'>Comply</button>`;
-              } else {
-                return '-';
-              }
+          {
+            data: 'task_deadline',
+            render: function(data) {
+              if (!data) return '-';
+              var deadline = new Date(data);
+              var today = new Date();
+              today.setHours(0,0,0,0);
+              var diffDays = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+              var formatted = deadline.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+              var badge = diffDays <= 3
+                ? '<span style="color:#c0392b;font-weight:600;font-size:11px;"> (' + diffDays + 'd left)</span>'
+                : '<span style="color:#888;font-size:11px;"> (' + diffDays + 'd left)</span>';
+              return formatted + badge;
             }
+          },
+          { data: null, render: function(data, type, row) {
+              return `<button class='btn btn-primary btn-sm' onclick='openComplyTaskModal(${row.task_id})'>Comply</button>`;
+            }, orderable: false
           }
         ],
         language: { emptyTable: 'No pending tasks found' }
+      });
+
+      overdueTasksTable = $('#overdueTasksTable').DataTable({
+        ajax: {
+          url: 'ajax.php',
+          type: 'POST',
+          data: { CALL: 22 },
+          dataSrc: function(json) { return json.data || []; }
+        },
+        destroy: true,
+        responsive: true,
+        columns: [
+          { data: 'task_title' },
+          { data: 'task_category' },
+          {
+            data: 'task_deadline',
+            render: function(data) {
+              if (!data) return '-';
+              var deadline = new Date(data);
+              var today = new Date();
+              today.setHours(0,0,0,0);
+              var overdueDays = Math.ceil((today - deadline) / (1000 * 60 * 60 * 24));
+              var formatted = deadline.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+              return formatted + '<span style="color:#c0392b;font-weight:600;font-size:11px;"> (' + overdueDays + 'd overdue)</span>';
+            }
+          },
+          { data: null, render: function(data, type, row) {
+              return `<button class='btn btn-primary btn-sm' onclick='openComplyTaskModal(${row.task_id})'>Comply</button>`;
+            }, orderable: false
+          }
+        ],
+        language: { emptyTable: 'No overdue tasks' }
       });
     }
     // Load pending tasks on tab show
@@ -585,6 +699,17 @@ $currentUser = $session->getUserData();
         loadPendingTasks();
         updatePendingTasksBadge();
         updatePendingTasksNotification();
+      });
+
+    // Initialize task submissions DataTable when its tab is clicked
+      document.querySelector("[data-tab='task-submissions']").addEventListener('click', function() {
+        if (typeof initializeDataTables === 'function') {
+          initializeDataTables();
+        }
+        // Refresh and fix column widths once visible
+        if (window.taskSubmissionsTable) {
+          window.taskSubmissionsTable.columns.adjust().ajax.reload(null, false);
+        }
       });
     // --- Comply Task Modal Logic ---
     window.openComplyTaskModal = function(taskId) {
@@ -691,8 +816,8 @@ $currentUser = $session->getUserData();
             if(validationResult.recommendation && validationResult.recommendation.message) {
               msg += '\n\nRecommendation: ' + validationResult.recommendation.message;
             }
-            if(validationResult.validation_details) {
-              msg += '\n\nDetails: ' + JSON.stringify(validationResult.validation_details);
+            if(validationResult.recommendation && validationResult.recommendation.reasons && validationResult.recommendation.reasons.length > 0) {
+              msg += '\n\nReasons:\n• ' + validationResult.recommendation.reasons.join('\n• ');
             }
             openNotificationModal(msg, 'warning');
             document.getElementById('complyUploadBtn').disabled = false;
@@ -892,7 +1017,12 @@ $currentUser = $session->getUserData();
             paging: true,
             columns: [
                 { data: "file_upload_id" },
-                { data: "file_name" },
+                { 
+                    data: "file_name",
+                    render: function(data, type, row) {
+                        return row.original_filename || data;
+                    }
+                },
                 { data: "file_category" },
                 { data: "mime_type" },
                 { 
@@ -908,15 +1038,21 @@ $currentUser = $session->getUserData();
                 {
                     data: "file_upload_id",
                     render: function(id, type, row) {
+                        const displayName = row.original_filename || row.file_name;
                         return `
-                            <button class="btn-secondary viewBtn" data-id="${id}">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                            <button class="btn-primary deleteFileBtn" 
-                                    data-id="${id}" 
-                                    data-name="${row.file_name}">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+                            <div class="dt-action-dropdown">
+                                <button class="dt-action-toggle"><i class="fas fa-ellipsis-v"></i> Actions ▾</button>
+                                <div class="dt-action-menu">
+                                    <button class="viewBtn" data-id="${id}">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="deleteFileBtn action-danger"
+                                            data-id="${id}"
+                                            data-name="${displayName}">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
                         `;
                     }
                 },

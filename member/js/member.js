@@ -9,12 +9,32 @@ $(document).ready(function() {
     // Initialize upload functionality
     initializeFileUpload();
 
-    // Initialize tables
-    //initializeDataTables();
-    
     // Initialize forms
     initializeFormHandlers();
+
+    // Populate task category filter from user's own uploaded files
+    loadTaskCategoryFilter();
 });
+
+function loadTaskCategoryFilter() {
+    $.ajax({
+        url: 'ajax.php',
+        type: 'POST',
+        data: { CALL: 21 },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'SUCCESS' && response.data.length > 0) {
+                var opts = '<option value="">All Categories</option>';
+                response.data.forEach(function(cat) {
+                    opts += '<option value="' + $('<div>').text(cat.category_tag).html() + '">'
+                          + $('<div>').text(cat.category_tag).html()
+                          + ' (' + cat.file_count + ')</option>';
+                });
+                $('#taskCategoryFilter').html(opts);
+            }
+        }
+    });
+}
 
 function initializeMemberDashboard() {
     console.log('Member Dashboard initialized');
@@ -102,7 +122,8 @@ function populateRecentActivityTable(activities) {
             pageLength: 5,
             searching: false,
             info: false,
-            lengthChange: false
+            lengthChange: false,
+            responsive: true
         });
     }
 }
@@ -437,15 +458,16 @@ function initializeDataTables() {
                 type: 'POST',
                 data: function(d) {
                     return {
-                        CALL: 12,
-                        status: $('#taskStatusFilter').val(),
-                        category: $('#taskCategoryFilter').val()
+                        CALL: 10,
+                        status:   $('#taskStatusFilter').val()   || '',
+                        category: $('#taskCategoryFilter').val() || ''
                     };
                 },
                 dataSrc: function(json) {
-                    return json.status === 'SUCCESS' ? json.data : [];
+                    return json.data || [];
                 }
             },
+            responsive: true,
             columns: [
                 { data: 'task_title' },
                 { data: 'task_category' },
@@ -458,7 +480,7 @@ function initializeDataTables() {
                 {
                     data: 'check_status',
                     render: function(data) {
-                        return `<span class="status-badge status-${data}">${data || 'Not submitted'}</span>`;
+                        return `<span class="status-badge status-${(data||'').toLowerCase()}">${data || 'Not submitted'}</span>`;
                     }
                 },
                 {
@@ -470,14 +492,26 @@ function initializeDataTables() {
                 {
                     data: null,
                     render: function(data, type, row) {
-                        let actions = '';
-                        if (!row.task_submission_id || row.check_status === 'rejected') {
-                            actions += `<button class="btn-sm btn-primary" onclick="openSubmitTaskModal(${row.task_id})">Submit/Resubmit</button>`;
+                        const canSubmit = !row.task_submission_id || row.check_status === 'rejected';
+                        const canDownload = !!row.file_upload_id;
+
+                        if (!canSubmit && !canDownload) {
+                            return 'No actions available';
                         }
-                        if (row.file_upload_id) {
-                            actions += ` <button class="btn-sm btn-secondary" onclick="downloadFile(${row.file_upload_id})">Download</button>`;
+
+                        let menuItems = '';
+                        if (canSubmit) {
+                            menuItems += `<button onclick="openSubmitTaskModal(${row.task_id})"><i class="fas fa-upload"></i> Submit / Resubmit</button>`;
                         }
-                        return actions || 'No actions available';
+                        if (canDownload) {
+                            menuItems += `<button onclick="downloadFile(${row.file_upload_id})"><i class="fas fa-download"></i> Download</button>`;
+                        }
+
+                        return `
+                            <div class="dt-action-dropdown">
+                                <button class="dt-action-toggle"><i class="fas fa-ellipsis-v"></i> Actions ▾</button>
+                                <div class="dt-action-menu">${menuItems}</div>
+                            </div>`;
                     },
                     orderable: false
                 }
@@ -516,6 +550,16 @@ function initializeFormHandlers() {
         e.preventDefault();
         changePassword();
     });
+
+    // Eye-toggle: show/hide password for all toggle buttons
+    $(document).on('click', '.pwd-toggle-btn', function() {
+        const targetId = $(this).data('target');
+        const input = $('#' + targetId);
+        const isPassword = input.attr('type') === 'password';
+        input.attr('type', isPassword ? 'text' : 'password');
+        $(this).find('.eye-show').toggle(!isPassword);
+        $(this).find('.eye-hide').toggle(isPassword);
+    });
 }
 
 /* ===========================================================
@@ -528,47 +572,66 @@ function refreshMyFilesTable() {
 }
 
 function downloadFile(fileId) {
-    $.ajax({
-        url: 'ajax.php',
-        type: 'POST',
-        data: {
-            CALL: 20,
-            file_id: fileId
-        },
-        xhrFields: { responseType: 'blob' },
-        success: function(data, status, xhr) {
-            const blob = new Blob([data]);
-            const url = URL.createObjectURL(blob);
-            
-            // Get filename from Content-Disposition header if available
-            const disposition = xhr.getResponseHeader('Content-Disposition');
-            let filename = 'download';
-            if (disposition && disposition.indexOf('filename=') !== -1) {
-                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                const matches = filenameRegex.exec(disposition);
-                if (matches != null && matches[1]) { 
-                    filename = matches[1].replace(/['"]/g, '');
-                }
-            }
-            
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        },
-        error: function(xhr) {
-            console.error('Download failed:', xhr);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'ajax.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.responseType = 'blob';
+
+    xhr.onload = function() {
+        if (xhr.status !== 200) {
             if(typeof openNotificationModal === 'function') {
                 openNotificationModal('Failed to download file. Please try again.', 'error');
-            } else {
-                openNotificationModal('Failed to download file. Please try again.', 'error');
             }
+            return;
         }
-    });
+
+        // Detect if server returned a JSON error instead of a file
+        var contentType = xhr.getResponseHeader('Content-Type') || '';
+        if (contentType.indexOf('application/json') !== -1) {
+            var reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    var err = JSON.parse(reader.result);
+                    if(typeof openNotificationModal === 'function') {
+                        openNotificationModal(err.msg || 'Download failed.', 'error');
+                    }
+                } catch(e) {}
+            };
+            reader.readAsText(xhr.response);
+            return;
+        }
+
+        var blob = xhr.response;
+        var url = URL.createObjectURL(blob);
+
+        // Extract filename from Content-Disposition header
+        var disposition = xhr.getResponseHeader('Content-Disposition') || '';
+        var filename = 'download';
+        var match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+            filename = match[1].replace(/['"]/g, '');
+        }
+
+        var a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }, 200);
+    };
+
+    xhr.onerror = function() {
+        if(typeof openNotificationModal === 'function') {
+            openNotificationModal('Failed to download file. Please try again.', 'error');
+        }
+    };
+
+    xhr.send('CALL=20&file_id=' + encodeURIComponent(fileId));
 }
 
 function editFileInfo(fileId) {
@@ -649,61 +712,17 @@ function deleteFile(fileId) {
     TASK SUBMISSION
    =========================================================== */
 function openSubmitTaskModal(taskId) {
-    $.ajax({
-        url: 'ajax.php',
-        type: 'POST',
-        data: { CALL: 7, suitable_for_task: taskId },
-        dataType: 'json',
-        success: function(response) {
-            if (response.status === 'SUCCESS') {
-                const fileSelect = $('#submitFileSelect');
-                fileSelect.empty().append('<option value="">Select a file</option>');
-
-                response.data.forEach(function(file) {
-                    fileSelect.append(`<option value="${file.file_upload_id}">${file.file_name}</option>`);
-                });
-
-                $('#submitTaskId').val(taskId);
-                $('#submitTaskModal').show();
-            }
-        }
-    });
-}
-
-function submitTaskFile() {
-    const taskId = $('#submitTaskId').val();
-    const fileId = $('#submitFileSelect').val();
-
-    if (!fileId) {
-        showAlert('Please select a file to submit', 'error');
-        return;
+    // Delegate to the fully-featured modal defined in modals.php
+    if (typeof openSubmissionModal === 'function') {
+        openSubmissionModal(taskId);
+    } else {
+        // Fallback: set the hidden input and open directly
+        var el = document.getElementById('submit_task_id');
+        if (el) el.value = taskId;
+        openModal('submitTaskModal');
     }
-
-    $.ajax({
-        url: 'ajax.php',
-        type: 'POST',
-        data: {
-            CALL: 11,
-            task_id: taskId,
-            file_id: fileId
-        },
-        dataType: 'json',
-        success: function(response) {
-            if (response.status === 'SUCCESS') {
-                showAlert(response.msg, 'success');
-                $('#submitTaskModal').hide();
-                if (window.taskSubmissionsTable) {
-                    window.taskSubmissionsTable.ajax.reload();
-                }
-            } else {
-                showAlert(response.msg, 'error');
-            }
-        },
-        error: function() {
-            showAlert('Failed to submit task', 'error');
-        }
-    });
 }
+
 
 /* ===========================================================
     PASSWORD CHANGE
@@ -732,18 +751,18 @@ function changePassword() {
         url: 'ajax.php',
         type: 'POST',
         data: {
-            CALL: 18,
+            CALL: 14,
             current_password: currentPassword,
             new_password: newPassword,
             confirm_password: confirmPassword
         },
         dataType: 'json',
         success: function(response) {
-            if (response.status === 'SUCCESS') {
-                showAlert(response.msg, 'success');
+            if (response.success === true || response.status === 'SUCCESS') {
+                showAlert(response.msg || 'Password changed successfully', 'success');
                 $('#currentPassword, #newPassword, #confirmPassword').val('');
             } else {
-                showAlert(response.msg, 'error');
+                showAlert(response.msg || 'Failed to change password', 'error');
             }
         },
         error: function() {

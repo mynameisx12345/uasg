@@ -16,13 +16,63 @@
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* ============================================================
+   GLOBAL OVERFLOW PREVENTION
+   Prevents any horizontal scrollbar on the page or tables.
+   Tab-navs and modals may still scroll vertically.
+   ============================================================ */
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background: var(--fb-gray);
   color: var(--fb-dark);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
 }
+
+/* DataTables — keep tables inside their container */
+.dataTables_wrapper {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+table.dataTable {
+  width: 100% !important;
+  max-width: 100%;
+  table-layout: auto;
+}
+
+/* When scrollY is used, DataTables creates dt-scroll-body;
+   prevent it from adding a horizontal scrollbar */
+.dt-scroll-body {
+  overflow-x: hidden !important;
+}
+
+/* Flex children must be able to shrink below their content width */
+main > * {
+  min-width: 0;
+}
+
+.dashboard-content > * {
+  min-width: 0;
+}
+
+.data-card,
+.filter-panel,
+.table-container {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ============================================================ */
 
 /* HEADER */
 header {
@@ -88,6 +138,11 @@ main {
 }
 .sidebar ul li a:hover {
   background: var(--fb-gray);
+}
+.sidebar ul li a.active {
+  background: #7b1228;
+  color: #fff !important;
+  font-weight: 600;
 }
 
 /* SUBMENU (floating) */
@@ -499,7 +554,7 @@ div.dt-container .dt-search textarea:focus{
 /* RESPONSIVE TABLE */
 .table-container {
   width: 100%;
-  overflow-x: auto; /* Enables horizontal scroll on small screens */
+  /* No overflow restriction — DataTables handles its own scrolling and pagination */
 }
 
 .data-table {
@@ -917,6 +972,7 @@ div.dt-container .dt-search textarea:focus{
   padding: 15px;
   border: 1px solid #e9ecef;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: visible;
 }
 
 /* Responsive design for form rows */
@@ -1212,6 +1268,15 @@ div.dt-container .dt-search textarea:focus{
   margin-bottom: 24px;
 }
 
+.uasg-logo {
+  width: 100%;
+  max-width: 260px;
+  max-height: 180px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 12px auto;
+}
+
 .github-logo h1 {
   font-size: 48px;
   font-weight: 300;
@@ -1353,6 +1418,11 @@ div.dt-container .dt-search textarea:focus{
   
   .github-logo h1 {
     font-size: 36px;
+  }
+
+  .uasg-logo {
+    max-width: 200px;
+    max-height: 140px;
   }
   
   .github-login-form h2 {

@@ -106,8 +106,7 @@ window.openModal = function(status, message) {
             </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn-secondary" onclick="closeModal('viewTaskModal')">Close</button>
-            <button type="button" class="btn-primary btn-gold" id="submitFromViewBtn" onclick="submitFromView()" style="display: none;">Submit Task</button>
+            <button type="button" class="btn-primary" id="downloadFromViewBtn" style="display:none;">📥 Download File</button>
         </div>
     </div>
 </div>
@@ -207,7 +206,7 @@ window.openModal = function(status, message) {
                 
                 <div class="form-group">
                     <label for="resubmitFile">Upload New File *</label>
-                    <input type="file" id="resubmitFile" name="file" required>
+                    <input type="file" id="resubmitFile" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" required>
                     <small class="form-text">Maximum file size: 50MB</small>
                 </div>
                 
@@ -517,10 +516,6 @@ function displayTaskDetails(task) {
                     <span class="${isOverdue ? 'text-danger' : ''}">${deadline.toLocaleString()}</span>
                 </div>
                 <div class="info-item">
-                    <strong>Priority:</strong> 
-                    <span class="priority ${task.priority}">${task.priority}</span>
-                </div>
-                <div class="info-item">
                     <strong>Status:</strong> 
                     <span class="status ${task.task_status}">${task.task_status}</span>
                 </div>
@@ -539,18 +534,7 @@ function displayTaskDetails(task) {
     `;
     
     document.getElementById('taskDetails').innerHTML = detailsHtml;
-    
-    // Show submit button if task can be submitted
-    const submitBtn = document.getElementById('submitFromViewBtn');
-    if (task.task_status === 'active' && !isOverdue) {
-        submitBtn.style.display = 'inline-block';
-        submitBtn.onclick = function() {
-            closeModal('viewTaskModal');
-            openSubmissionModal(task.task_id);
-        };
-    } else {
-        submitBtn.style.display = 'none';
-    }
+
 }
 
 // Submission functions
@@ -625,76 +609,46 @@ window.submitTask = function() {
                 // File does NOT match task - show warning and block upload
                 Swal.fire({
                     icon: 'error',
-                    title: '❌ File Does Not Match Task!',
+                    title: 'Wrong File',
                     html: `
-                        <div style="text-align: left; padding: 15px;">
-                            <p style="margin-bottom: 15px;"><strong>This file does not appear to match the task requirements.</strong></p>
-                            
-                            <div style="background: #f8d7da; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                                <strong>📋 Task:</strong> ${result.task_info.title}<br>
-                                <strong>📁 Required Category:</strong> ${result.task_info.category}<br>
-                                <strong>🤖 File Detected As:</strong> ${result.validation_details.category_match.predicted_category}
+                        <div style="text-align: left; padding: 10px;">
+                            <p>The file you selected does not match the required category for this task.</p>
+                            <div style="background: #f8d7da; padding: 12px; border-radius: 6px; margin: 12px 0;">
+                                <strong>Task:</strong> ${result.task_info.title}<br>
+                                <strong>Required:</strong> ${result.task_info.category}<br>
+                                <strong>Your file:</strong> ${result.validation_details.category_match.predicted_category}
                             </div>
-                            
-                            <p style="margin-bottom: 10px;"><strong>Issues Found:</strong></p>
-                            <ul style="text-align: left; color: #721c24;">
-                                ${result.recommendation.reasons.map(r => `<li>${r}</li>`).join('')}
-                            </ul>
-                            
-                            <p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                                <strong>💡 Suggestion:</strong> ${result.recommendation.suggestion || 'Please upload the correct document for this task.'}
-                            </p>
-                            
-                            <p style="margin-top: 15px; font-size: 13px; color: #666;">
-                                <strong>Match Score:</strong> ${result.overall_score}% (minimum: 60%)
-                            </p>
+                            <p>Please upload the correct file for this task.</p>
                         </div>
                     `,
-                    confirmButtonText: 'Choose Different File',
+                    confirmButtonText: 'Choose a Different File',
                     confirmButtonColor: '#dc3545',
                     showCancelButton: false,
-                    width: 600
+                    width: 500
                 });
                 return;
             }
             
             // File IS valid - show success and proceed with upload
             let confirmMessage = `
-                <div style="text-align: left; padding: 15px;">
-                    <p style="margin-bottom: 15px;"><strong>✓ File validated successfully!</strong></p>
-                    
-                    <div style="background: #d4edda; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                        <strong>📋 Task:</strong> ${result.task_info.title}<br>
-                        <strong>📁 Category:</strong> ${result.task_info.category}<br>
-                        <strong>🤖 AI Confidence:</strong> ${result.confidence}
+                <div style="text-align: left; padding: 10px;">
+                    <p>Your file matches the requirements for this task. Do you want to submit it?</p>
+                    <div style="background: #d4edda; padding: 12px; border-radius: 6px; margin: 12px 0;">
+                        <strong>Task:</strong> ${result.task_info.title}<br>
+                        <strong>Category:</strong> ${result.task_info.category}
                     </div>
-                    
-                    <p style="margin-bottom: 10px;"><strong>Validation Results:</strong></p>
-                    <ul style="text-align: left; color: #155724;">
-                        <li>✓ Category Match: ${result.validation_details.category_match.score}%</li>
-                        <li>✓ Keyword Match: ${result.validation_details.keyword_match.score}%</li>
-                        <li>✓ Content Relevance: ${result.validation_details.relevance_score.score}%</li>
-                    </ul>
-                    
-                    <p style="margin-top: 15px; font-size: 13px; color: #666;">
-                        <strong>Overall Match Score:</strong> ${result.overall_score}%
-                    </p>
-                    
-                    <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
-                        ${result.recommendation.message}
-                    </p>
                 </div>
             `;
             
             Swal.fire({
                 icon: 'success',
-                title: '✓ File Matches Task!',
+                title: 'File Accepted',
                 html: confirmMessage,
-                confirmButtonText: 'Proceed with Upload',
+                confirmButtonText: 'Submit File',
                 confirmButtonColor: '#28a745',
                 showCancelButton: true,
                 cancelButtonText: 'Cancel',
-                width: 600
+                width: 500
             }).then((confirmResult) => {
                 if (confirmResult.isConfirmed) {
                     // STEP 2: Proceed with actual upload
@@ -747,8 +701,10 @@ function proceedWithTaskSubmission(form) {
         },
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
-            if (result.status === 'SUCCESS') {
+            const isSuccess = result.status === 'SUCCESS' || result.success === true;
+            const msg = result.msg || result.message || (isSuccess ? 'File submitted successfully.' : 'Submission failed. Please try again.');
+            openNotificationModal(msg, isSuccess ? 'success' : 'error');
+            if (isSuccess) {
                 closeModal('submitTaskModal');
                 // Reload relevant tables
                 if (window.dashboardTables && window.dashboardTables.recentTasks) {
@@ -756,6 +712,10 @@ function proceedWithTaskSubmission(form) {
                 }
                 if (window.allTables && window.allTables.tasks) {
                     window.allTables.tasks.ajax.reload();
+                }
+                // Reload task submissions table in the Task Submissions tab
+                if (window.taskSubmissionsTable) {
+                    window.taskSubmissionsTable.ajax.reload();
                 }
                 // Reload dashboard stats
                 if (typeof refreshDashboard === 'function') {
@@ -813,8 +773,10 @@ window.resubmitTask = function() {
         },
         success: function(response) {
             const result = typeof response === 'string' ? JSON.parse(response) : response;
-            openNotificationModal(result.msg, result.status === 'SUCCESS' ? 'success' : 'error');
-            if (result.status === 'SUCCESS') {
+            const isSuccess = result.status === 'SUCCESS' || result.success === true;
+            const msg = result.msg || result.message || (isSuccess ? 'File resubmitted successfully.' : 'Resubmission failed. Please try again.');
+            openNotificationModal(msg, isSuccess ? 'success' : 'error');
+            if (isSuccess) {
                 closeModal('resubmitTaskModal');
                 // Reload relevant tables
                 if (window.dashboardTables && window.dashboardTables.recentSubmissions) {
@@ -851,7 +813,7 @@ function displaySubmissionDetails(submission) {
                     <strong>Category:</strong> ${submission.task_category}
                 </div>
                 <div class="info-item">
-                    <strong>File:</strong> ${submission.file_name}
+                    <strong>File:</strong> ${submission.original_filename || submission.file_name}
                 </div>
                 <div class="info-item">
                     <strong>Submitted:</strong> 
@@ -894,8 +856,9 @@ function displaySubmissionDetails(submission) {
     
     document.getElementById('submissionDetails').innerHTML = detailsHtml;
     
-    // Store submission data for actions
+    // Store submission data for actions — use system filename for download routing, display original
     window.currentSubmissionFile = submission.file_name;
+    window.currentSubmissionFileDisplay = submission.original_filename || submission.file_name;
     window.currentSubmissionId = submission.task_submission_id;
     
     // Show resubmit button if applicable
@@ -948,7 +911,7 @@ function displayFileDetails(file) {
     
     const detailsHtml = `
         <div class="file-info">
-            <h4>${file.file_name}</h4>
+            <h4>${file.original_filename || file.file_name}</h4>
             <div class="info-grid">
                 <div class="info-item">
                     <strong>Category:</strong> ${file.category_name || file.category}
@@ -995,8 +958,8 @@ function displayFileDetails(file) {
     `;
     
     document.getElementById('fileDetails').innerHTML = detailsHtml;
-    window.currentFileName = file.file_name;
-    window.currentFileId = file.file_id;
+    window.currentFileName = file.file_name; // system name for download routing
+    window.currentFileDisplayName = file.original_filename || file.file_name;
 }
 
 // File upload functions
@@ -1121,7 +1084,7 @@ function displayAnalysisResults(results) {
         html += `
             <div class="analysis-item">
                 <div class="file-analysis">
-                    <strong>${result.file_name}</strong>
+                    <strong>${result.original_filename || result.file_name}</strong>
                     <div class="analysis-details">
                         <span class="badge badge-${confidenceClass}">${confidence} Confidence</span>
                         <span class="suggested-category">→ ${result.suggested_category}</span>
@@ -1264,7 +1227,7 @@ window.editFile = function(fileId) {
 
 function populateEditForm(file) {
     document.getElementById('editFileId').value = file.file_id;
-    document.getElementById('editFileName').value = file.file_name;
+    document.getElementById('editFileName').value = file.original_filename || file.file_name;
     document.getElementById('editFileCategory').value = file.category;
     document.getElementById('editFileDescription').value = file.description || '';
     document.getElementById('editFileTags').value = file.tags || '';

@@ -1,5 +1,8 @@
 <?php
 // Prevent any output before JSON
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 ob_start();
 
 session_start();
@@ -51,13 +54,91 @@ if (!is_ajax_request()) {
     exit;
 }	
 
+// Dashboard Statistics (CALL: 100)
+if (isset($_POST['CALL']) && $_POST['CALL'] == 100) {
+    try {
+        $db = Database::getInstance();
+        $totalFiles = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl")['count'] ?? 0;
+        $totalCategories = $db->selectOne("SELECT COUNT(DISTINCT category_tag) as count FROM file_upload_tbl WHERE category_tag IS NOT NULL")['count'] ?? 0;
+        $totalTaskCategories = $db->selectOne("SELECT COUNT(*) as count FROM task_category_tbl")['count'] ?? 0;
+        $totalUsers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type != 'admin'")['count'] ?? 0;
+        $pendingTasks = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE task_status = 'active' AND task_id NOT IN (SELECT task_id FROM task_submission_tbl)")['count'] ?? 0;
+        $activeMembers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type = 'student' AND is_active = 1")['count'] ?? 0;
+        $totalAdvisers = $db->selectOne("SELECT COUNT(*) as count FROM user_tbl WHERE user_type = 'subadmin' AND is_active = 1")['count'] ?? 0;
+        $totalSubmissions = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl t WHERE t.task_status = 'active' AND EXISTS (SELECT 1 FROM task_submission_tbl ts WHERE ts.task_id = t.task_id AND ts.check_status = 'approved')")['count'] ?? 0;
+        echo json_encode(['success' => true, 'data' => ['totalFiles' => $totalFiles, 'totalCategories' => $totalCategories, 'totalTaskCategories' => $totalTaskCategories, 'totalUsers' => $totalUsers, 'pendingTasks' => $pendingTasks, 'activeMembers' => $activeMembers, 'totalAdvisers' => $totalAdvisers, 'totalSubmissions' => $totalSubmissions]]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// File Statistics by Category (CALL: 101)
+if (isset($_POST['CALL']) && $_POST['CALL'] == 101) {
+    try {
+        $db = Database::getInstance();
+        $stats = $db->select("SELECT COALESCE(fu.category_tag, 'Uncategorized') as category, COUNT(fu.file_upload_id) as count, SUM(fu.file_size) as total_size FROM file_upload_tbl fu WHERE fu.category_tag IS NOT NULL GROUP BY fu.category_tag ORDER BY count DESC") ?? [];
+        echo json_encode(['success' => true, 'data' => $stats]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// User Activity Statistics (CALL: 102)
+if (isset($_POST['CALL']) && $_POST['CALL'] == 102) {
+    try {
+        $db = Database::getInstance();
+        $stats = $db->select("SELECT CONCAT(p.fname, ' ', p.lname) as user_name, u.user_type, COUNT(fu.file_upload_id) as uploads, MAX(fu.datetime_uploaded) as last_upload FROM user_tbl u LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id LEFT JOIN file_upload_tbl fu ON u.user_id = fu.uploaded_by WHERE u.user_type != 'admin' AND u.is_active = 1 GROUP BY u.user_id, p.fname, p.lname, u.user_type ORDER BY uploads DESC LIMIT 10") ?? [];
+        echo json_encode(['success' => true, 'data' => $stats]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'msg' => $e->getMessage()]);
+    }
+    exit;
+}
+
 if(empty($_POST["CALL"])){
     echo json_encode(["error" => "Request invalid"]);
     exit;
 }
 
+// Enforce 30-minute idle session timeout
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required', 'session_expired' => true]);
+    exit;
+}
+$timeout = 1800;
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeout) {
+    session_unset();
+    session_destroy();
+    http_response_code(401);
+    echo json_encode(['error' => 'Session expired', 'session_expired' => true]);
+    exit;
+}
+$_SESSION['last_activity'] = time();
+
 $call = $_POST["CALL"];
 $result = [];
+
+if($call === 'global_search') {
+    $q = "%" . trim($_POST["query"] ?? "") . "%";
+    $db = Database::getInstance();
+    $uid = $_SESSION['user_id'] ?? 0;
+    $results = [];
+    $files = $db->select("SELECT file_upload_id, original_filename, category_tag FROM file_upload_tbl WHERE original_filename LIKE ? LIMIT 5", [$q]);
+    foreach($files as $f) $results[] = ["type"=>"file","id"=>$f["file_upload_id"],"icon"=>"📄","title"=>$f["original_filename"],"meta"=>$f["category_tag"]??"File"];
+    if (SubadminPermission::hasPermission($uid, 'user_management', 'view')) {
+        $users = $db->select("SELECT u.user_id, u.user_name, u.user_type FROM user_tbl u WHERE u.user_name LIKE ? LIMIT 5", [$q]);
+        foreach($users as $u) $results[] = ["type"=>"user","id"=>$u["user_id"],"icon"=>"👤","title"=>$u["user_name"],"meta"=>ucfirst($u["user_type"])];
+    }
+    if (SubadminPermission::hasPermission($uid, 'task_management', 'view')) {
+        $tasks = $db->select("SELECT task_id, task_title FROM task_tbl WHERE task_title LIKE ? LIMIT 5", [$q]);
+        foreach($tasks as $t) $results[] = ["type"=>"task","id"=>$t["task_id"],"icon"=>"📋","title"=>$t["task_title"],"meta"=>"Task"];
+    }
+    echo json_encode(["success"=>true,"results"=>$results]);
+    exit;
+}
 
 // NLP analysis before upload (for preview)
 if($call === 'nlp_analyze') {
@@ -93,9 +174,9 @@ if($call === 'nlp_analyze') {
             $prediction = $mlService->predict($extractedText);
 
             if ($prediction['success']) {
-                // Check confidence threshold - if too low, use "Others" category
+                // Check confidence threshold - read from saved settings
                 $confidence = $prediction['confidence'] ?? 0;
-                $confidenceThreshold = 0.50; // 50% minimum confidence
+                $confidenceThreshold = floatval($mlService->getSetting('ml_confidence_threshold') ?? 60) / 100;
                 
                 if ($confidence < $confidenceThreshold) {
                     // Low confidence - fallback to "Others"
@@ -115,6 +196,9 @@ if($call === 'nlp_analyze') {
                     'score' => $score,
                     'confidence' => $score,
                     'original_prediction' => $prediction['category'] ?? null,
+                    'all_scores' => $prediction['all_scores'] ?? [],
+                    'top_keywords' => $prediction['top_keywords'] ?? [],
+                    'confidence_threshold' => round($confidenceThreshold * 100, 2),
                     'fallback_used' => $category === 'Others',
                     'fallback_reason' => $fallbackReason,
                     'keywords' => [], // ML doesn't extract keywords
@@ -274,7 +358,7 @@ if($call == 1){
     try {
         $userId = $_SESSION['user_id'] ?? 0;
         $userManager = new UserManager();
-        $result = $userManager->changeUserPassword($userId, $data);
+        $result = $userManager->changeMemberPassword($userId, $data);
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
@@ -483,14 +567,36 @@ if($call == 1){
     echo json_encode($result);
     
 }else if($call == 16){
-    // Mark notification as read
-    try {
-        $notificationId = $_POST['notification_id'] ?? 0;
-        $notificationManager = new NotificationManager();
-        $success = $notificationManager->markAsRead($notificationId);
-        $result = ["status" => $success ? "SUCCESS" : "ERROR", "msg" => $success ? "Notification marked as read" : "Failed to mark notification"];
-    } catch(Exception $e) {
-        $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+    if(isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        $data = [
+            'file' => $_FILES['file'],
+            'uploaded_by' => $_POST['uploaded_by'] ?? ($_SESSION['user_id'] ?? 0),
+            'category_tag' => $_POST['category_tag'] ?? 'Uncategorized',
+            'category_score' => $_POST['category_score'] ?? 0,
+            'nlp_analysis' => $_POST['nlp_analysis'] ?? null,
+            'manual_override' => isset($_POST['manual_override']) && $_POST['manual_override'] == '1',
+            'original_category' => $_POST['original_category'] ?? null,
+            'file_path' => null
+        ];
+        try {
+            $fileManager = new Main('file_upload_tbl');
+            $uploadResult = $fileManager->uploadFile($data);
+            $result = $uploadResult;
+            if(!$uploadResult['success']) {
+                $result = ["success" => false, "msg" => "File upload failed: " . ($uploadResult['error'] ?? 'Unknown error')];
+            }
+        } catch(Exception $e) {
+            $result = ["success" => false, "msg" => $e->getMessage()];
+        }
+    } else {
+        try {
+            $notificationId = $_POST['notification_id'] ?? 0;
+            $notificationManager = new NotificationManager();
+            $success = $notificationManager->markAsRead($notificationId);
+            $result = ["status" => $success ? "SUCCESS" : "ERROR", "msg" => $success ? "Notification marked as read" : "Failed to mark notification"];
+        } catch(Exception $e) {
+            $result = ["status" => "ERROR", "msg" => $e->getMessage()];
+        }
     }
     echo json_encode($result);
     
@@ -725,6 +831,8 @@ if($call == 1){
         $db = Database::getInstance()->getConnection();
         $query = "SELECT t.*, tc.task_category,
                   (SELECT COUNT(*) FROM task_submission_tbl ts WHERE ts.task_id = t.task_id) as submission_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl ts WHERE ts.task_id = t.task_id AND LOWER(ts.check_status) = 'approved') as approved_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl ts WHERE ts.task_id = t.task_id AND LOWER(ts.check_status) = 'rejected') as rejected_count,
                   CONCAT(p.fname, ' ', p.lname) as assigned_member_name
                   FROM task_tbl t
                   LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id
@@ -754,9 +862,11 @@ if($call == 1){
         }
         
         $db = Database::getInstance()->getConnection();
-        $query = "SELECT ts.*, t.task_title, 
-                  CONCAT(p.fname, ' ', p.lname) as student_name,
-                  fu.file_name, fu.file_upload_id, fu.datetime_uploaded as submitted_at
+        $query = "SELECT ts.*, t.task_title, t.task_status, t.task_deadline,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id) as submission_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id AND LOWER(x.check_status) = 'approved') as approved_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id AND LOWER(x.check_status) = 'rejected') as rejected_count,                  CONCAT(p.fname, ' ', p.lname) as student_name,
+                  COALESCE(NULLIF(fu.original_filename,''), fu.file_name) as file_name, fu.original_filename, fu.file_upload_id, fu.datetime_uploaded as submitted_at
                   FROM task_submission_tbl ts
                   LEFT JOIN task_tbl t ON ts.task_id = t.task_id
                   LEFT JOIN user_tbl u ON ts.submitted_by = u.user_id
@@ -839,6 +949,10 @@ if($call == 1){
         
         // Log activity
         SubadminPermission::logActivity($userId, 'edit_task', 'task_management', 'Updated task ID: ' . $_POST['task_id']);
+
+        // Notify assigned member
+        $_t = Database::getInstance()->selectOne("SELECT assigned_to,task_title,task_description FROM task_tbl WHERE task_id=?",[$_POST['task_id']]);
+        if ($_t && !empty($_t['assigned_to'])) (new NotificationManager())->createNotification(['user_id'=>$_t['assigned_to'],'type'=>'task_updated','title'=>'Task Updated','message'=>"Task '{$_t['task_title']}' has been updated. {$_t['task_description']}",'related_id'=>$_POST['task_id']]);
         
         $result = ["status" => "SUCCESS", "msg" => "Task updated successfully"];
         
@@ -862,6 +976,9 @@ if($call == 1){
         }
         
         $db = Database::getInstance()->getConnection();
+
+        // Get task info before deletion for notification
+        $_td = Database::getInstance()->selectOne("SELECT assigned_to,task_title FROM task_tbl WHERE task_id=?",[$_POST['task_id']]);
         
         // Delete submissions first
         $query = "DELETE FROM task_submission_tbl WHERE task_id = :task_id";
@@ -875,6 +992,7 @@ if($call == 1){
         
         // Log activity
         SubadminPermission::logActivity($userId, 'delete_task', 'task_management', 'Deleted task ID: ' . $_POST['task_id']);
+        if ($_td && !empty($_td['assigned_to'])) (new NotificationManager())->createNotification(['user_id'=>$_td['assigned_to'],'type'=>'task_deleted','title'=>'Task Deleted','message'=>"Task '{$_td['task_title']}' has been deleted.",'related_id'=>$_POST['task_id']]);
         
         $result = ["status" => "SUCCESS", "msg" => "Task deleted successfully"];
         
@@ -898,9 +1016,11 @@ if($call == 1){
         }
         
         $db = Database::getInstance()->getConnection();
-        $query = "SELECT ts.*, t.task_title, 
-                  CONCAT(p.fname, ' ', p.lname) as student_name,
-                  fu.file_name, fu.file_upload_id, fu.datetime_uploaded as submitted_at
+        $query = "SELECT ts.*, t.task_title, t.task_status, t.task_deadline,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id) as submission_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id AND LOWER(x.check_status) = 'approved') as approved_count,
+                  (SELECT COUNT(*) FROM task_submission_tbl x WHERE x.task_id = t.task_id AND LOWER(x.check_status) = 'rejected') as rejected_count,                  CONCAT(p.fname, ' ', p.lname) as student_name,
+                  COALESCE(NULLIF(fu.original_filename,''), fu.file_name) as file_name, fu.original_filename, fu.file_upload_id, fu.datetime_uploaded as submitted_at
                   FROM task_submission_tbl ts
                   LEFT JOIN task_tbl t ON ts.task_id = t.task_id
                   LEFT JOIN user_tbl u ON ts.submitted_by = u.user_id
@@ -933,22 +1053,28 @@ if($call == 1){
             throw new Exception("Permission denied: You cannot approve submissions");
         }
         
-        if (empty($_POST['submission_id'])) {
-            throw new Exception("Submission ID is required");
-        }
-        
         $db = Database::getInstance()->getConnection();
         
-        // Update submission status
-        $query = "UPDATE task_submission_tbl SET check_status = 'Approved' WHERE task_submission_id = :submission_id";
-        $stmt = $db->prepare($query);
-        $stmt->execute([':submission_id' => $_POST['submission_id']]);
+        if (!empty($_POST['approve_by_task']) && !empty($_POST['task_id'])) {
+            $query = "UPDATE task_submission_tbl SET check_status = 'Approved' WHERE task_id = :task_id AND LOWER(check_status) = 'pending'";
+            $stmt = $db->prepare($query);
+            $stmt->execute([':task_id' => $_POST['task_id']]);
+            SubadminPermission::logActivity($userId, 'approve_submission', 'task_management', 'Approved submissions for task ID: ' . $_POST['task_id']);
+            $_at = Database::getInstance()->selectOne("SELECT assigned_to,task_title,task_description FROM task_tbl WHERE task_id=?",[$_POST['task_id']]);
+            if ($_at && !empty($_at['assigned_to'])) (new NotificationManager())->createNotification(['user_id'=>$_at['assigned_to'],'type'=>'task_approved','title'=>'Task Approved','message'=>"Your submission for '{$_at['task_title']}' has been approved. {$_at['task_description']}",'related_id'=>$_POST['task_id']]);
+        } else {
+            if (empty($_POST['submission_id'])) {
+                throw new Exception("Submission ID is required");
+            }
+            $query = "UPDATE task_submission_tbl SET check_status = 'Approved' WHERE task_submission_id = :submission_id";
+            $stmt = $db->prepare($query);
+            $stmt->execute([':submission_id' => $_POST['submission_id']]);
+            SubadminPermission::logActivity($userId, 'approve_submission', 'task_management', 'Approved submission ID: ' . $_POST['submission_id']);
+            $_as = Database::getInstance()->selectOne("SELECT ts.task_id, t.assigned_to, t.task_title, t.task_description FROM task_submission_tbl ts JOIN task_tbl t ON ts.task_id=t.task_id WHERE ts.task_submission_id=?",[$_POST['submission_id']]);
+            if ($_as && !empty($_as['assigned_to'])) (new NotificationManager())->createNotification(['user_id'=>$_as['assigned_to'],'type'=>'task_approved','title'=>'Task Approved','message'=>"Your submission for '{$_as['task_title']}' has been approved. {$_as['task_description']}",'related_id'=>$_as['task_id']]);
+        }
         
-        // Log activity
-        SubadminPermission::logActivity($userId, 'approve_submission', 'task_management', 'Approved submission ID: ' . $_POST['submission_id']);
-        
-        $result = ["status" => "SUCCESS", "msg" => "Submission approved successfully"];
-        
+        $result = ["status" => "SUCCESS", "msg" => "Submission approved successfully"];        
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
@@ -1028,7 +1154,7 @@ if($call == 1){
         // Update task with new assignee and status
         $updated = $db->execute("
             UPDATE task_tbl 
-            SET assigned_to = ?, task_status = 'transferred'
+            SET assigned_to = ?
             WHERE task_id = ?
         ", [$newAssignedTo, $taskId]);
         
@@ -1045,25 +1171,47 @@ if($call == 1){
                 'transferred_at' => date('Y-m-d H:i:s')
             ]);
             
-            $db->execute("
+		$db->execute("
                 INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted)
                 VALUES (?, ?, 'task_tbl', NOW())
             ", [$logData, 'Task Transfer: ' . $transferReason]);
             
+            // Send notifications
+            $notificationManager = new NotificationManager();
+            $newMemberFullName = $newMember['fname'] . ' ' . $newMember['lname'];
+            
+            // Notify the old assignee that their task was transferred away
+            if (!empty($task['assigned_to'])) {
+                $notificationManager->createNotification([
+                    'user_id' => $task['assigned_to'],
+                    'type' => 'task_transferred',
+                    'title' => 'Task Transferred Away',
+                    'message' => "Task '{$task['task_title']}' has been transferred to {$newMemberFullName}. Reason: {$transferReason}",
+                    'related_id' => $taskId
+                ]);
+            }
+            
+            // Notify the new assignee that a task was transferred to them
+            $notificationManager->createNotification([
+                'user_id' => $newAssignedTo,
+                'type' => 'task_transferred',
+                'title' => 'Task Transferred to You',
+                'message' => "Task '{$task['task_title']}' has been transferred to you. Reason: {$transferReason}",
+                'related_id' => $taskId
+            ]);
+            
             // Log activity
             SubadminPermission::logActivity($userId, 'transfer_task', 'task_management', 
-                "Transferred task ID {$taskId} to " . $newMember['fname'] . ' ' . $newMember['lname']);
+                "Transferred task ID {$taskId} to " . $newMemberFullName);
             
-            $result = ["status" => "SUCCESS", "msg" => "Task transferred successfully to " . $newMember['fname'] . ' ' . $newMember['lname']];
+            $result = ["status" => "SUCCESS", "msg" => "Task transferred successfully to " . $newMemberFullName];
         } else {
             throw new Exception("Failed to transfer task");
         }
     } catch(Exception $e) {
         $result = ["status" => "ERROR", "msg" => $e->getMessage()];
     }
-    echo json_encode($result);
-    
-}else if($call == 'close_cancel_task'){
+    echo json_encode($result);}else if($call == 'close_cancel_task'){
     // Close or cancel a task
     try {
         $userId = $_SESSION['user_id'] ?? 0;
@@ -1132,6 +1280,7 @@ if($call == 1){
             
             $actionText = $action === 'close' ? 'closed' : 'cancelled';
             $result = ["status" => "SUCCESS", "msg" => "Task {$actionText} successfully"];
+            if (!empty($task['assigned_to'])) (new NotificationManager())->createNotification(['user_id'=>$task['assigned_to'],'type'=>'task_'.$action,'title'=>'Task '.ucfirst($actionText),'message'=>"Task '{$task['task_title']}' has been {$actionText}. Reason: {$reason}",'related_id'=>$taskId]);
         } else {
             throw new Exception("Failed to update task status");
         }
@@ -1140,6 +1289,289 @@ if($call == 1){
     }
     echo json_encode($result);
     
+
+
+}else if($call == 57){
+    // View task details with submissions
+    $taskId = $_POST['task_id'] ?? 0;
+    try {
+        $db = Database::getInstance();
+        $task = $db->selectOne("SELECT t.*, tc.task_category, CONCAT(p.fname, ' ', p.lname) as assigned_member_name FROM task_tbl t LEFT JOIN task_category_tbl tc ON t.task_category_id = tc.task_category_id LEFT JOIN user_tbl u ON t.assigned_to = u.user_id LEFT JOIN profile_tbl p ON u.profile_id = p.profile_id WHERE t.task_id = ?", [$taskId]);
+        if (!$task) { echo json_encode(['status' => 'ERROR', 'msg' => 'Task not found']); exit; }
+        $submissions = $db->select("SELECT ts.task_submission_id, ts.check_status, COALESCE(NULLIF(f.original_filename, ''), f.file_name) as file_name, f.file_upload_id, f.datetime_uploaded as submitted_at, CONCAT(sp.fname, ' ', sp.lname) as student_name FROM task_submission_tbl ts INNER JOIN file_upload_tbl f ON ts.file_upload_id = f.file_upload_id INNER JOIN user_tbl su ON ts.submitted_by = su.user_id INNER JOIN profile_tbl sp ON su.profile_id = sp.profile_id WHERE ts.task_id = ? ORDER BY f.datetime_uploaded DESC", [$taskId]) ?: [];
+        $task['submissions'] = $submissions;
+        echo json_encode(['status' => 'SUCCESS', 'data' => $task]);
+    } catch(Exception $e) {
+        echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+    }
+    exit;
+
+}else if($call == 63){
+    // Get members for task assignment
+    try {
+        $db = Database::getInstance();
+        $members = $db->select("SELECT u.user_id, CONCAT(p.fname, ' ', p.lname) as full_name, pos.position FROM user_tbl u INNER JOIN profile_tbl p ON u.profile_id = p.profile_id INNER JOIN position_tbl pos ON u.position_id = pos.position_id WHERE u.user_type = 'student' ORDER BY p.fname, p.lname") ?: [];
+        echo json_encode(["status" => "SUCCESS", "data" => $members]);
+    } catch(Exception $e) {
+        echo json_encode(["status" => "ERROR", "msg" => $e->getMessage(), "data" => []]);
+    }
+    exit;
+
+}else if($call == 'extend_deadline'){
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        $taskId = intval($_POST['task_id'] ?? 0);
+        $newDeadline = trim($_POST['new_deadline'] ?? '');
+        $reason = trim($_POST['reason'] ?? '');
+        if (!$taskId || !$newDeadline) throw new Exception("Task ID and new deadline are required");
+        if (empty($reason)) throw new Exception("Reason is required");
+        if ($newDeadline <= date('Y-m-d')) throw new Exception("New deadline must be in the future");
+        $db = Database::getInstance();
+        $task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ?", [$taskId]);
+        if (!$task) throw new Exception("Task not found");
+        $db->execute("UPDATE task_tbl SET task_deadline = ?, task_status = 'active' WHERE task_id = ?", [$newDeadline, $taskId]);
+        $logData = json_encode(['task_id'=>$taskId,'task_title'=>$task['task_title'],'old_deadline'=>$task['task_deadline'],'new_deadline'=>$newDeadline,'reason'=>$reason,'extended_by'=>$userId,'extended_at'=>date('Y-m-d H:i:s')]);
+        $db->execute("INSERT INTO deleted_record_tbl (data_deleted, reason_for_deletion, table_origin, datetime_deleted) VALUES (?, ?, 'task_tbl', NOW())", [$logData, 'Deadline Extended: ' . $reason]);
+        if (!empty($task['assigned_to'])) {
+            $notificationManager = new NotificationManager();
+            $notificationManager->createNotification(['user_id'=>$task['assigned_to'],'type'=>'task_deadline_extended','title'=>'Task Deadline Extended','message'=>"The deadline for '{$task['task_title']}' has been extended to {$newDeadline}. Reason: {$reason}",'related_id'=>$taskId]);
+        }
+        echo json_encode(["status" => "SUCCESS", "msg" => "Deadline extended to {$newDeadline}"]);
+    } catch(Exception $e) {
+        echo json_encode(["status" => "ERROR", "msg" => $e->getMessage()]);
+    }
+    exit;
+
+}else if($call == 'reject_submission_by_task'){
+    $taskId = $_POST['task_id'] ?? 0;
+    try {
+        $db = Database::getInstance();
+        $_rj = $db->selectOne("SELECT t.assigned_to, t.task_title, t.task_description FROM task_tbl t WHERE t.task_id = ?", [$taskId]);
+        $db->execute("DELETE FROM task_submission_tbl WHERE task_id = ? AND LOWER(check_status) = 'pending'", [$taskId]);
+        if ($_rj && !empty($_rj['assigned_to'])) {
+            (new NotificationManager())->createNotification(['user_id'=>$_rj['assigned_to'],'type'=>'submission_rejected','title'=>'Submission Moved to Pending','message'=>"Your submission for '{$_rj['task_title']}' has been moved back to pending.",'related_id'=>$taskId]);
+        }
+        echo json_encode(['status' => 'SUCCESS', 'msg' => 'Submission rejected, task moved to pending']);
+    } catch(Exception $e) {
+        echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+    }
+    exit;
+
+}else if($call == 'revert_to_pending'){
+    $taskId = $_POST['task_id'] ?? 0;
+    try {
+        $db = Database::getInstance();
+        $_rv = $db->selectOne("SELECT t.assigned_to, t.task_title FROM task_tbl t WHERE t.task_id = ?", [$taskId]);
+        $db->execute("UPDATE task_submission_tbl SET check_status = 'pending' WHERE task_id = ? AND LOWER(check_status) = 'approved'", [$taskId]);
+        if ($_rv && !empty($_rv['assigned_to'])) {
+            (new NotificationManager())->createNotification(['user_id'=>$_rv['assigned_to'],'type'=>'task_reverted','title'=>'Task Moved to Awaiting Review','message'=>"Task '{$_rv['task_title']}' has been moved back to awaiting review.",'related_id'=>$taskId]);
+        }
+        echo json_encode(['status' => 'SUCCESS', 'msg' => 'Reverted to awaiting review']);
+    } catch(Exception $e) {
+        echo json_encode(['status' => 'ERROR', 'msg' => $e->getMessage()]);
+    }
+    exit;
+
+}else if($call === 'get_categories'){
+    try {
+        $categories = EntityManager::getAllFileCategories();
+        echo json_encode(["status" => "SUCCESS", "data" => $categories]);
+    } catch(Exception $e) {
+        echo json_encode(["status" => "ERROR", "msg" => $e->getMessage(), "data" => []]);
+    }
+    exit;
+
+}else if($call === 'conversational_smart_search') {
+    $message = trim($_POST["message"] ?? "");
+    $history = json_decode($_POST["history"] ?? "[]", true);
+    if(strlen($message) < 2) { echo json_encode(["success"=>false,"error"=>"Message too short"]); exit; }
+
+    $msg = strtolower($message);
+    $db = Database::getInstance();
+    $stopWords = ["the","is","it","a","an","and","or","but","in","on","at","to","for","of","with","by","from","this","that","these","those","was","were","be","been","being","have","has","had","do","does","did","will","would","could","should","may","might","shall","can","are","am","not","no","so","if","then","than","also","just","only","very","too","its","my","your","our","their","his","her","we","they","he","she","i","you","me","us","them","all","each","every","both","few","more","most","other","some","such","find","show","get","search","look","any","files","file","documents","document","give","list","about","related","regarding"];
+
+    $catRows = $db->select("SELECT category_name, category_slug FROM category_tbl");
+    $categoryMap = [];
+    foreach($catRows as $row) {
+        $name = strtolower($row["category_name"]);
+        $slug = strtolower($row["category_slug"]);
+        $categoryMap[$name] = $slug;
+        $categoryMap[$slug] = $slug;
+        if(substr($name, -1) !== 's') $categoryMap[$name . "s"] = $slug;
+        if(substr($slug, -1) !== 's') $categoryMap[$slug . "s"] = $slug;
+    }
+    $detectedCategory = null;
+    foreach($categoryMap as $term=>$cat) { if(strpos($msg, $term) !== false) { $detectedCategory = $cat; break; } }
+
+    $dateFilter = null;
+    if(preg_match("/today/", $msg)) $dateFilter = "today";
+    if(preg_match("/yesterday/", $msg)) $dateFilter = "yesterday";
+    if(preg_match("/this week/", $msg)) $dateFilter = "this_week";
+    if(preg_match("/last week/", $msg)) $dateFilter = "last_week";
+    if(preg_match("/this month|recent|latest/", $msg)) $dateFilter = "this_month";
+    if(preg_match("/last month/", $msg)) $dateFilter = "last_month";
+
+    $uploaderFilter = null;
+    if(preg_match("/(?:uploaded?\s+by|by|from)\s+(\w+)/", $msg, $um)) { $uploaderFilter = $um[1]; }
+
+    $mimeFilter = null;
+    $mimeMap = ["pdf"=>"pdf","word"=>"word","docx"=>"word","doc"=>"word","text"=>"text","txt"=>"text"];
+    foreach($mimeMap as $term=>$mime) { if(preg_match("/\b".$term."\b/", $msg)) { $mimeFilter = $mime; break; } }
+
+    $words = preg_split("/\s+/", $msg);
+    $catTerms = array_keys($categoryMap);
+    $excludeTerms = array_merge($catTerms, ["today","yesterday","week","month","last","recent","latest","uploaded","upload","pdf","word","docx","doc","text","txt","admin","subadmin","member"]);
+    if($uploaderFilter) $excludeTerms[] = $uploaderFilter;
+    $keywords = array_values(array_filter($words, function($w) use ($stopWords, $excludeTerms) {
+        if(strlen($w) < 3 || in_array($w, $stopWords) || in_array($w, $excludeTerms)) return false;
+        $singular = rtrim($w, 's');
+        if(in_array($singular, $excludeTerms)) return false;
+        return true;
+    }));
+
+    $hasFilters = $detectedCategory || $uploaderFilter || $mimeFilter || $dateFilter;
+    if(empty($keywords) && !$hasFilters && !empty($history)) {
+        $lastUser = array_filter($history, function($h){ return $h["role"]==="user"; });
+        $lastMsg = end($lastUser);
+        if($lastMsg) {
+            $prevWords = preg_split("/\s+/", strtolower($lastMsg["text"]));
+            $keywords = array_values(array_filter($prevWords, function($w) use ($stopWords) { return strlen($w) >= 3 && !in_array($w, $stopWords); }));
+        }
+    }
+
+    $sql = "SELECT f.file_upload_id, f.original_filename, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, u.user_name as uploaded_by, n.extracted_text FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id LEFT JOIN file_nlp_analysis_tbl n ON f.file_upload_id = n.file_upload_id WHERE 1=1";
+    $params = [];
+    if(!empty($keywords)) { $sql .= " AND n.extracted_text IS NOT NULL"; }
+
+    if($detectedCategory) {
+        $catSearch = str_replace("-", " ", $detectedCategory);
+        $sql .= " AND (LOWER(f.category_tag) LIKE ? OR LOWER(f.category_tag) LIKE ?)";
+        $params[] = "%".$catSearch."%";
+        $params[] = "%".str_replace(" ","-",$catSearch)."%";
+    }
+    if($dateFilter === "today") { $sql .= " AND DATE(f.datetime_uploaded) = CURDATE()"; }
+    elseif($dateFilter === "yesterday") { $sql .= " AND DATE(f.datetime_uploaded) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)"; }
+    elseif($dateFilter === "this_week") { $sql .= " AND f.datetime_uploaded >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)"; }
+    elseif($dateFilter === "last_week") { $sql .= " AND f.datetime_uploaded >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) AND f.datetime_uploaded < DATE_SUB(CURDATE(), INTERVAL 7 DAY)"; }
+    elseif($dateFilter === "this_month") { $sql .= " AND f.datetime_uploaded >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)"; }
+    elseif($dateFilter === "last_month") { $sql .= " AND f.datetime_uploaded >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) AND f.datetime_uploaded < DATE_SUB(CURDATE(), INTERVAL 30 DAY)"; }
+    if($uploaderFilter) { $sql .= " AND (LOWER(u.user_name) LIKE ? OR LOWER(u.user_type) LIKE ?)"; $params[] = "%".$uploaderFilter."%"; $params[] = "%".$uploaderFilter."%"; }
+    if($mimeFilter) { $sql .= " AND f.mime_type LIKE ?"; $params[] = "%".$mimeFilter."%"; }
+
+    $sql .= " ORDER BY f.datetime_uploaded DESC LIMIT 100";
+
+    try { $allFiles = $db->select($sql, $params); } catch(Exception $e) { echo json_encode(["success"=>false,"error"=>"DB Error: ".$e->getMessage()]); exit; }
+    $results = [];
+
+    foreach($allFiles as $file) {
+        $text = strtolower(substr($file["extracted_text"] ?? "", 0, 10000));
+        $fname = strtolower($file["original_filename"]);
+        $matchedWords = [];
+        foreach($keywords as $kw) { if(strpos($text, $kw) !== false || strpos($fname, $kw) !== false) $matchedWords[] = $kw; }
+
+        $hasFilters = $detectedCategory || $uploaderFilter || $mimeFilter || $dateFilter;
+        if(!empty($matchedWords) || (empty($keywords) && $hasFilters)) {
+            $file["matched_keywords"] = $matchedWords;
+            $file["match_count"] = empty($keywords) ? 1 : count($matchedWords);
+            $file["total_keywords"] = empty($keywords) ? 1 : count($keywords);
+            $rawText = $file["extracted_text"] ?? "";
+            $idx = !empty($matchedWords) ? (strpos(strtolower($rawText), $matchedWords[0]) ?: 0) : 0;
+            $start = max(0, $idx - 60);
+            $file["snippet"] = substr($rawText, $start, 200);
+            unset($file["extracted_text"]);
+            $results[] = $file;
+        }
+    }
+    usort($results, function($a,$b){ return $b["match_count"] - $a["match_count"]; });
+    $results = array_slice($results, 0, 10);
+
+    $count = count($results);
+    if($count > 0) {
+        $context = [];
+        if($detectedCategory) $context[] = "in " . ucwords(str_replace("-"," ",$detectedCategory));
+        if($uploaderFilter) $context[] = "uploaded by " . ucfirst($uploaderFilter);
+        if($dateFilter) { $dateLabels = ["today"=>"today","yesterday"=>"yesterday","this_week"=>"this week","last_week"=>"last week","this_month"=>"this month","last_month"=>"last month"]; $context[] = $dateLabels[$dateFilter] ?? ""; }
+        if($mimeFilter) $context[] = strtoupper($mimeFilter) . " files";
+        $ctxStr = !empty($context) ? " (" . implode(", ", $context) . ")" : "";
+        if(!empty($keywords)) { $reply = "Found {$count} file" . ($count>1?"s":"") . "{$ctxStr} matching \"" . implode(", ", $keywords) . "\":"; }
+        else { $reply = "Here are {$count} file" . ($count>1?"s":"") . "{$ctxStr}:"; }
+    } else {
+        $reply = "I couldn't find any files matching that. Try different keywords, or filter by category, uploader, date (yesterday, this week), or doc type (pdf, docx).";
+    }
+
+    echo json_encode(["success"=>true, "reply"=>$reply, "files"=>$results, "debug"=>["category"=>$detectedCategory,"uploader"=>$uploaderFilter,"date"=>$dateFilter,"mime"=>$mimeFilter,"keywords"=>$keywords]]);
+    exit;
+
+}else if($call === 'file_explorer') {
+    $action = $_POST["action"] ?? "";
+    $db = Database::getInstance();
+    if ($action === "get_folders") {
+        $folders = $db->select("SELECT c.category_id, c.category_name, COUNT(f.file_upload_id) as file_count FROM category_tbl c LEFT JOIN file_upload_tbl f ON c.category_id = f.category_id GROUP BY c.category_id, c.category_name ORDER BY c.category_name");
+        echo json_encode(["success" => true, "folders" => $folders]);
+    } elseif ($action === "get_files") {
+        $categoryId = intval($_POST["category_id"] ?? 0);
+        $files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.category_id = ? ORDER BY f.datetime_uploaded DESC", [$categoryId]);
+        echo json_encode(["success" => true, "files" => $files]);
+    } elseif ($action === "search") {
+        $query = "%" . ($_POST["query"] ?? "") . "%";
+        $overriddenOnly = ($_POST["overridden_only"] ?? "0") === "1";
+        $where = "f.original_filename LIKE ?";
+        if ($overriddenOnly) $where .= " AND f.is_overridden = 1";
+        $files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE $where ORDER BY f.datetime_uploaded DESC LIMIT 50", [$query]);
+        echo json_encode(["success" => true, "files" => $files]);
+    } elseif ($action === "get_overridden") {
+        $files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.is_overridden = 1 ORDER BY f.datetime_uploaded DESC");
+        echo json_encode(["success" => true, "files" => $files]);
+    } elseif ($action === "delete_file") {
+        $fileId = intval($_POST["file_id"] ?? 0);
+        $db->execute("DELETE FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+        echo json_encode(["success" => true]);
+    } else {
+        echo json_encode(["success" => false, "error" => "Invalid action"]);
+    }
+    exit;
+
+}else if($call === 'reclassify_file') {
+    $fileId = intval($_POST['file_id'] ?? 0);
+    $newCategory = trim($_POST['new_category'] ?? '');
+    if(!$fileId || !$newCategory) { echo json_encode(['success'=>false,'error'=>'Missing parameters']); exit; }
+    $db = Database::getInstance();
+    $_ovr = $db->selectOne("SELECT setting_value FROM system_settings_tbl WHERE setting_key = 'allow_manual_override'");
+    if(($_ovr['setting_value'] ?? '1') !== '1') { echo json_encode(['success'=>false,'error'=>'Manual override is currently disabled']); exit; }
+    $_roles = $db->selectOne("SELECT setting_value FROM system_settings_tbl WHERE setting_key = 'override_roles_file_explorer'");
+    if(!in_array('subadmin', json_decode($_roles['setting_value'] ?? '[]', true) ?: [])) { echo json_encode(['success'=>false,'error'=>'Sub-admins are not allowed to override classification']); exit; }
+    $file = $db->selectOne("SELECT * FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+    if(!$file) { echo json_encode(['success'=>false,'error'=>'File not found']); exit; }
+    $oldCategory = $file['category_tag'];
+    $cat = $db->selectOne("SELECT category_id FROM category_tbl WHERE category_name = ?", [$newCategory]);
+    $categoryId = $cat ? $cat['category_id'] : $file['category_id'];
+    $originalTag = $file['is_overridden'] ? $file['original_category_tag'] : $oldCategory;
+    $isOverridden = ($newCategory !== $originalTag) ? 1 : 0;
+    $db->execute("UPDATE file_upload_tbl SET category_id = ?, category_tag = ?, is_overridden = ?, original_category_tag = ? WHERE file_upload_id = ?", [$categoryId, $newCategory, $isOverridden, $originalTag, $fileId]);
+    echo json_encode(['success'=>true]);
+    exit;
+
+}else if($call == 68){
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        if (!SubadminPermission::hasPermission($userId, 'user_management', 'view')) {
+            throw new Exception("Permission denied");
+        }
+        $userManager = new UserManager();
+        $users = $userManager->getAllUsers();
+        echo json_encode(["data" => $users ?: []]);
+    } catch(Exception $e) {
+        echo json_encode(["data" => []]);
+    }
+}else if($call == 69){
+    // Mark all notifications as read
+    try {
+        $userId = $_SESSION['user_id'] ?? 0;
+        Database::getInstance()->execute("UPDATE notifications_tbl SET is_read=1 WHERE user_id=? AND is_read=0", [$userId]);
+        echo json_encode(["status" => "SUCCESS"]);
+    } catch(Exception $e) {
+        echo json_encode(["status" => "ERROR"]);
+    }
 }else{
     echo json_encode(["status" => "ERROR", "msg" => "Invalid call"]);
 }
@@ -1172,12 +1604,13 @@ if (isset($_GET['CALL']) && $_GET['CALL'] == 25 && isset($_GET['file_id'])) {
             throw new Exception("File does not exist on server");
         }
         
+        $displayName = !empty($file['original_filename']) ? $file['original_filename'] : $file['file_name'];
         // Log download activity
-        SubadminPermission::logActivity($userId, 'download_file', 'file_management', 'Downloaded file: ' . $file['file_name']);
+        SubadminPermission::logActivity($userId, 'download_file', 'file_management', 'Downloaded file: ' . $displayName);
         
         // Set headers for download
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . $file['file_name'] . '"');
+        header('Content-Disposition: attachment; filename="' . $displayName . '"');
         header('Content-Length: ' . filesize($filePath));
         header('Cache-Control: must-revalidate');
         header('Pragma: public');

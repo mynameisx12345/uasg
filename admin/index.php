@@ -12,196 +12,38 @@
   <script src='../js/jquery.js'></script>
   <script src='../js/datatable.js'></script>
   <style>
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    
-    .stat-card {
-      background: white;
-      padding: 25px;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      position: relative;
-    }
-    
-    .stat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      border-color: #2196f3;
-    }
-    
-    .stat-icon {
-      font-size: 32px;
-      opacity: 0.6;
-      margin-bottom: 10px;
-      display: block;
-    }
-    
-    .stat-value {
-      font-size: 36px;
-      font-weight: 700;
-      color: #2196f3;
-      margin: 10px 0;
-      line-height: 1;
-    }
-    
-    .stat-label {
-      font-size: 13px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-    
-    .stat-trend {
-      font-size: 12px;
-      color: #999;
-      margin-top: 8px;
-    }
-    
-    .chart-container {
-      background: white;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-      margin-bottom: 30px;
-    }
-    
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #f0f0f0;
-    }
-    
-    .chart-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .activity-item {
-      display: flex;
-      align-items: center;
-      padding: 15px;
-      border-bottom: 1px solid #f0f0f0;
-      transition: background 0.2s ease;
-    }
-    
-    .activity-item:hover {
-      background: #f8f9fa;
-    }
-    
-    .activity-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 15px;
-      font-size: 18px;
-    }
-    
-    .activity-icon.upload {
-      background: #e3f2fd;
-      color: #2196f3;
-    }
-    
-    .activity-details {
-      flex: 1;
-    }
-    
-    .activity-user {
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .activity-action {
-      color: #666;
-      font-size: 14px;
-    }
-    
-    .activity-time {
-      color: #999;
-      font-size: 12px;
-    }
-    
-    .category-bar {
-      margin-bottom: 15px;
-    }
-    
-    .category-label {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 5px;
-      font-size: 14px;
-    }
-    
-    .category-progress {
-      height: 8px;
-      background: #f0f0f0;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .category-fill {
-      height: 100%;
-      background: #2196f3;
-      transition: width 0.5s ease;
-    }
-    
-    .loading-skeleton {
-      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-      background-size: 200% 100%;
-      animation: loading 1.5s infinite;
-      border-radius: 4px;
-    }
-    
-    @keyframes loading {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-    
-    .user-activity-list {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    
-    .user-activity-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .user-badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    
-    .user-badge.student {
-      background: #e3f2fd;
-      color: #2196f3;
-    }
-    
-    .user-badge.subadmin {
-      background: #f3e5f5;
-      color: #9c27b0;
-    }
+    .dashboard-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px; margin-bottom:30px; }
+    .stat-card { background:#fff; padding:20px; border-radius:12px; border:none; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:transform 0.2s,box-shadow 0.2s; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#7b1228,#c89b2e); opacity:0.8; }
+    .stat-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(123,18,40,0.08); }
+    .stat-icon { font-size:28px; margin-bottom:8px; display:block; }
+    .stat-value { font-size:32px; font-weight:700; color:#1e293b; margin:8px 0; line-height:1; }
+    .stat-label { font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; font-weight:600; }
+    .stat-trend { font-size:11px; color:#b0b8c4; margin-top:6px; }
+    .chart-container { background:transparent; padding:16px; border-radius:12px; box-shadow:none; border:none; margin-bottom:30px; }
+    .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:0; border-bottom:none; }
+    .chart-title { font-size:15px; font-weight:600; color:#1e293b; }
+    .activity-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f1f5f9; transition:all 0.15s; border-radius:8px; margin-bottom:2px; }
+    .activity-item:hover { background:rgba(123,18,40,0.02); }
+    .activity-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; margin-right:14px; font-size:16px; }
+    .activity-icon.upload { background:rgba(123,18,40,0.06); color:#7b1228; }
+    .activity-details { flex:1; }
+    .activity-user { font-weight:600; color:#1e293b; font-size:13px; }
+    .activity-action { color:#64748b; font-size:13px; }
+    .activity-time { color:#94a3b8; font-size:11px; margin-top:3px; }
+    .category-bar { margin-bottom:0; padding:12px 0; background:transparent; border-radius:0; border-left:none; border-top:1px solid #f1f5f9; }
+    .category-bar:first-child { border-top:none; }
+    .category-label { display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; color:#475569; }
+    .category-progress { height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
+    .category-fill { height:100%; background:linear-gradient(90deg,#7b1228,#c89b2e); border-radius:3px; transition:width 0.6s ease; }
+    .loading-skeleton { background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%); background-size:200% 100%; animation:loading 1.5s infinite; border-radius:4px; }
+    @keyframes loading { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .user-activity-list { max-height:400px; overflow-y:auto; }
+    .user-activity-item { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; margin-bottom:4px; background:#fafbfc; border-radius:8px; transition:all 0.15s; }
+    .user-activity-item:hover { background:#f1f5f9; }
+    .user-badge { display:inline-block; padding:3px 8px; border-radius:10px; font-size:10px; font-weight:600; text-transform:uppercase; }
+    .user-badge.student { background:rgba(123,18,40,0.08); color:#7b1228; }
+    .user-badge.subadmin { background:rgba(200,155,46,0.12); color:#b38712; }
   </style>
 </head>
 <body>
@@ -216,123 +58,75 @@
 
     <!-- CONTENT -->
     <section class="content">
-      <div class="page-header" style="margin-bottom: 30px;">
-        <h1 style="font-size: 32px; font-weight: 700; color: #333;">
-          <i class="fas fa-chart-line"></i> Dashboard Overview
-        </h1>
-        <p style="color: #666; margin-top: 5px;">Real-time system statistics and activity monitoring</p>
+    </section>
+      <!-- Stat Cards -->
+      <div class="dashboard-grid" style="grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px;">
+        <div class="stat-card"><span class="stat-icon">📁</span><div class="stat-label">Files</div><div class="stat-value" id="totalFiles">—</div><div class="stat-trend">Uploaded to system</div></div>
+        <div class="stat-card"><span class="stat-icon">🗂️</span><div class="stat-label">Categories</div><div class="stat-value" id="totalCategories">—</div><div class="stat-trend">Distinct file types</div></div>
+        <div class="stat-card"><span class="stat-icon">⏳</span><div class="stat-label">Pending</div><div class="stat-value" id="pendingTasks">—</div><div class="stat-trend">Awaiting submission</div></div>
+        <div class="stat-card"><span class="stat-icon">✅</span><div class="stat-label">Approved</div><div class="stat-value" id="totalSubmissions">—</div><div class="stat-trend">Approved tasks</div></div>
+        <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-label">Storage</div><div class="stat-value" id="totalStorage">—</div><div class="stat-trend">Total file size</div></div>
+        <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-label">Task Types</div><div class="stat-value" id="totalTaskCategories">—</div><div class="stat-trend">Classification types</div></div>
+        <div class="stat-card"><span class="stat-icon">🎓</span><div class="stat-label">Members</div><div class="stat-value" id="activeMembers">—</div><div class="stat-trend">Student accounts</div></div>
+        <div class="stat-card"><span class="stat-icon">👨‍🏫</span><div class="stat-label">Advisers</div><div class="stat-value" id="totalAdvisers">—</div><div class="stat-trend">Active subadmins</div></div>
       </div>
 
-      <!-- Overview Cards -->
-      <div class="dashboard-grid">
-        <div class="stat-card">
-          <span class="stat-icon">📁</span>
-          <div class="stat-label">Total Files</div>
-          <div class="stat-value" id="totalFiles">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
+      <!-- Middle Row: Category + Active Users -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="chart-container" style="border-top:2px solid #cbd5e1;padding-top:20px;">
+          <div class="chart-header"><div class="chart-title">📊 Files by Category</div></div>
+          <div style="position:relative;">
+            <div id="catShadowTop" style="position:absolute;top:0;left:0;right:0;height:18px;background:linear-gradient(to bottom,rgba(255,255,255,0.95),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;"></div>
+            <div id="categoryStats" style="max-height:280px;overflow-y:auto;" onscroll="catScrollShadow()"></div>
+            <div id="catShadowBottom" style="position:absolute;bottom:0;left:0;right:0;height:18px;background:linear-gradient(to top,rgba(255,255,255,0.95),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;"></div>
           </div>
-          <div class="stat-trend">Uploaded to system</div>
         </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">🗂️</span>
-          <div class="stat-label">Categories</div>
-          <div class="stat-value" id="totalCategories">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
+        <div class="chart-container" style="border-top:2px solid #cbd5e1;padding-top:20px;">
+          <div class="chart-header"><div class="chart-title">🏆 Most Active Users</div></div>
+          <div style="position:relative;">
+            <div id="userShadowTop" style="position:absolute;top:0;left:0;right:0;height:18px;background:linear-gradient(to bottom,rgba(255,255,255,0.95),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;"></div>
+            <div id="userStats" class="user-activity-list" style="max-height:280px;overflow-y:auto;" onscroll="userScrollShadow()"></div>
+            <div id="userShadowBottom" style="position:absolute;bottom:0;left:0;right:0;height:18px;background:linear-gradient(to top,rgba(255,255,255,0.95),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;"></div>
           </div>
-          <div class="stat-trend">Active categories</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">👥</span>
-          <div class="stat-label">Total Users</div>
-          <div class="stat-value" id="totalUsers">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Registered members</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">⏳</span>
-          <div class="stat-label">Pending Tasks</div>
-          <div class="stat-value" id="pendingTasks">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Awaiting submission</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">🎓</span>
-          <div class="stat-label">Active Members</div>
-          <div class="stat-value" id="activeMembers">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Student accounts</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">👨‍🏫</span>
-          <div class="stat-label">Advisers</div>
-          <div class="stat-value" id="totalAdvisers">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Active subadmins</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">✅</span>
-          <div class="stat-label">Submissions</div>
-          <div class="stat-value" id="totalSubmissions">
-            <div class="loading-skeleton" style="width: 60px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Task submissions</div>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-icon">�</span>
-          <div class="stat-label">Total Storage</div>
-          <div class="stat-value" id="totalStorage">
-            <div class="loading-skeleton" style="width: 80px; height: 36px;"></div>
-          </div>
-          <div class="stat-trend">Files size</div>
-        </div>
-      </div>
-
-      <!-- Charts Row -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-        <!-- Files by Category -->
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">
-              <i class="fas fa-chart-bar"></i> Files by Category
-            </div>
-          </div>
-          <div id="categoryStats"></div>
-        </div>
-        
-        <!-- Top Users -->
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">
-              <i class="fas fa-users"></i> Most Active Users
-            </div>
-          </div>
-          <div id="userStats" class="user-activity-list"></div>
         </div>
       </div>
 
       <!-- Recent Activity -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <div class="chart-title">
-            <i class="fas fa-history"></i> Recent Activity
-          </div>
-          <button onclick="refreshDashboard()" style="padding: 8px 16px; border: none; background: #2196f3; color: white; border-radius: 6px; cursor: pointer; font-size: 13px;">
-            <i class="fas fa-sync-alt"></i> Refresh
-          </button>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:14px;font-weight:600;color:#94a3b8;">Recent Activity</div>
+          <button onclick="refreshDashboard()" style="padding:4px 10px;border:1px solid #e2e8f0;background:none;color:#94a3b8;border-radius:4px;cursor:pointer;font-size:10px;">↻ Refresh</button>
         </div>
-        <div id="recentActivity"></div>
+        <div id="recentActivityWrap" style="position:relative;">
+          <div id="raShadowTop" style="position:absolute;top:0;left:0;right:0;height:18px;background:linear-gradient(to bottom,rgba(241,245,249,0.9),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;border-radius:4px 4px 0 0;"></div>
+          <div id="recentActivity" style="max-height:350px;overflow-y:auto;position:relative;" onscroll="raScrollShadow()"></div>
+          <div id="raShadowBottom" style="position:absolute;bottom:0;left:0;right:0;height:18px;background:linear-gradient(to top,rgba(241,245,249,0.9),transparent);pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:1;border-radius:0 0 4px 4px;"></div>
+        </div>
       </div>
+      <script>
+      function raScrollShadow(){
+        var el=document.getElementById('recentActivity');
+        var top=document.getElementById('raShadowTop');
+        var bot=document.getElementById('raShadowBottom');
+        top.style.opacity=el.scrollTop>5?'1':'0';
+        bot.style.opacity=(el.scrollHeight-el.scrollTop-el.clientHeight)>5?'1':'0';
+      }
+      function catScrollShadow(){
+        var el=document.getElementById('categoryStats');
+        var top=document.getElementById('catShadowTop');
+        var bot=document.getElementById('catShadowBottom');
+        top.style.opacity=el.scrollTop>5?'1':'0';
+        bot.style.opacity=(el.scrollHeight-el.scrollTop-el.clientHeight)>5?'1':'0';
+      }
+      function userScrollShadow(){
+        var el=document.getElementById('userStats');
+        var top=document.getElementById('userShadowTop');
+        var bot=document.getElementById('userShadowBottom');
+        top.style.opacity=el.scrollTop>5?'1':'0';
+        bot.style.opacity=(el.scrollHeight-el.scrollTop-el.clientHeight)>5?'1':'0';
+      }
+      setTimeout(function(){ raScrollShadow(); catScrollShadow(); userScrollShadow(); },1000);
+      </script>
     </section>
   </main>
 
@@ -351,6 +145,7 @@
             // Update stat cards with animation
             animateValue('totalFiles', 0, data.totalFiles, 1000);
             animateValue('totalCategories', 0, data.totalCategories, 1000);
+            animateValue('totalTaskCategories', 0, data.totalTaskCategories, 1000);
             animateValue('totalUsers', 0, data.totalUsers, 1000);
             animateValue('pendingTasks', 0, data.pendingTasks, 1000);
             animateValue('activeMembers', 0, data.activeMembers, 1000);
@@ -415,13 +210,13 @@
       const container = document.getElementById('recentActivity');
       
       if(activities.length === 0) {
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No recent activity found</div>';
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">No recent activity found</div>';
         return;
       }
       
       let html = '';
       activities.forEach(activity => {
-        const date = new Date(activity.date);
+        const date = new Date(activity.date.replace(' ', 'T') + '+08:00');
         const timeAgo = getTimeAgo(date);
         
         html += `
@@ -437,7 +232,7 @@
               </div>
               <div class="activity-time">
                 <i class="far fa-clock"></i> ${timeAgo}
-                ${activity.category ? ` • <span style="color: #2196f3;">${activity.category}</span>` : ''}
+                ${activity.category ? ` • <span style="color: #1e293b;">${activity.category}</span>` : ''}
               </div>
             </div>
           </div>
@@ -452,7 +247,7 @@
       const container = document.getElementById('categoryStats');
       
       if(stats.length === 0) {
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No data available</div>';
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">No data available</div>';
         return;
       }
       
@@ -489,7 +284,7 @@
       const container = document.getElementById('userStats');
       
       if(stats.length === 0) {
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No user activity found</div>';
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;">No user activity found</div>';
         return;
       }
       
@@ -500,15 +295,15 @@
         html += `
           <div class="user-activity-item">
             <div>
-              <div style="font-weight: 600; color: #333;">${stat.user_name}</div>
-              <div style="font-size: 12px; color: #999; margin-top: 2px;">
+              <div style="font-weight: 600; font-size: 13px; color: #1e293b;">${stat.user_name}</div>
+              <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">
                 <span class="user-badge ${stat.user_type}">${stat.user_type}</span>
                 Last upload: ${lastUpload}
               </div>
             </div>
             <div style="text-align: right;">
-              <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${stat.uploads}</div>
-              <div style="font-size: 11px; color: #999;">uploads</div>
+              <div style="font-size: 18px; font-weight: 700; color: #7b1228;">${stat.uploads}</div>
+              <div style="font-size: 11px; color: #94a3b8;">uploads</div>
             </div>
           </div>
         `;

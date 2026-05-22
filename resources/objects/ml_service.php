@@ -6,11 +6,11 @@
  */
 
 class MLClassificationService {
-    private $db;
-    private $pythonPath;
-    private $mlScriptPath;
-    private $modelsDir;
-    private $datasetsDir;
+    protected $db;
+    protected $pythonPath;
+    protected $mlScriptPath;
+    protected $modelsDir;
+    protected $datasetsDir;
     
     public function __construct() {
         $this->db = Database::getInstance();
@@ -84,60 +84,249 @@ class MLClassificationService {
      */
     public function uploadDataset($file, $datasetName, $description, $uploadedBy) {
         try {
-            // Validate file
-            if ($file['error'] !== UPLOAD_ERR_OK) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDATE FILE
+            |--------------------------------------------------------------------------
+            */
+
+            if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
                 throw new Exception('File upload error');
             }
-            
-            // Check file type
+
+            // Validate extension
             $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
             if ($fileExt !== 'csv') {
                 throw new Exception('Only CSV files are allowed');
             }
-            
-            // Generate unique filename
-            $filename = uniqid('dataset_') . '_' . time() . '.csv';
-            $filePath = $this->datasetsDir . $filename;
-            
-            // Move uploaded file
+
+            // Validate file size (optional - 20MB limit)
+            $maxSize = 20 * 1024 * 1024;
+
+            if ($file['size'] > $maxSize) {
+                throw new Exception('File exceeds maximum size of 20MB');
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | GENERATE FILE NAME
+            |--------------------------------------------------------------------------
+            */
+
+            $filename = uniqid('dataset_', true) . '_' . time() . '.csv';
+
+            $filePath = rtrim($this->datasetsDir, '/') . '/' . $filename;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE FILE
+            |--------------------------------------------------------------------------
+            */
+
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-                throw new Exception('Failed to save file');
+                throw new Exception('Failed to save uploaded dataset');
             }
-            
-            // Validate CSV structure using Python
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDATE CSV STRUCTURE USING PYTHON
+            |--------------------------------------------------------------------------
+            */
+
             $validation = $this->validateDatasetCSV($filePath);
-            
+
             if (!$validation['success']) {
-                unlink($filePath); // Delete invalid file
-                throw new Exception($validation['error']);
+
+                // Remove invalid file
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+
+                throw new Exception($validation['error'] ?? 'Dataset validation failed');
             }
-            
-            // Save to database
-            $query = "INSERT INTO ml_training_datasets_tbl 
-                      (dataset_name, file_path, total_samples, categories_count, categories, uploaded_by, description)
-                      VALUES (?, ?, ?, ?, ?, ?, ?)";
-            
-            $categoriesJson = json_encode($validation['categories']);
-            
-            $result = $this->db->insert($query, [
-                $datasetName,
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PREPARE CATEGORY DATA
+            |--------------------------------------------------------------------------
+            */
+
+            $categories = $validation['categories'] ?? [];
+
+            if (empty($categories)) {
+
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+
+                throw new Exception('No categories found in dataset');
+            }
+
+            // Normalize category names
+            $normalizedCategories = [];
+
+            foreach ($categories as $category) {
+
+                $category = trim($category);
+
+                if (empty($category)) {
+                    continue;
+                }
+
+                // Normalize casing
+                $category = ucwords(strtolower($category));
+
+                $normalizedCategories[] = $category;
+            }
+
+            // Remove duplicates
+            $normalizedCategories = array_unique($normalizedCategories);
+
+            // Re-index array
+            $normalizedCategories = array_values($normalizedCategories);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE DATASET RECORD
+            |--------------------------------------------------------------------------
+            */
+
+            $query = "
+                INSERT INTO ml_training_datasets_tbl (
+                    dataset_name,
+                    file_path,
+                    total_samples,
+                    categories_count,
+                    categories,
+                    uploaded_by,
+                    description
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ";
+
+            $categoriesJson = json_encode($normalizedCategories);
+
+            $datasetId = $this->db->insert($query, [
+                trim($datasetName),
                 'uploads/ml_datasets/' . $filename,
-                $validation['total_samples'],
-                $validation['categories_count'],
+                (int)$validation['total_samples'],
+                count($normalizedCategories),
                 $categoriesJson,
                 $uploadedBy,
-                $description
+                trim($description)
             ]);
-            
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AUTO SAVE CATEGORIES TO category_tbl
+            |--------------------------------------------------------------------------
+            */
+
+            $insertedCategories = [];
+            $existingCategories = [];
+
+            foreach ($normalizedCategories as $categoryName) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | GENERATE SLUG
+                |--------------------------------------------------------------------------
+                */
+
+                $categorySlug = strtolower($categoryName);
+
+                $categorySlug = preg_replace('/[^a-z0-9]+/', '-', $categorySlug);
+
+                $categorySlug = trim($categorySlug, '-');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CHECK EXISTING CATEGORY
+                |--------------------------------------------------------------------------
+                */
+
+                $existing = $this->db->selectOne(
+                    "
+                    SELECT category_id
+                    FROM category_tbl
+                    WHERE category_name = ?
+                    OR category_slug = ?
+                    LIMIT 1
+                    ",
+                    [
+                        $categoryName,
+                        $categorySlug
+                    ]
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | INSERT CATEGORY
+                |--------------------------------------------------------------------------
+                */
+
+                if (!$existing) {
+
+                    $categoryDescription =
+                        'Auto-generated from ML dataset upload: ' .
+                        trim($datasetName);
+
+                    $this->db->insert(
+                        "
+                        INSERT INTO category_tbl (
+                            category_name,
+                            category_slug,
+                            description
+                        )
+                        VALUES (?, ?, ?)
+                        ",
+                        [
+                            $categoryName,
+                            $categorySlug,
+                            $categoryDescription
+                        ]
+                    );
+
+                    $insertedCategories[] = $categoryName;
+
+                } else {
+
+                    $existingCategories[] = $categoryName;
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SUCCESS RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
             return [
                 'success' => true,
-                'dataset_id' => $result,
-                'total_samples' => $validation['total_samples'],
-                'categories' => $validation['categories'],
-                'categories_count' => $validation['categories_count']
+                'dataset_id' => $datasetId,
+                'dataset_name' => $datasetName,
+                'total_samples' => (int)$validation['total_samples'],
+                'categories_count' => count($normalizedCategories),
+                'categories' => $normalizedCategories,
+                'inserted_categories' => $insertedCategories,
+                'existing_categories' => $existingCategories,
+                'file_path' => 'uploads/ml_datasets/' . $filename,
+                'message' => 'Dataset uploaded successfully'
             ];
-            
+
         } catch (Exception $e) {
+
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -158,6 +347,12 @@ class MLClassificationService {
             
             // Check header
             $header = fgetcsv($handle);
+            if ($header) {
+                // Strip UTF-8 BOM from first column (added by Excel when saving as CSV)
+                $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
+                // Trim whitespace from all header names and lowercase them
+                $header = array_map(function($h) { return strtolower(trim($h)); }, $header);
+            }
             if (!$header || !in_array('text', $header) || !in_array('category', $header)) {
                 fclose($handle);
                 throw new Exception('CSV must have "text" and "category" columns');
@@ -380,8 +575,11 @@ PYTHON;
             $vectorizerPath = str_replace('\\', '/', $vectorizerPath);
             $mlScriptDir = str_replace('\\', '/', dirname($this->mlScriptPath));
             
-            // Escape text for Python string (escape single quotes and backslashes)
-            $textEscaped = str_replace(['\\', "'"], ['\\\\', "\\'"], $text);
+            // Write text to a temp JSON file — avoids ALL string escaping issues
+            // (newlines, unicode, smart quotes from Word docs, etc.)
+            $tempTextFile = tempnam(sys_get_temp_dir(), 'ml_text_') . '.json';
+            file_put_contents($tempTextFile, json_encode(['text' => $text], JSON_UNESCAPED_UNICODE));
+            $tempTextFileNorm = str_replace('\\', '/', $tempTextFile);
             
             // Create temporary Python script (better for Windows)
             $tempScript = tempnam(sys_get_temp_dir(), 'ml_predict_') . '.py';
@@ -391,11 +589,15 @@ sys.path.append('{$mlScriptDir}')
 from ml_classifier import MLDocumentClassifier
 import json
 
+# Read text from temp file to avoid any string escaping issues
+with open('{$tempTextFileNorm}', 'r', encoding='utf-8') as f:
+    payload = json.load(f)
+text = payload['text']
+
 classifier = MLDocumentClassifier()
 load_result = classifier.load_model('{$modelPath}', '{$vectorizerPath}')
 
 if load_result['success']:
-    text = '{$textEscaped}'
     result = classifier.predict(text, return_probabilities=True)
     print(json.dumps(result))
 else:
@@ -433,12 +635,14 @@ PYTHON;
                     'prediction_time_ms' => $result['prediction_time_ms'],
                     'model_id' => $modelId,
                     'model_name' => $model['model_name'],
-                    'all_scores' => $result['all_scores'] ?? []
+                    'all_scores' => $result['all_scores'] ?? [],
+                    'top_keywords' => $result['top_keywords'] ?? []
                 ];
                 
             } finally {
-                // Clean up temp file
+                // Clean up temp files
                 @unlink($tempScript);
+                @unlink($tempTextFile);
             }
             
         } catch (Exception $e) {
@@ -461,12 +665,14 @@ PYTHON;
     }
     
     /**
-     * Update ML setting
+     * Update ML setting (inserts if the key doesn't exist yet)
      */
     public function updateSetting($key, $value, $userId = null) {
         return $this->db->execute(
-            "UPDATE ml_settings_tbl SET setting_value = ?, updated_by = ? WHERE setting_key = ?",
-            [$value, $userId, $key]
+            "INSERT INTO ml_settings_tbl (setting_key, setting_value, updated_by)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)",
+            [$key, $value, $userId]
         );
     }
     

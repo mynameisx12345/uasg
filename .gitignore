@@ -1,0 +1,11 @@
+.DS_Store
+.vscode/
+uploads/files/
+uploads/ml_models/
+uploads/ml_datasets/
+uploads/training_files/
+uploads/test/
+uploads/.DS_Store
+resources/ml/__pycache__/
+.user.ini
+start.sh

@@ -563,8 +563,6 @@ header("Expires: 0");
 					}
 				},
 				responsive: true,
-				scrollY: '50vh',
-				scrollCollapse: true,
 				paging: true,
 				columns: [
 					{ data: "file_upload_id" },

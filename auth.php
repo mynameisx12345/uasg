@@ -12,6 +12,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once("resources/auth.php");
+require_once("resources/objects/db_config.php");
+require_once("resources/migrations.php");
+(new MigrationRunner())->runPending();
 
 // Only set JSON header for AJAX requests
 if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {

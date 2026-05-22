@@ -3,6 +3,7 @@ require_once __DIR__ . '/../resources/objects/db_config.php';
 require_once __DIR__ . '/../resources/objects/main_class.php';
 
 session_start();
+$embedMode = isset($_GET['embed']);
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit;
@@ -93,8 +94,8 @@ if (!isset($_SESSION['user_id'])) {
   <script src='../js/datatable.js'></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-  <!-- HEADER -->
+<body<?php if($embedMode) echo ' style="padding:0;margin:0;background:transparent;"'; ?>>
+  <?php if(!$embedMode): ?>
   <?php require_once("header.php");?>
   <header class="topbar">
     <h1>Reports & Analytics</h1>
@@ -108,7 +109,7 @@ if (!isset($_SESSION['user_id'])) {
     <!-- SIDEBAR -->
     <?php require_once("sidebar.php");?>
 
-    <!-- CONTENT -->
+    <?php endif; ?>
     <section class="content">
       <!-- STATISTICS CARDS -->
       <div class="dashboard-grid">
@@ -252,8 +253,8 @@ if (!isset($_SESSION['user_id'])) {
           </div>
         </div>
       </div>
-    </section>
-  </main>
+    <?php if(!$embedMode): ?></section><?php endif; ?>
+  <?php if(!$embedMode): ?></main><?php endif; ?>
 
 <script>
 (function($) {

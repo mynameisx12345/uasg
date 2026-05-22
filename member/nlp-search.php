@@ -163,6 +163,23 @@ if (!$userId) {
 			<div id="nlpAnalysisContent" style="padding:1.5rem;"></div>
 		</div>
 	</div>
+
+	<!-- Logout Confirmation Modal -->
+	<div id="logoutModal" class="modal" style="display:none;">
+		<div class="modal-content" style="max-width:400px;">
+			<span class="modal-close" onclick="closeModal('logoutModal')">&times;</span>
+			<h2><i class="fas fa-sign-out-alt" style="color:#2196F3;"></i> Confirm Logout</h2>
+			<div class="modal-body">
+				<p>Are you sure you want to logout?</p>
+			</div>
+			<div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;margin-top:1rem;">
+				<button type="button" class="btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+				<button type="button" class="btn-primary" onclick="window.location.href='logout.php'">
+					<i class="fas fa-sign-out-alt"></i> Logout
+				</button>
+			</div>
+		</div>
+	</div>
 	
 	<!-- Loading Modal -->
 	<div id='loadingModal' class='modal'>
@@ -261,7 +278,19 @@ if (!$userId) {
 		document.getElementById('notificationModal').style.display = 'none';
 	}
 
+	function closeModal(id) {
+		const el = document.getElementById(id);
+		if (el) el.style.display = 'none';
+	}
+
 	function openModal(status, message) {
+		// If called with a DOM element ID (e.g. 'logoutModal'), show that element directly
+		const el = document.getElementById(status);
+		if (el && message === undefined) {
+			el.style.display = 'flex';
+			return;
+		}
+
 		const title = status === 'SUCCESS' ? 'Success' : 
 					  status === 'ERROR' ? 'Error' : 
 					  status === 'WARNING' ? 'Warning' : 'Information';
@@ -419,7 +448,9 @@ if (!$userId) {
 				pageLength: 25,
 				columns: [
 					{ data: "file_upload_id" },
-					{ data: "file_name" },
+					{ data: "file_name", render: function(data, type, row) {
+						return row.original_filename || data || 'N/A';
+					}},
 					{ data: "file_category" },
 					{ data: "mime_type" },
 					{ data: null, render: function(data) { 
@@ -432,7 +463,7 @@ if (!$userId) {
 						render: function(data, type, row) {
 							const fileId = row.file_upload_id;
 							const filePath = row.file_path || '';
-							const fileName = row.file_name || '';
+							const fileName = row.original_filename || row.file_name || '';
 							const fileSize = row.file_size || 0;
 							const mimeType = row.mime_type || '';
 							const dateUploaded = row.datetime_uploaded ? new Date(row.datetime_uploaded).toLocaleString() : 'N/A';

@@ -428,7 +428,12 @@ if (!$canView) {
 				pageLength: 25,
 				columns: [
 					{ data: "file_upload_id" },
-					{ data: "file_name" },
+					{ 
+						data: "file_name",
+						render: function(data, type, row) {
+							return row.original_filename || data;
+						}
+					},
 					{ data: "file_category" },
 					{ data: "mime_type" },
 					{ data: null, render: function(data) { 
@@ -441,7 +446,7 @@ if (!$canView) {
 						render: function(data, type, row) {
 							const fileId = row.file_upload_id;
 							const filePath = row.file_path || '';
-							const fileName = row.file_name || '';
+							const fileName = row.original_filename || row.file_name || '';
 							const fileSize = row.file_size || 0;
 							const mimeType = row.mime_type || '';
 							const dateUploaded = row.datetime_uploaded ? new Date(row.datetime_uploaded).toLocaleString() : 'N/A';

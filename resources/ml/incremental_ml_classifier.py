@@ -308,24 +308,30 @@ class IncrementalMLClassifier:
             # Get decision scores
             decision_scores = self.classifier.decision_function(text_vec)[0]
             
-            # Convert to pseudo-probabilities
+            # Calculate confidence using margin-based approach (same as ml_classifier.py)
+            # Avoids softmax dilution across many categories
+            predicted_idx = self.categories.index(predicted_category)
+            
             if len(self.categories) == 2:
-                # Binary classification
                 import math
                 prob_positive = 1 / (1 + math.exp(-decision_scores))
                 scores = np.array([1 - prob_positive, prob_positive]) * 100
+                confidence = round(float(scores[predicted_idx]) / 100, 4)
             else:
-                # Multi-class: softmax
+                # Margin-based: how far top score beats second-best
+                import math
+                top_score = decision_scores[predicted_idx]
+                other_scores = np.delete(decision_scores, predicted_idx)
+                second_best = np.max(other_scores)
+                margin = top_score - second_best
+                confidence = round(1 / (1 + math.exp(-margin * 0.5)), 4)
+                # For display scores: use softmax
                 scores_exp = np.exp(decision_scores - np.max(decision_scores))
                 scores = (scores_exp / scores_exp.sum()) * 100
-            
+
             end_time = datetime.now()
             prediction_time = int((end_time - start_time).total_seconds() * 1000)
-            
-            # Get confidence for predicted category
-            predicted_idx = self.categories.index(predicted_category)
-            confidence = round(float(scores[predicted_idx]) / 100, 4)
-            
+
             result = {
                 'success': True,
                 'category': predicted_category,

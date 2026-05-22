@@ -145,6 +145,12 @@ class MLDocumentClassifier:
             df = data_info['dataframe']
             self.categories = data_info['categories']
             
+            # Filter out categories with fewer than 2 samples (can't stratify)
+            category_counts = df['category'].value_counts()
+            valid_categories = category_counts[category_counts >= 2].index
+            df = df[df['category'].isin(valid_categories)].reset_index(drop=True)
+            self.categories = sorted(df['category'].unique().tolist())
+            
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
                 df['text'], 
@@ -264,14 +270,12 @@ class MLDocumentClassifier:
                 
                 # Handle binary vs multi-class classification
                 if len(self.categories) == 2:
-                    # Binary classification: decision_function returns single value
-                    # Positive = class 1, Negative = class 0
-                    # Convert to probabilities for both classes
+                    # Binary: use sigmoid to convert single score to probability
                     import math
-                    prob_positive = 1 / (1 + math.exp(-scores_raw))  # Sigmoid
+                    prob_positive = 1 / (1 + math.exp(-scores_raw))
                     scores = np.array([1 - prob_positive, prob_positive]) * 100
                 else:
-                    # Multi-class: one score per class
+                    # Multi-class SVM: scores_raw is one value per class
                     scores = scores_raw
                     
             elif hasattr(self.classifier, 'predict_proba'):
@@ -282,16 +286,31 @@ class MLDocumentClassifier:
             end_time = datetime.now()
             prediction_time = int((end_time - start_time).total_seconds() * 1000)
             
-            # Normalize scores to percentages
-            if isinstance(scores, np.ndarray):
-                # For SVM: convert decision scores to pseudo-probabilities (if not already done)
-                if self.model_type == 'svm' and len(self.categories) > 2:
-                    scores_exp = np.exp(scores - np.max(scores))
-                    scores = (scores_exp / scores_exp.sum()) * 100
-                    
-            # Get confidence for predicted category
-            predicted_idx = self.categories.index(predicted_category)
-            confidence = round(float(scores[predicted_idx]) / 100, 4)  # Convert to 0-1 range
+            # Calculate confidence for predicted category
+            predicted_idx = list(self.classifier.classes_).index(predicted_category)
+            
+            if isinstance(scores, np.ndarray) and self.model_type == 'svm' and len(self.categories) > 2:
+                # SVM margin-based confidence: how far ahead is the top score vs the rest
+                # This avoids softmax dilution across many categories
+                top_score = scores[predicted_idx]
+                other_scores = np.delete(scores, predicted_idx)
+                second_best = np.max(other_scores)
+                margin = top_score - second_best  # How much it wins by
+
+                # Normalize margin to 0-1 using sigmoid
+                # margin > 0 always (SVM picks the highest), scale with factor
+                import math
+                confidence = round(1 / (1 + math.exp(-margin * 0.5)), 4)
+            elif isinstance(scores, np.ndarray):
+                # For predict_proba classifiers: scores are already probabilities
+                # Normalize to 0-100 then to 0-1
+                total = scores.sum()
+                if total > 0:
+                    confidence = round(float(scores[predicted_idx]) / total, 4)
+                else:
+                    confidence = 0.0
+            else:
+                confidence = 1.0
             
             result = {
                 'success': True,
@@ -302,12 +321,33 @@ class MLDocumentClassifier:
             }
             
             if return_probabilities:
-                # Return all category scores
+                # For display: convert raw SVM scores to softmax percentages per category
+                if self.model_type == 'svm' and len(self.categories) > 2 and isinstance(scores, np.ndarray):
+                    scores_exp = np.exp(scores - np.max(scores))
+                    display_scores = (scores_exp / scores_exp.sum()) * 100
+                else:
+                    display_scores = scores
                 all_scores = {
-                    cat: round(float(score), 2) 
-                    for cat, score in zip(self.categories, scores)
+                    cat: round(float(score), 2)
+                    for cat, score in zip(self.classifier.classes_, display_scores)
                 }
                 result['all_scores'] = all_scores
+            try:
+                if hasattr(self.classifier, "coef_") and self.vectorizer is not None:
+                    feature_names = self.vectorizer.get_feature_names_out()
+                    predicted_idx = list(self.classifier.classes_).index(predicted_category)
+                    if len(self.categories) == 2:
+                        coefs = self.classifier.coef_[0]
+                    else:
+                        coefs = self.classifier.coef_[predicted_idx]
+                    doc_features = text_tfidf.toarray()[0]
+                    contributions = doc_features * coefs
+                    nz = np.nonzero(doc_features)[0]
+                    word_scores = [(feature_names[i], contributions[i]) for i in nz if contributions[i] > 0]
+                    word_scores.sort(key=lambda x: x[1], reverse=True)
+                    result["top_keywords"] = [w for w, s in word_scores[:5]]
+            except:
+                pass
             
             return result
             

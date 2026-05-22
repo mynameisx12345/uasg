@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Mar 04, 2026 at 06:31 AM
+-- Generation Time: May 13, 2026 at 07:46 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -38,27 +38,16 @@ CREATE TABLE IF NOT EXISTS `category_tbl` (
   PRIMARY KEY (`category_id`),
   UNIQUE KEY `category_name` (`category_name`),
   UNIQUE KEY `category_slug` (`category_slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores document categories detected by NLP (auto-created on upload)';
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores document categories detected by NLP (auto-created on upload)';
 
 --
 -- Dumping data for table `category_tbl`
 --
 
 INSERT INTO `category_tbl` (`category_id`, `category_name`, `category_slug`, `description`, `created_at`, `updated_at`) VALUES
-(1, 'Resolution', 'resolution', 'Official resolutions and decisions', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(2, 'Amendment', 'amendment', 'Amendments to existing documents', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(3, 'Report', 'report', 'Reports and summaries', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(4, 'Proposal', 'proposal', 'Proposals and recommendations', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(5, 'Meeting Minutes', 'meeting-minutes', 'Meeting minutes and notes', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(6, 'Memorandum', 'memorandum', 'Official memorandums', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(7, 'Policy Document', 'policy-document', 'Policy documents and guidelines', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(8, 'Legal Document', 'legal-document', 'Legal documents and contracts', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(9, 'Budget Document', 'budget-document', 'Budget and financial documents', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(10, 'Official Letter', 'official-letter', 'Official letters and correspondence', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(11, 'Academic Document', 'academic-document', 'Academic documents and papers', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(12, 'Technical Document', 'technical-document', 'Technical documents and specifications', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(13, 'General Document', 'general-document', 'General and uncategorized documents', '2026-01-26 13:41:06', '2026-01-26 13:41:06'),
-(14, 'Uncategorized', 'uncategorized', 'Documents that could not be categorized', '2026-01-26 13:41:06', '2026-01-26 13:41:06');
+(18, 'Letter', 'letter', 'Auto-generated from ML dataset upload: Training Data', '2026-05-13 15:16:41', '2026-05-13 15:16:41'),
+(19, 'Resolution', 'resolution', 'Auto-generated from ML dataset upload: Training Data', '2026-05-13 15:16:41', '2026-05-13 15:16:41'),
+(20, 'Activity Design', 'activity-design', 'Auto-generated from ML dataset upload: Training Data', '2026-05-13 15:16:41', '2026-05-13 15:16:41');
 
 -- --------------------------------------------------------
 
@@ -74,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `deleted_record_tbl` (
   `table_origin` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `datetime_deleted` datetime NOT NULL,
   PRIMARY KEY (`delete_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `deleted_record_tbl`
@@ -87,7 +76,11 @@ INSERT INTO `deleted_record_tbl` (`delete_id`, `data_deleted`, `reason_for_delet
 (4, '{\"task_id\":\"2\",\"task_title\":\"Amendment for School Projects\",\"task_category_id\":2,\"assigned_to\":null,\"action\":\"close\",\"new_status\":\"closed\",\"reason\":\"Finished Task\",\"actioned_by\":4,\"actioned_at\":\"2026-01-09 01:00:10\"}', 'Close Task: Finished Task', 'task_tbl', '2026-01-09 09:00:10'),
 (5, '{\"task_id\":\"1\",\"task_title\":\"Resolution Draft\",\"task_category_id\":1,\"assigned_to\":null,\"action\":\"close\",\"new_status\":\"closed\",\"reason\":\"Finished Task\",\"actioned_by\":4,\"actioned_at\":\"2026-01-09 01:00:18\"}', 'Close Task: Finished Task', 'task_tbl', '2026-01-09 09:00:18'),
 (6, '{\"task_id\":\"8\",\"task_title\":\"Sample\",\"old_assigned_to\":5,\"new_assigned_to\":\"8\",\"new_assignee_name\":\"Juan Perez\",\"transfer_reason\":\"Could not finish in time\",\"transferred_by\":4,\"transferred_at\":\"2026-01-09 01:06:36\"}', 'Task Transfer: Could not finish in time', 'task_tbl', '2026-01-09 09:06:36'),
-(7, '{\"file_category_id\":5,\"file_category\":\"Sample Category\"}', 'This is just a sample', 'file_category_tbl', '2026-01-09 11:03:47');
+(7, '{\"file_category_id\":5,\"file_category\":\"Sample Category\"}', 'This is just a sample', 'file_category_tbl', '2026-01-09 11:03:47'),
+(8, '', '', '', '2026-03-17 02:08:28'),
+(9, '{\"position_id\":4,\"position\":\"Guest User\",\"access_restriction\":0}', 'Not included', 'position_tbl', '2026-04-18 14:59:53'),
+(10, '{\"position_id\":9,\"position\":\"Sample Position\",\"access_restriction\":1}', 'Just a sample', 'position_tbl', '2026-04-18 15:00:01'),
+(11, '{\"task_id\":\"9\",\"task_title\":\"Create a Resolution\",\"old_assigned_to\":5,\"new_assigned_to\":\"8\",\"new_assignee_name\":\"Juan Perez\",\"transfer_reason\":\"Overdue date\",\"transferred_by\":4,\"transferred_at\":\"2026-04-18 08:04:52\"}', 'Task Transfer: Overdue date', 'task_tbl', '2026-04-18 16:04:52');
 
 -- --------------------------------------------------------
 
@@ -181,24 +174,6 @@ CREATE TABLE IF NOT EXISTS `file_upload_tbl` (
   KEY `idx_ml_model` (`ml_model_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `file_upload_tbl`
---
-
-INSERT INTO `file_upload_tbl` (`file_upload_id`, `category_id`, `category_tag`, `category_score`, `classification_method`, `ml_model_id`, `mime_type`, `original_filename`, `file_name`, `file_path`, `file_size`, `drive_id`, `datetime_uploaded`, `uploaded_by`) VALUES
-(1, 1, 'Resolution', 80.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'TEST DOCUMENT.docx', '6976ff6901f0e_1769406313.docx', 'uploads/files/resolution/6976ff6901f0e_1769406313.docx', 13728, NULL, '2026-01-26 05:45:13', 4),
-(2, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d60378f069_1771921463.docx', 'uploads/files/memorandum/699d60378f069_1771921463.docx', 16107, NULL, '2026-02-24 08:24:31', 5),
-(3, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d612ea192a_1771921710.docx', 'uploads/files/memorandum/699d612ea192a_1771921710.docx', 16107, NULL, '2026-02-24 08:28:36', 5),
-(4, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d616115417_1771921761.docx', 'uploads/files/memorandum/699d616115417_1771921761.docx', 16107, NULL, '2026-02-24 08:29:28', 5),
-(5, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d624014014_1771921984.docx', 'uploads/files/memorandum/699d624014014_1771921984.docx', 16107, NULL, '2026-02-24 08:33:10', 5),
-(6, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d6478ee0e2_1771922552.docx', 'uploads/files/memorandum/699d6478ee0e2_1771922552.docx', 16107, NULL, '2026-02-24 08:42:40', 5),
-(7, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d65ea9429f_1771922922.docx', 'uploads/files/memorandum/699d65ea9429f_1771922922.docx', 16107, NULL, '2026-02-24 08:48:49', 5),
-(8, 6, 'Memorandum', 20.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'letter.docx', '699d670090d61_1771923200.docx', 'uploads/files/memorandum/699d670090d61_1771923200.docx', 16107, NULL, '2026-02-24 08:53:27', 5),
-(9, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d6724cb70f_1771923236.docx', 'uploads/files/resolution/699d6724cb70f_1771923236.docx', 14093, NULL, '2026-02-24 08:54:04', 5),
-(10, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d6826530ea_1771923494.docx', 'uploads/files/resolution/699d6826530ea_1771923494.docx', 14093, NULL, '2026-02-24 08:58:22', 5),
-(11, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699d688a4728c_1771923594.docx', 'uploads/files/resolution/699d688a4728c_1771923594.docx', 14093, NULL, '2026-02-24 09:00:03', 5),
-(12, 1, 'Resolution', 60.00, NULL, NULL, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Billing.docx', '699fb9ee26d6b_1772075502.docx', 'uploads/files/resolution/699fb9ee26d6b_1772075502.docx', 14093, NULL, '2026-02-26 03:11:50', 5);
-
 -- --------------------------------------------------------
 
 --
@@ -217,7 +192,7 @@ CREATE TABLE IF NOT EXISTS `login_attempts_tbl` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_username_time` (`username`,`attempt_time`),
   KEY `idx_success_time` (`success`,`attempt_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=135 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=156 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `login_attempts_tbl`
@@ -251,8 +226,8 @@ INSERT INTO `login_attempts_tbl` (`attempt_id`, `username`, `ip_address`, `user_
 (113, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 0, 'User not found', '2026-02-24 08:11:09'),
 (114, 'admin123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 0, NULL, '2026-02-24 08:11:09'),
 (116, 'userstaff123', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-24 08:14:06'),
-(131, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-02-26 02:32:09'),
-(134, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, 'Login successful', '2026-03-04 06:17:56');
+(141, 'justin.abuela', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36', 1, 'Login successful', '2026-04-18 08:05:14'),
+(155, 'admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 1, 'Login successful', '2026-05-13 07:10:37');
 
 -- --------------------------------------------------------
 
@@ -311,14 +286,14 @@ CREATE TABLE IF NOT EXISTS `ml_models_tbl` (
   KEY `idx_active` (`is_active`),
   KEY `idx_trained_at` (`trained_at`),
   KEY `idx_is_incremental` (`is_incremental`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores trained ML classification models';
 
 --
 -- Dumping data for table `ml_models_tbl`
 --
 
 INSERT INTO `ml_models_tbl` (`model_id`, `model_name`, `dataset_id`, `model_type`, `model_path`, `vectorizer_path`, `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `categories`, `training_samples`, `test_samples`, `is_active`, `trained_by`, `trained_at`, `last_used_at`, `usage_count`, `is_incremental`, `total_incremental_samples`, `last_incremental_update`) VALUES
-(7, 'Basic Training Model', 8, 'svm', 'uploads/ml_models/model_699fae4d65667_1772072525.pkl', 'uploads/ml_models/model_699fae4d65667_1772072525_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"Letter\", \"Resolution\"]', 32, 9, 1, 4, '2026-02-26 10:22:21', '2026-02-26 11:20:07', 20, 0, 0, NULL);
+(14, 'Initial Training Data Set', 15, 'svm', 'uploads/ml_models/model_6a04285949d75_1778657369.pkl', 'uploads/ml_models/model_6a04285949d75_1778657369_vectorizer.pkl', 1.00, 1.00, 1.00, 1.00, '[\"Letter\", \"Resolution\", \"Activity Design\"]', 51, 13, 1, 4, '2026-05-13 15:29:33', '2026-05-13 15:40:46', 8, 0, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -368,9 +343,9 @@ CREATE TABLE IF NOT EXISTS `ml_settings_tbl` (
 --
 
 INSERT INTO `ml_settings_tbl` (`setting_id`, `setting_key`, `setting_value`, `setting_description`, `updated_by`, `updated_at`) VALUES
-(1, 'classification_method', 'hybrid', 'Classification method: nlp_cloud, google_nlp, custom_ml, hybrid', 4, '2026-02-25 09:03:26'),
-(2, 'active_ml_model_id', '7', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-02-26 10:22:21'),
-(3, 'ml_confidence_threshold', '50', 'Minimum confidence percentage to auto-categorize with ML', 4, '2026-02-25 09:04:18'),
+(1, 'classification_method', 'custom_ml', 'Classification method: nlp_cloud, google_nlp, custom_ml, hybrid', 4, '2026-05-13 15:26:11'),
+(2, 'active_ml_model_id', '14', 'ID of currently active ML model (NULL = no active model)', NULL, '2026-05-13 15:29:33'),
+(3, 'ml_confidence_threshold', '30', 'Minimum confidence percentage to auto-categorize with ML', 4, '2026-05-13 15:26:11'),
 (4, 'ml_fallback_enabled', '1', 'Enable fallback to NLP services if ML fails (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
 (5, 'ml_priority', '1', 'Try ML before NLP services in hybrid mode (1=yes, 0=no)', NULL, '2026-01-28 13:21:35'),
 (6, 'incremental_learning_enabled', '0', 'Enable automatic incremental learning from uploaded files', NULL, '2026-02-08 15:29:00'),
@@ -398,14 +373,14 @@ CREATE TABLE IF NOT EXISTS `ml_training_datasets_tbl` (
   PRIMARY KEY (`dataset_id`),
   KEY `uploaded_by` (`uploaded_by`),
   KEY `idx_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores ML training datasets uploaded via CSV';
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores ML training datasets uploaded via CSV';
 
 --
 -- Dumping data for table `ml_training_datasets_tbl`
 --
 
 INSERT INTO `ml_training_datasets_tbl` (`dataset_id`, `dataset_name`, `file_path`, `total_samples`, `categories_count`, `categories`, `uploaded_by`, `uploaded_at`, `is_active`, `description`) VALUES
-(8, 'Basic Training Data Set', 'uploads/ml_datasets/dataset_699fae411344a_1772072513.csv', 41, 2, '[\"Letter\", \"Resolution\"]', 4, '2026-02-26 10:21:53', 1, '');
+(15, 'CSV SET', 'uploads/ml_datasets/dataset_6a04277e097bf7.58478015_1778657150.csv', 64, 3, '[\"Letter\", \"Resolution\", \"Activity Design\"]', 4, '2026-05-13 15:25:50', 1, '');
 
 -- --------------------------------------------------------
 
@@ -427,7 +402,7 @@ CREATE TABLE IF NOT EXISTS `notifications_tbl` (
   KEY `user_id` (`user_id`),
   KEY `is_read` (`is_read`),
   KEY `datetime_created` (`datetime_created`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `notifications_tbl`
@@ -441,7 +416,9 @@ INSERT INTO `notifications_tbl` (`notification_id`, `user_id`, `type`, `title`, 
 (5, 5, 'new_task', 'New Task Assigned', 'New task \'Sample\' has been assigned to you', 8, 1, '2025-12-07 12:12:09'),
 (6, 5, 'new_task', 'New Task Assigned', 'New task \'Create a Resolution\' has been assigned to you', 9, 0, '2026-01-09 08:59:53'),
 (7, 8, 'new_task', 'New Task Assigned', 'New task \'Resolution for Youth\' has been assigned to you', 10, 0, '2026-01-19 15:16:23'),
-(8, 5, 'new_task', 'New Task Assigned', 'New task \'Create a Resolution for Billing\' has been assigned to you', 11, 0, '2026-02-24 16:20:03');
+(8, 5, 'new_task', 'New Task Assigned', 'New task \'Create a Resolution for Billing\' has been assigned to you', 11, 0, '2026-02-24 16:20:03'),
+(9, 5, 'task_transferred', 'Task Transferred Away', 'Task \'Create a Resolution\' has been transferred to Juan Perez. Reason: Overdue date', 9, 0, '2026-04-18 16:04:52'),
+(10, 8, 'task_transferred', 'Task Transferred to You', 'Task \'Create a Resolution\' has been transferred to you. Reason: Overdue date', 9, 0, '2026-04-18 16:04:52');
 
 -- --------------------------------------------------------
 
@@ -455,7 +432,7 @@ CREATE TABLE IF NOT EXISTS `position_tbl` (
   `position` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `access_restriction` int DEFAULT '1',
   PRIMARY KEY (`position_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `position_tbl`
@@ -464,11 +441,11 @@ CREATE TABLE IF NOT EXISTS `position_tbl` (
 INSERT INTO `position_tbl` (`position_id`, `position`, `access_restriction`) VALUES
 (2, 'Student Government Member', 1),
 (3, 'System Administrator', 3),
-(4, 'Guest User', 0),
 (5, 'Adviser', 2),
 (6, 'President', 2),
 (7, 'Vice-President', 2),
-(8, 'Secretary', 2);
+(8, 'Secretary', 2),
+(10, 'System Staff', 2);
 
 -- --------------------------------------------------------
 
@@ -589,7 +566,7 @@ CREATE TABLE IF NOT EXISTS `task_category_tbl` (
   `task_category_id` int NOT NULL AUTO_INCREMENT,
   `task_category` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`task_category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `task_category_tbl`
@@ -597,7 +574,8 @@ CREATE TABLE IF NOT EXISTS `task_category_tbl` (
 
 INSERT INTO `task_category_tbl` (`task_category_id`, `task_category`) VALUES
 (1, 'Assignment'),
-(2, 'Project');
+(2, 'Project'),
+(4, 'Sample Task Category');
 
 -- --------------------------------------------------------
 
@@ -617,19 +595,6 @@ CREATE TABLE IF NOT EXISTS `task_submission_tbl` (
   KEY `file_upload_id` (`file_upload_id`),
   KEY `submitted_by` (`submitted_by`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `task_submission_tbl`
---
-
-INSERT INTO `task_submission_tbl` (`task_submission_id`, `task_id`, `file_upload_id`, `check_status`, `submitted_by`) VALUES
-(4, 11, 2, 'Pending', 5),
-(5, 11, 3, 'Pending', 5),
-(6, 11, 4, 'Pending', 5),
-(7, 11, 5, 'Pending', 5),
-(8, 11, 6, 'Pending', 5),
-(9, 11, 7, 'Pending', 5),
-(10, 11, 12, 'Pending', 5);
 
 -- --------------------------------------------------------
 
@@ -659,8 +624,7 @@ CREATE TABLE IF NOT EXISTS `task_tbl` (
 INSERT INTO `task_tbl` (`task_id`, `task_category_id`, `task_title`, `task_description`, `task_deadline`, `assigned_to`, `task_status`) VALUES
 (1, 1, 'Resolution Draft', 'Create a Resolution Draft for Health Benefits', '2025-12-05', NULL, 'closed'),
 (2, 2, 'Amendment for School Projects', 'Create Amendments for school projects and proposals', '2025-12-12', NULL, 'closed'),
-(8, 1, 'Sample', 'Sample', '2025-12-12', 8, 'transferred'),
-(9, 1, 'Create a Resolution', 'Create a resolution for the minutes yesterday', '2026-01-12', 5, 'active'),
+(9, 1, 'Create a Resolution', 'Create a resolution for the minutes yesterday', '2026-01-12', 8, 'transferred'),
 (10, 1, 'Resolution for Youth', 'Give me a Resolution for Yesterday\'s Youth', '2026-01-30', 8, 'active'),
 (11, 1, 'Create a Resolution for Billing', 'Please create a resolution for billing statements in the office', '2026-03-14', 5, 'active');
 
@@ -713,8 +677,8 @@ CREATE TABLE IF NOT EXISTS `user_tbl` (
 --
 
 INSERT INTO `user_tbl` (`user_id`, `user_name`, `pass_word`, `position_id`, `profile_id`, `user_type`, `auth_token`, `is_active`, `deactivated_at`, `deactivation_reason`) VALUES
-(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', '235cabebd7ecf52da310e1146af8c08f3763f2fea4adbb6862d9e842a21743e8', 1, NULL, NULL),
-(5, 'justin.abuela', '$2y$10$bIid6Kvmv60BwiJ0yCYypep3sCXco.UQuNHyXRMinq4SdqwVMxsd6', 2, 5, 'student', '7929999e2f258fcdd79e998c74999e349277a1197448b36d87f40852bb2b815a', 1, NULL, NULL),
+(4, 'admin', '$2y$10$zXkd20LoOz6P2v.3jBC0UeA99alQrfRjfy8SqWurKmFExXby9jo02', 3, 4, 'admin', 'ff5b9205ec79d740847eabcb2dc27c75d32b024286fb833be5952555a2d6dd18', 1, NULL, NULL),
+(5, 'justin.abuela', '$2y$10$TkAEVG9u9K7XiGEkoMivdOfAQGrOZLeHezEgk2YkGKRnRODZU.MzS', 2, 5, 'student', '47e8952725ada44b265690cf4615287b6ebc44e9ace5ad167f8d240e52e73a17', 1, NULL, NULL),
 (8, 'juan.perez', '$2y$10$GMFRwhedcv2cNjcT6/jTLuReP3De0NjI393u8JqtfEj4mi1hNTkEa', 2, 8, 'student', '4df74ecefda40d16f25d9cc0f5485eb7e753a49348018dad48da6ad2156bb7f0', 1, NULL, NULL),
 (11, 'userstaff123', '$2y$10$IvGGgxzVPujgYlBvC4NIsOTCkFl1TzeKUOCEoELBt876iGbfPMJjy', 5, 11, 'subadmin', '8455f9ebc7660893181179da8a62da974313473c8239232805da2b26727ebce0', 1, NULL, NULL);
 

@@ -1,0 +1,509 @@
+CODE CHANGES LOG
+================
+
+[LOCAL-ONLY] = Revert before sending to client
+[PERMANENT]  = Keep for client
+
+---
+
+[LOCAL-ONLY] resources/objects/ml_service.php | Line 19
+Description: Hardcoded Python path for macOS (client uses Windows)
+
+Before:
+  $this->pythonPath = $this->findPython();
+
+After:
+  $this->pythonPath = '/opt/homebrew/bin/python3';
+
+Revert to:
+  $this->pythonPath = $this->findPython();
+
+---
+
+[LOCAL-ONLY] resources/objects/db_config.php | Line 9
+Description: Local MySQL password (WAMP uses empty password by default)
+
+Before:
+  private $pass = '';
+
+After:
+  private $pass = 'password';
+
+Revert to:
+  private $pass = '';
+
+---
+
+[PERMANENT] resources/objects/ml_service.php | Lines 9-13
+Description: Fix bug where IncrementalMLService cannot access parent class properties (causes 500 error on upload and failed incremental retraining)
+
+Before:
+  private $db;
+  private $pythonPath;
+  private $mlScriptPath;
+  private $modelsDir;
+  private $datasetsDir;
+
+After:
+  protected $db;
+  protected $pythonPath;
+  protected $mlScriptPath;
+  protected $modelsDir;
+  protected $datasetsDir;
+
+---
+
+[PERMANENT] Database: ml_incremental_training_queue_tbl
+Description: Fix prediction_confidence column overflow. App passes confidence as percentage (e.g. 44.11) but column only accepted 0-9.9999, causing silent insert failure.
+
+SQL:
+  ALTER TABLE ml_incremental_training_queue_tbl MODIFY COLUMN prediction_confidence decimal(5,2) NULL;
+
+Before: decimal(5,4) — max 9.9999
+After:  decimal(5,2) — max 999.99
+
+---
+
+[PERMANENT] admin/ml-management.php
+Description: Added Incremental Learning toggle + Batch Size input (horizontal layout) to ML Classification Settings UI
+
+---
+
+[PERMANENT] admin/ml-management.php
+Description: Added incremental_learning_enabled and incremental_batch_size to JS save handler AJAX data
+
+---
+
+[PERMANENT] admin/ajax.php | save_ml_settings case
+Description: Added incremental_learning_enabled and incremental_batch_size to save handler
+
+Added:
+  'incremental_learning_enabled' => $_POST['incremental_learning_enabled'] ?? '0',
+  'incremental_batch_size' => $_POST['incremental_batch_size'] ?? '10'
+
+---
+
+[PERMANENT] resources/objects/ml_service_incremental.php | Lines ~420-422
+Description: Fix hardcoded batch threshold (10) to read from ml_settings_tbl instead
+
+Before:
+  if ($pending >= 10) {
+      $trainResult = $this->processTrainingQueue(10);
+
+After:
+  $batchSize = intval($this->getSetting("incremental_batch_size") ?: 10);
+  if ($pending >= $batchSize) {
+      $trainResult = $this->processTrainingQueue($batchSize);
+
+---
+
+[PERMANENT] admin/ml-management.php
+Description: Added "View Queue" modal with table showing incremental learning queue, filters (status/category), pagination with prev/next and max 5 page numbers, rows per page selector
+
+---
+
+[PERMANENT] admin/ajax.php | get_incremental_queue case
+Description: Added new AJAX action to fetch incremental queue data with status/category filters
+
+Code:
+  case 'get_incremental_queue':
+      $filterStatus = $_POST['filter_status'] ?? '';
+      $filterCategory = $_POST['filter_category'] ?? '';
+      $where = '1=1';
+      $params = [];
+      if ($filterStatus) { $where .= ' AND status = ?'; $params[] = $filterStatus; }
+      if ($filterCategory) { $where .= ' AND confirmed_category = ?'; $params[] = $filterCategory; }
+      $rows = Database::getInstance()->select("SELECT * FROM ml_incremental_training_queue_tbl WHERE $where ORDER BY created_at DESC", $params);
+      $result = ['success' => true, 'data' => $rows];
+      break;
+
+---
+
+[LOCAL-ONLY] .user.ini
+Description: PHP upload limits for local dev (not needed for WAMP/XAMPP which have their own php.ini)
+
+Content:
+  upload_max_filesize = 20M
+  post_max_size = 25M
+
+---
+
+[LOCAL-ONLY] start.sh
+Description: Local dev server start script for macOS
+
+Content:
+  php -S localhost:8000 -d upload_max_filesize=20M -d post_max_size=25M
+
+---
+
+[PERMANENT] admin/ml-management.php
+Description: Added "Generate from Files" feature - button in Datasets tab, modal with multi-file upload, category assignment per file, and two actions (Create New Dataset / Add to Existing Dataset). Files are stored in uploads/training_files/{category-slug}/.
+
+---
+
+[PERMANENT] admin/ajax.php | case 'generate_dataset_from_files'
+Description: Backend endpoint that receives multiple files + category assignments, extracts text using TextExtractor, stores files in uploads/training_files/, and generates/appends a CSV training dataset.
+
+---
+
+[PERMANENT] admin/file-management.php
+Description: Enhanced Classification Preview UI to show: source (ML Model vs Fallback), explanation of why the category was chosen, and confidence bar chart per category.
+
+---
+
+[PERMANENT] admin/ajax.php | nlp_analyze response
+Description: Added all_scores, model_name, and confidence_threshold to the NLP analysis response for detailed UI display.
+
+---
+
+[PERMANENT] resources/ml/ml_classifier.py | predict method
+Description: Critical fix - scores were mapped to wrong categories because self.categories order didn't match classifier.classes_ order. Changed to use classifier.classes_ for score mapping and index lookups.
+
+Before:
+  predicted_idx = self.categories.index(predicted_category)
+  for cat, score in zip(self.categories, display_scores)
+
+After:
+  predicted_idx = list(self.classifier.classes_).index(predicted_category)
+  for cat, score in zip(self.classifier.classes_, display_scores)
+
+---
+
+[PERMANENT] resources/ml/ml_classifier.py | predict method
+Description: Added top_keywords extraction - shows which words in the document most influenced the prediction.
+
+---
+
+[PERMANENT] resources/objects/ml_service.php | predict return
+Description: Added top_keywords to the predict() return array.
+
+---
+
+[PERMANENT] admin/ajax.php | nlp_analyze response
+Description: Added top_keywords to the response.
+
+---
+
+[PERMANENT] admin/file-management.php
+Description: Added SweetAlert2 CDN, View More Details modal with classification explanation, confidence bars, and top keywords display. Added low-confidence confirmation dialog on upload.
+
+---
+
+[PERMANENT] admin/file-management.php
+Description: Added SweetAlert2 CDN. Redesigned View More modal with: decision summary banner, source/model info grid, word count, confidence bars with threshold indicator line, key terms pills, extracted text preview. Added low-confidence confirmation dialog (Swal) on upload when fallback is used. Added CSS tooltip for confidence info icon.
+
+---
+
+[PERMANENT] admin/file-management.php | start.sh
+Description: Added start.sh script for local dev with proper PHP limits (upload_max_filesize=20M, post_max_size=100M, max_file_uploads=50).
+
+---
+
+[PERMANENT] admin/ajax.php | nlp_analyze endpoint
+Description: Added NLP Cloud fallback to the preview analysis. When ML confidence is below threshold and nlp_fallback_enabled is "1", it calls NLP Cloud API for a second opinion. Provider field in response reflects whether NLP Cloud was used.
+
+---
+
+[PERMANENT] resources/objects/main_class.php | uploadFile cached path
+Description: Fixed classification_method and provider to use actual source from preview analysis instead of hardcoding "cached"/"nlpcloud". Now correctly saves "ML Model" or "NLP Cloud (Fallback)".
+
+Before:
+  $classificationMethod = 'cached';
+  // nlpResult had no 'provider' key
+
+After:
+  $classificationMethod = $nlpAnalysisData['provider'] ?? 'cached';
+  // nlpResult now includes 'provider' => $nlpAnalysisData['provider'] ?? 'cached'
+
+---
+
+[PERMANENT] admin/ml-management.php | Classification Method dropdown
+Description: Simplified from 4 options to 2. Removed "Google NLP Only" and "Hybrid (ML + NLP)". Renamed options to "ML Classification (Primary)" and "NLP Service (Fallback)".
+
+---
+
+[PERMANENT] admin/file-management.php | NLP Analysis Report modal
+Description: Added Classification Source badge showing whether ML Model or NLP Cloud classified the file.
+
+---
+
+[PERMANENT] admin/batch-upload.php (NEW FILE)
+Description: Batch file upload feature. Allows selecting multiple files, processes them sequentially (analyze → classify → upload). Shows progress bar, per-file status, category and confidence. Reuses existing nlp_analyze and upload (call 16) endpoints.
+
+---
+
+[PERMANENT] admin/file-management.php
+Description: Added "Batch Upload" tab that includes batch-upload.php.
+
+---
+
+[PERMANENT] admin/file-explorer.php (NEW FILE)
+Description: Google Drive-style file browser. Features: folder view (categories as folders), breadcrumb navigation, grid/list toggle, search by filename, file icons by type, download on click. Self-contained with CSS and JS.
+
+---
+
+[PERMANENT] admin/ajax.php | file_explorer endpoint
+Description: New AJAX endpoint with actions: get_folders (categories + file count), get_files (by category_id), search (by filename).
+
+---
+
+[PERMANENT] admin/file-management.php
+Description: Added "File Explorer" tab link and included file-explorer.php as tab content.
+
+---
+
+[PERMANENT] admin/file-center.php (NEW FILE)
+Description: Standalone "File Center" page combining File Explorer (browse) and Batch Upload in a modern tabbed interface. Separate from file-management.php for client comparison.
+
+---
+
+[PERMANENT] admin/sidebar.php
+Description: Added "📂 File Center" navigation link after File Management.
+
+---
+
+[PERMANENT] admin/smart-search.php (NEW FILE)
+Description: Smart Search tab for File Center. Searches through actual file contents, highlights matching words in context snippets. Shows file name, category, uploader, date, and a text preview with highlighted matches.
+
+---
+
+[PERMANENT] admin/file-center.php
+Description: Added "🔍 Smart Search" tab that includes smart-search.php.
+
+---
+
+[PERMANENT] index.php (Login Page)
+Description: Complete redesign with dark glassmorphism theme. Dark gradient background with radial glows, frosted glass card (backdrop-filter blur), floating logo animation, gold-accented focus rings, gradient maroon sign-in button with glow animation, smooth card entrance animation.
+
+---
+
+[PERMANENT] resources/theme-overrides.css
+Description: Complete rewrite as unified design system. CSS variables for sidebar gradient, header blur, glass borders, gold glow accents. Dark glassmorphism sidebar (gradient background, glass borders, gold section labels, maroon active states). Frosted glass header (backdrop-filter blur, semi-transparent dark bg). Gold focus rings on all form inputs. Responsive mobile support with slide-in sidebar, bottom nav, bottom-sheet modals. Hides legacy header.topbar panel.
+
+---
+
+[PERMANENT] admin/sidebar.php
+Description: Removed all inline <style> blocks. Now relies on theme-overrides.css for dark glassmorphism look. Added sidebar-footer with logout. Logout modal uses backdrop-filter blur.
+
+---
+
+[PERMANENT] admin/header.php
+Description: Removed heavy inline styles. Frosted glass topbar via theme-overrides.css. Global search dropdown with glassmorphism styling. Added mobile sidebar toggle + overlay. Normalized admin name display (any variation of "admin"/"administrator" shows as "System Admin"). Role always shows "System Administrator".
+
+---
+
+[PERMANENT] member/sidebar.php
+Description: Removed all inline styles. Uses github-sidebar class styled by theme-overrides.css. Same dark glassmorphism look as admin.
+
+---
+
+[PERMANENT] member/header.php
+Description: Same frosted glass topbar pattern as admin. Added mobile sidebar toggle and overlay. Session timeout logic preserved.
+
+---
+
+[PERMANENT] subadmin/sidebar.php
+Description: Removed all inline styles and old CSS overrides. Uses github-sidebar + sidebar-brand pattern. Permission-based nav items preserved. Tab-switching JS preserved.
+
+---
+
+[PERMANENT] subadmin/header.php
+Description: Simplified to match frosted glass topbar pattern. Removed unused notifications panel. Kept mobile toggle, session timeout, and section title observer.
+
+---
+
+[PERMANENT] admin/index.php (Dashboard)
+Description: Improved dashboard feel. Stat cards: gradient top stripe (maroon-to-gold), no borders, softer shadows, lift on hover. Category progress bars: maroon-to-gold gradient fill, lighter dividers. Activity items: rounded corners, maroon-tinted hover, readable text colors. User badges: theme-consistent colors. Removed borders/background from Files by Category and Most Active Users sections, added dark horizontal line dividers at top.
+
+---
+
+[PERMANENT] admin/batch-upload.php
+Description: Redesigned upload page. Drag-and-drop zone with gradient background and hover lift. Plain flat maroon/gold action buttons. Clean minimal table with subtle hover states. Category badges with maroon tint. Progress bar with maroon-to-gold gradient. File input moved outside drop zone for proper click handling.
+
+---
+
+[PERMANENT] admin/file-explorer.php
+Description: Redesigned browse files section. Softer card styling with maroon hover accents and lift effect. Rounded search input with gold focus ring. Plain flat maroon Upload and gold Smart Search buttons. Breadcrumb with subtle background. Cleaner list rows with gradient hover. Maroon-tinted category badges and folder counts.
+
+
+================================================================================
+UPDATE 2 — Manual Classification Override + Incremental Learning Resilience
+Date: 2026-05-21
+================================================================================
+
+[PERMANENT] admin/batch-upload.php
+Description: Added manual category override dropdown during file upload. After ML classifies a file, the Category column now shows a <select> dropdown (populated from category_tbl) allowing users to change the predicted classification before uploading. Visual indicators: gold border + "✎ manual" badge on overridden items. Sends original_category and manual_override flag to backend.
+
+---
+
+[PERMANENT] admin/ajax.php | CALL 16 (file upload)
+Description: Added 'manual_override' and 'original_category' to the upload data array.
+
+Added:
+  'manual_override' => isset($_POST['manual_override']) && $_POST['manual_override'] == '1',
+  'original_category' => $_POST['original_category'] ?? null,
+
+---
+
+[PERMANENT] resources/objects/main_class.php | uploadFile()
+Description: Updated INSERT to save is_overridden and original_category_tag columns. Logic: is_overridden=1 only when manual_override is set AND original_category differs from final category_tag. If user picks the same category ML predicted, is_overridden stays 0 (revert detection).
+
+Added to INSERT columns:
+  is_overridden, original_category_tag
+
+Added to bind params:
+  ':is_overridden' => (!empty($data['manual_override']) && ($data['original_category'] ?? null) !== $categoryTag) ? 1 : 0,
+  ':original_category_tag' => $data['original_category'] ?? null
+
+---
+
+[PERMANENT] resources/objects/main_class.php | uploadFile() incremental learning hook
+Description: Manual overrides are now ALWAYS queued for incremental learning (even "Others"), since human corrections are high-value training signals.
+
+Before:
+  if ($extractedText && !in_array($categoryTag, ['Others', 'Uncategorized', ''])) {
+
+After:
+  $manualOverride = !empty($data["manual_override"]);
+  if ($extractedText && ($manualOverride || !in_array($categoryTag, ["Others", "Uncategorized", ""]))) {
+
+---
+
+[PERMANENT] Database: file_upload_tbl
+Description: Added columns to track classification overrides.
+
+SQL:
+  ALTER TABLE file_upload_tbl ADD COLUMN is_overridden TINYINT(1) NOT NULL DEFAULT 0 AFTER classification_method;
+  ALTER TABLE file_upload_tbl ADD COLUMN original_category_tag VARCHAR(100) NULL AFTER is_overridden;
+
+---
+
+[PERMANENT] admin/file-explorer.php | feShowProps
+Description: Added "Reclassify" section to file properties modal. Shows a category dropdown + Save button. If file was previously overridden, shows warning with original category. On save, confirms via Swal, calls reclassify_file endpoint, refreshes folder view (updates file counts).
+
+---
+
+[PERMANENT] admin/ajax.php | reclassify_file endpoint
+Description: New AJAX endpoint to reclassify an existing file. Moves physical file to new category folder, updates DB (category_id, category_tag, file_path, is_overridden, original_category_tag), and queues extracted text for incremental learning. If user reverts to original category, is_overridden resets to 0.
+
+---
+
+[PERMANENT] admin/ajax.php | file_explorer get_files & search queries
+Description: Added is_overridden and original_category_tag to SELECT queries so the frontend can display override status.
+
+---
+
+[PERMANENT] admin/settings.php (NEW FILE)
+Description: New admin settings page with toggle for "Show ML Disclaimer on Upload". Reads/writes to system_settings_tbl via AJAX.
+
+---
+
+[PERMANENT] admin/sidebar.php
+Description: Added ⚙️ Settings nav link in the System section (after Security).
+
+---
+
+[PERMANENT] admin/ajax.php | save_setting & get_setting endpoints
+Description: New AJAX handlers for system settings. save_setting validates key against allowed list and uses INSERT ON DUPLICATE KEY UPDATE. get_setting returns the value for a given key.
+
+---
+
+[PERMANENT] admin/file-management.php & admin/file-center.php
+Description: Added PHP check for show_upload_disclaimer setting from system_settings_tbl. When disabled, the ML disclaimer modal is skipped (mlDisclaimerAccepted starts as true).
+
+---
+
+[PERMANENT] database/migrations/003_create_system_settings.sql
+Description: Creates system_settings_tbl (setting_key VARCHAR(100) PK, setting_value TEXT, updated_at TIMESTAMP). Inserts default show_upload_disclaimer = '1'.
+
+---
+
+[PERMANENT] admin/settings.php
+Description: Added "Allow Manual Override of Classification" toggle. Controls whether users can reclassify files in File Center and Batch Upload.
+
+---
+
+[PERMANENT] admin/ajax.php | save_setting allowed keys
+Description: Added 'allow_manual_override' to the allowed settings keys list.
+
+---
+
+[PERMANENT] admin/file-center.php
+Description: Queries allow_manual_override from system_settings_tbl and passes window.allowManualOverride boolean to JS.
+
+---
+
+[PERMANENT] admin/file-explorer.php
+Description: Reclassify section in file properties modal is now conditionally rendered based on window.allowManualOverride.
+
+---
+
+[PERMANENT] admin/batch-upload.php
+Description: Category override dropdown in batch table is now conditionally rendered. When disabled, shows a static badge instead of a dropdown.
+
+---
+
+[PERMANENT] admin/settings.php
+Description: Added role-based override sub-settings (override_roles_file_explorer, override_roles_batch_upload). Each has checkboxes for subadmin/member. Section is hidden when Allow Manual Override is off. Values stored as JSON arrays.
+
+---
+
+[PERMANENT] admin/file-center.php
+Description: Computes separate allowOverrideExplorer and allowOverrideBatch flags based on user type. Admin always allowed. Subadmin/member checked against role arrays from system_settings_tbl.
+
+---
+
+[PERMANENT] admin/batch-upload.php
+Description: Uses window.allowManualOverrideBatch (separate from explorer flag) to control category override dropdown visibility.
+
+---
+
+[PERMANENT] resources/components/ (NEW DIRECTORY)
+Description: Moved file-explorer.php, smart-search.php, and batch-upload.php from admin/ to resources/components/ as shared core files used by both admin and member file-center pages.
+
+---
+
+[PERMANENT] admin/file-center.php
+Description: Updated includes to use ../resources/components/ path. Added allow_manual_override role-based check with separate explorer/batch flags. Added ML disclaimer modal with setting check.
+
+---
+
+[PERMANENT] member/file-center.php (NEW FILE)
+Description: New File Center page for members with all 3 tabs (Browse, Smart Search, Upload). Includes shared components from resources/components/. Checks role-based override settings for member user type. Includes ML disclaimer modal.
+
+---
+
+[PERMANENT] member/tasks.php (NEW FILE)
+Description: New Tasks page with two tabs — Pending Tasks (with overdue section, urgency indicators, summary stats, row highlighting) and Task Submissions (with status stats, inline filters, color-coded badges). Full comply modal with NLP preview and file validation. Updates nav and tab badges on submission.
+
+---
+
+[PERMANENT] member/sidebar.php
+Description: Added 📝 Tasks nav link with red badge showing pending+overdue count. Added 📂 File Center link. Removed 🔍 File Search link. Badge auto-updates via updateNavTaskBadge() on every page load.
+
+---
+
+[PERMANENT] member/header.php
+Description: Added tasks.php and file-center.php to page titles array.
+
+---
+
+[PERMANENT] member/ajax.php
+Description: Added handlers for: file_explorer (get_folders, get_files, search, get_overridden, delete blocked), reclassify_file (with role check and is_overridden reset), conversational_smart_search, GET download. Fixed CALL 16 to handle both file upload (batch) and update file info. Fixed display_errors to 0.
+
+---
+
+[PERMANENT] resources/components/file-explorer.php
+Description: Added ✎ Overridden filter button (AND logic with search). Overridden info only shows when original differs from current category. Reclassify section conditional on window.allowManualOverride. feGoHome resets filter state.
+
+---
+
+[PERMANENT] resources/components/batch-upload.php
+Description: Category override dropdown conditional on window.allowManualOverrideBatch.
+
+---
+
+[PERMANENT] admin/file-center.php (disclaimer text)
+Description: Changed manual override bullet to "Classifications are monitored — the administrator can view and monitor all category classifications and any manual changes made."
+
+---

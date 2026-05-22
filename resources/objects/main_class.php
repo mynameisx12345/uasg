@@ -24,14 +24,12 @@
             	throw new Exception("No data to insert.");
         	}
 
-        	$db = Database::getInstance()->getConnection();
+        	$db = Database::getInstance();
         	$columns = implode(", ", array_keys($this->fields));
         	$placeholders = ":" . implode(", :", array_keys($this->fields));
 
         	$query = "INSERT INTO {$this->table} ($columns) VALUES ($placeholders)";
-        	$stmt = $db->prepare($query);
-
-        	return $stmt->execute($this->fields);
+        	return $db->execute($query, $this->fields);
     	}
 
     	public function checkFromTable($column = null) {
@@ -39,7 +37,7 @@
         		throw new Exception("No data to check.");
     		}
 
-    		$db = Database::getInstance()->getConnection();
+    		$db = Database::getInstance();
 
     		// If a specific column is provided, check only that one
     		if ($column !== null) {
@@ -55,7 +53,7 @@
         		}
 
         		$query = "SELECT COUNT(*) as cnt FROM {$this->table} WHERE $column = :val LIMIT 1";
-        		$stmt = $db->prepare($query);
+        		$stmt = $db->getConnection()->prepare($query);
         		$stmt->execute([':val' => $value]);
         		$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -75,7 +73,7 @@
 
     		$where = implode(" AND ", $conditions);
     		$query = "SELECT COUNT(*) as cnt FROM {$this->table} WHERE $where LIMIT 1";
-    		$stmt = $db->prepare($query);
+    		$stmt = $db->getConnection()->prepare($query);
     		$stmt->execute($params);
    		 	$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -91,9 +89,9 @@
     	}
 
     	public function updateSingleValue($field,$primary,$id,$value){
-    		$db = Database::getInstance()->getConnection();
+    		$db = Database::getInstance();
     		$query = "UPDATE {$this->table} SET $field = :val WHERE $primary = :id";
-    		$stmt = $db->prepare($query);
+    		$stmt = $db->getConnection()->prepare($query);
     		return $stmt->execute([':val'=>$value,':id'=>$id]);
     	}
 
@@ -102,7 +100,7 @@
             	throw new Exception("No data to update.");
         	}
 
-        	$db = Database::getInstance()->getConnection();
+        	$db = Database::getInstance();
         	$assignments = [];
         	foreach ($this->fields as $key => $value) {
             	$assignments[] = "$key = :$key";
@@ -110,7 +108,7 @@
 
         	$setClause = implode(", ", $assignments);
         	$query = "UPDATE {$this->table} SET $setClause WHERE $idField = :__id";
-        	$stmt = $db->prepare($query);
+        	$stmt = $db->getConnection()->prepare($query);
 
         	// Add ID param to binding
         	$this->fields['__id'] = $idValue;
@@ -120,12 +118,12 @@
 
     	// Optional: Add a generic select method
     	public static function selectAll($table) {
-       	 	$db = Database::getInstance()->getConnection();
+       	 	$db = Database::getInstance();
         	return $db->select("SELECT * FROM $table");
    	 	}
 
    	 	public function getAllWithidden($hidden = []) {
-    		$db = Database::getInstance()->getConnection();
+    		$db = Database::getInstance();
     		$query = "SELECT * FROM {$this->table}";
     		$rows = $db->select($query);
 
@@ -148,19 +146,19 @@
 		}
 
    	 	public function getAllRecords(){
-   	 		$db = Database::getInstance()->getConnection();
+   	 		$db = Database::getInstance();
    	 		return $db->select("SELECT * FROM $this->table");
    	 	}
 
    	 	public function delete($idField, $idValue) {
-        	$db = Database::getInstance()->getConnection();
+        	$db = Database::getInstance();
         	$query = "DELETE FROM {$this->table} WHERE $idField = :id";
-        	$stmt = $db->prepare($query);
+        	$stmt = $db->getConnection()->prepare($query);
         	return $stmt->execute([':id' => $idValue]);
     	}
 
     	public function exists($column, $value) {
-   			 $db = Database::getInstance()->getConnection();
+   			 $db = Database::getInstance();
 
     		// Protect against SQL injection by whitelisting column names
     		if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
@@ -168,7 +166,7 @@
     		}
 
     		$query = "SELECT COUNT(*) as cnt FROM {$this->table} WHERE $column = :val LIMIT 1";
-    		$stmt = $db->prepare($query);
+    		$stmt = $db->getConnection()->prepare($query);
     		$stmt->execute([':val' => $value]);
     		$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -180,7 +178,7 @@
        	 		throw new Exception("No data provided.");
     		}
 
-    		$db = Database::getInstance()->getConnection();
+    		$db = Database::getInstance();
 
     		// If no specific unique fields are provided, use all fields
     		$fieldsToCheck = $uniqueFields ?? array_keys($this->fields);
@@ -202,7 +200,7 @@
 
     		// Try to find existing record
     		$query = "SELECT $idField FROM {$this->table} WHERE $where LIMIT 1";
-    		$stmt = $db->prepare($query);
+    		$stmt = $db->getConnection()->prepare($query);
     		$stmt->execute($params);
     		$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -213,14 +211,14 @@
 
     		// Not found → insert
     		if ($this->insert()) {
-        		return $db->lastInsertId();
+        		return $db->getConnection()->lastInsertId();
     		}
 
     		return false;
 		}
 
 		public function getChildren($childTable, $foreignKey, $parentId, $hidden = []) {
-    		$db = Database::getInstance()->getConnection();
+    		$db = Database::getInstance();
     
     		// validate column name
     		if (!preg_match('/^[a-zA-Z0-9_]+$/', $foreignKey)) {
@@ -250,7 +248,7 @@
 
 		public function uploadFile($data) {
     		require_once __DIR__ . '/nlpcloud_service.php';
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			$systemname = 'uasg';
 			$file = $data['file'];
 			$allowedTypes = $data['allowed_types'] ?? ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
@@ -309,7 +307,7 @@
 					$entities = $nlpAnalysisData['entities'] ?? [];
 					$fullAnalysis = json_encode($nlpAnalysisData);
 					$processingTime = 0; // Already processed
-					$classificationMethod = 'cached';
+					$classificationMethod = $nlpAnalysisData['provider'] ?? 'cached';
 					$mlModelId = null;
 					
 					$nlpResult = [
@@ -322,7 +320,8 @@
 						'entities' => $entities,
 						'full_analysis' => $nlpAnalysisData,
 						'processing_time_ms' => 0,
-						'from_cache' => true // Indicate this was cached
+						'from_cache' => true,
+						'provider' => $nlpAnalysisData['provider'] ?? 'cached'
 					];
 				} else {
 					// 🤖 ML CLASSIFICATION INTEGRATION
@@ -342,7 +341,8 @@
 					if ($useML) {
 						require_once __DIR__ . '/text_extractor.php';
 						$extractor = new TextExtractor();
-						$extractedText = $extractor->extractText($tempPath);
+						$extractionResult = $extractor->extractText($tempPath, $file['type']);
+						$extractedText = $extractionResult['success'] ? $extractionResult['text'] : '';
 						
 						if (!empty($extractedText)) {
 							try {
@@ -462,10 +462,10 @@
 
 			// Insert into file_upload_tbl with ALL required fields including ML classification data
 
-			$stmt = $db->prepare(
+			$stmt = $db->getConnection()->prepare(
 				"INSERT INTO file_upload_tbl 
-				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by, classification_method, ml_model_id) 
-				VALUES (:category_id, :category_tag, :category_score, :mime_type, :original_filename, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by, :classification_method, :ml_model_id)"
+				(category_id, category_tag, category_score, mime_type, original_filename, file_name, file_path, file_size, datetime_uploaded, uploaded_by, classification_method, ml_model_id, is_overridden, original_category_tag) 
+				VALUES (:category_id, :category_tag, :category_score, :mime_type, :original_filename, :file_name, :file_path, :file_size, :datetime_uploaded, :uploaded_by, :classification_method, :ml_model_id, :is_overridden, :original_category_tag)"
 			);
 			$stmt->execute([
 				':category_id' => $categoryId,
@@ -479,13 +479,15 @@
 				':datetime_uploaded' => date('Y-m-d H:i:s'),
 				':uploaded_by' => $uploadedBy,
 				':classification_method' => $classificationMethod ?? 'nlpcloud',
-				':ml_model_id' => $mlModelId
+				':ml_model_id' => $mlModelId,
+				':is_overridden' => (!empty($data['manual_override']) && ($data['original_category'] ?? null) !== $categoryTag) ? 1 : 0,
+				':original_category_tag' => $data['original_category'] ?? null
 			]);				// Get last inserted file_upload_id
-				$fileId = $db->lastInsertId();
+				$fileId = $db->getConnection()->lastInsertId();
 				
 				// Insert NLP analysis data into file_nlp_analysis_tbl
 				if ($extractedText) {
-					$stmt = $db->prepare(
+					$stmt = $db->getConnection()->prepare(
 						"INSERT INTO file_nlp_analysis_tbl 
 						(file_upload_id, extracted_text, word_count, suggested_category, category_confidence, 
 						 keywords, entities, sentiment, full_analysis, provider, processing_time_ms) 
@@ -505,6 +507,27 @@
 						':provider' => $provider,
 						':processing_time_ms' => $processingTime
 					]);
+				}
+
+				// ── Incremental learning hook ──────────────────────────────────
+				// Queue this upload as a training sample so the model improves
+				// over time. Manual overrides are ALWAYS queued (high-value signal).
+				// Auto-classified "Others"/"Uncategorized" are skipped.
+				$manualOverride = !empty($data["manual_override"]);
+				if ($extractedText && ($manualOverride || !in_array($categoryTag, ["Others", "Uncategorized", ""]))) {
+					try {
+						require_once __DIR__ . '/ml_service_incremental.php';
+						$incrementalService = new IncrementalMLService();
+						$incrementalService->learnFromUpload(
+							$fileId,
+							$extractedText,
+							$categoryTag,
+							$categoryScore
+						);
+					} catch (Exception $learnEx) {
+						// Non-fatal — never let a learning failure break the upload
+						error_log('Incremental learning queue error: ' . $learnEx->getMessage());
+					}
 				}
 
 			return [
@@ -555,10 +578,10 @@ private function getCategorySlug($categoryName) {
  * This ensures every NLP-detected category has a database entry
  */
 private function getOrCreateCategory($categoryName, $categorySlug) {
-	$db = Database::getInstance()->getConnection();
+	$db = Database::getInstance();
 	
 	// Try to find existing category by name
-	$stmt = $db->prepare("SELECT category_id FROM category_tbl WHERE category_name = :name LIMIT 1");
+	$stmt = $db->getConnection()->prepare("SELECT category_id FROM category_tbl WHERE category_name = :name LIMIT 1");
 	$stmt->execute([':name' => $categoryName]);
 	$result = $stmt->fetch(PDO::FETCH_ASSOC);
 	
@@ -567,7 +590,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 	}
 	
 	// Category doesn't exist, create it
-	$stmt = $db->prepare(
+	$stmt = $db->getConnection()->prepare(
 		"INSERT INTO category_tbl (category_name, category_slug, description) 
 		VALUES (:name, :slug, :description)"
 	);
@@ -577,7 +600,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		':description' => 'Auto-created by NLP classification'
 	]);
 	
-	return $db->lastInsertId();
+	return $db->getConnection()->lastInsertId();
 }
 
 }
@@ -593,7 +616,8 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		public function __construct($params = []){
 			parent::__construct('position_tbl',[
 				'position_id' => $params["id"] ?? null,
-				'position' => $params["position"] ?? null
+				'position' => $params["position"] ?? null,
+				'access_restriction' => $params["access_restriction"] ?? null
 			]);
 		}
 	}
@@ -700,14 +724,14 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		public function changeMemberPassword($memberId, $data) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			$user = $db->selectOne("SELECT * FROM user_tbl WHERE user_id = ?", [$memberId]);
 			if (!$user) return ['success' => false, 'msg' => 'User not found'];
-			if (!password_verify($data['current_password'], $user['pass_word'])) return ['success' => false, 'msg' => 'Current password incorrect'];
+			if (!password_verify($data['current_password'], $user['pass_word'])) return ['success' => false, 'msg' => 'Current password is incorrect'];
 			if ($data['new_password'] !== $data['confirm_password']) return ['success' => false, 'msg' => 'Passwords do not match'];
 			$hashed = password_hash($data['new_password'], PASSWORD_DEFAULT);
-			$db->query("UPDATE user_tbl SET pass_word = ? WHERE user_id = ?", [$hashed, $memberId]);
-			return ['success' => true, 'msg' => 'Password changed'];
+			$db->execute("UPDATE user_tbl SET pass_word = ? WHERE user_id = ?", [$hashed, $memberId]);
+			return ['success' => true, 'msg' => 'Password changed successfully'];
 		}
 
 		public function getUsersByType($userType) {
@@ -747,20 +771,32 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				}
 
 			// Get position ID based on user type
-			$position_id = 5; // Default to Adviser for subadmins
-			if($data['user_type'] === 'student') {
-				$position_id = 2; // Student Government Member
+			$position_id = null;
+			if (!empty($data['position_id'])) {
+				// Caller already resolved position_id (preferred path)
+				$position_id = (int)$data['position_id'];
+			} elseif($data['user_type'] === 'student') {
+				// access_restriction = 3
+				$row = $this->db->select("SELECT position_id FROM position_tbl WHERE access_restriction = 3 LIMIT 1");
+				$position_id = $row ? (int)$row[0]['position_id'] : null;
 			} elseif($data['user_type'] === 'admin') {
-				$position_id = 3; // System Administrator
+				// access_restriction = 1
+				$row = $this->db->select("SELECT position_id FROM position_tbl WHERE access_restriction = 1 LIMIT 1");
+				$position_id = $row ? (int)$row[0]['position_id'] : null;
 			} elseif($data['user_type'] === 'subadmin' && !empty($data['subadmin_role'])) {
-				// Map subadmin role to position_id
-				$roleMap = [
-					'Adviser' => 5,
-					'President' => 6,
-					'Vice-President' => 7,
-					'Secretary' => 8
-				];
-				$position_id = $roleMap[$data['subadmin_role']] ?? 5; // Default to Adviser if role not found
+				// Look up by position name among subadmin positions (access_restriction = 2)
+				$row = $this->db->select(
+					"SELECT position_id FROM position_tbl WHERE position = :pos AND access_restriction = 2 LIMIT 1",
+					[':pos' => $data['subadmin_role']]
+				);
+				if (!$row) {
+					// Fallback: any subadmin position
+					$row = $this->db->select("SELECT position_id FROM position_tbl WHERE access_restriction = 2 LIMIT 1");
+				}
+				$position_id = $row ? (int)$row[0]['position_id'] : null;
+			}
+			if (!$position_id) {
+				throw new Exception("Could not determine a valid position for the given user type.");
 			}				// Create profile first
 				$profile = new Profile([
 					'fname' => trim($data['fname']),
@@ -873,6 +909,19 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				// Only update password if provided
 				if(!empty(trim($data['password']))) {
 					$userData['pass_word'] = password_hash($data['password'], PASSWORD_DEFAULT);
+				}
+
+				// Resolve new position_id if it changed (subadmin role change or passed directly)
+				if (!empty($data['position_id'])) {
+					$userData['position_id'] = (int)$data['position_id'];
+				} elseif ($data['user_type'] === 'subadmin' && !empty($data['subadmin_role'])) {
+					$row = $this->db->select(
+						"SELECT position_id FROM position_tbl WHERE position = :pos AND access_restriction = 2 LIMIT 1",
+						[':pos' => $data['subadmin_role']]
+					);
+					if ($row) {
+						$userData['position_id'] = (int)$row[0]['position_id'];
+					}
 				}
 
 				$user = new User($userData);
@@ -1097,19 +1146,44 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				throw new Exception("Failed to get users: " . $e->getMessage());
 			}
 		}
+
+		public function getAllUsers() {
+			try {
+				$query = "SELECT u.*, p.*, sr.role as subadmin_role 
+						  FROM user_tbl u 
+						  JOIN profile_tbl p ON u.profile_id = p.profile_id 
+						  LEFT JOIN subadmin_roles_tbl sr ON u.user_id = sr.user_id
+						  ORDER BY u.user_type, u.user_id";
+				return $this->db->select($query, []);
+			} catch (Exception $e) {
+				throw new Exception("Failed to get all users: " . $e->getMessage());
+			}
+		}
 	}
 
 	class EntityManager extends Main {
 
-    public static function createPosition($name) {
+    public static function createPosition($name, $access_restriction = 2) {
         try {
             $name = trim($name);
             if(empty($name)) {
                 throw new Exception("Position name is required");
             }
+            if(!in_array((int)$access_restriction, [1, 2, 3])) {
+                throw new Exception("Invalid access restriction value. Must be 1, 2, or 3.");
+            }
 
-            $pos = new Position(['position' => $name]);
-            $pos->findOrCreate('position_id', ['position']);
+            $db = Database::getInstance();
+            $connection = $db->getConnection();
+            $stmt = $connection->prepare(
+                "INSERT INTO position_tbl (position, access_restriction) VALUES (:position, :access_restriction)
+                 ON DUPLICATE KEY UPDATE access_restriction = :access_restriction2"
+            );
+            $stmt->execute([
+                ':position' => $name,
+                ':access_restriction' => (int)$access_restriction,
+                ':access_restriction2' => (int)$access_restriction
+            ]);
             return ['success' => true, 'message' => 'Successfully added new position'];
         } catch(Exception $e) {
             throw new Exception("Failed! An error was detected: " . $e->getMessage());
@@ -1134,7 +1208,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
     // ✅ Fixed database calls
     public static function getAllPositions() {
         $db = Database::getInstance(); // Use wrapper, not raw PDO
-        $query = "SELECT position_id, position FROM position_tbl ORDER BY position ASC";
+        $query = "SELECT position_id, position, access_restriction FROM position_tbl ORDER BY position ASC";
         return $db->select($query);
     }
 
@@ -1202,7 +1276,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		/*public function getMemberActiveTasks($memberId) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			// Remove assigned_to reference, fetch tasks for memberId if possible
 			$tasks = $db->select("SELECT * FROM task_tbl WHERE task_deadline >= CURDATE()", []);
 			return ['data' => $tasks];
@@ -1221,19 +1295,18 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 						t.task_title,
 						c.task_category AS task_category,
 						t.task_deadline,
-						CASE 
-							WHEN t.task_deadline >= CURDATE() THEN 'active'
-							ELSE 'inactive'
-						END AS task_status
+						t.task_status
 					FROM task_tbl AS t
 					LEFT JOIN task_category_tbl AS c
 						ON c.task_category_id = t.task_category_id
 					LEFT JOIN task_submission_tbl AS s
 						ON s.task_id = t.task_id 
 						AND s.submitted_by = ?
-						AND s.check_status = 'Approved'
+						AND (s.check_status IS NULL OR LOWER(s.check_status) != 'rejected')
 					WHERE 
 						t.assigned_to = ?
+						AND t.task_status = 'active'
+						AND t.task_deadline >= CURDATE()
 						AND s.task_submission_id IS NULL
 					ORDER BY t.task_deadline ASC
 				";
@@ -1241,14 +1314,60 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				// Execute query - pass memberId twice for both placeholders
 				$tasks = $db->select($sql, [$memberId, $memberId]) ?: [];
 
-				// Normalize keys
+				// Normalize keys — all returned rows are active (filtered by SQL)
 				$tasks = array_map(function($t) {
 					return [
 						'task_id'       => (int)($t['task_id'] ?? 0),
 						'task_title'    => $t['task_title'] ?? '',
 						'task_category' => $t['task_category'] ?? '-',
 						'task_deadline' => $t['task_deadline'] ?? '',
-						'task_status'   => $t['task_status'] ?? 'inactive',
+						'task_status'   => 'active',
+					];
+				}, $tasks);
+
+				return ['data' => $tasks];
+
+			} catch (Exception $e) {
+				return ['data' => [], 'error' => $e->getMessage()];
+			}
+		}
+
+		public function getMemberOverdueTasks($memberId) {
+			$db = Database::getInstance();
+
+			try {
+				$sql = "
+					SELECT 
+						t.task_id,
+						t.task_title,
+						c.task_category AS task_category,
+						t.task_deadline,
+					t.task_status,
+						t.task_status
+					FROM task_tbl AS t
+					LEFT JOIN task_category_tbl AS c
+						ON c.task_category_id = t.task_category_id
+					LEFT JOIN task_submission_tbl AS s
+						ON s.task_id = t.task_id 
+						AND s.submitted_by = ?
+						AND (s.check_status IS NULL OR LOWER(s.check_status) != 'rejected')
+					WHERE 
+						t.assigned_to = ?
+						AND t.task_status = 'active'
+						AND t.task_deadline < CURDATE()
+						AND s.task_submission_id IS NULL
+					ORDER BY t.task_deadline ASC
+				";
+
+				$tasks = $db->select($sql, [$memberId, $memberId]) ?: [];
+
+				$tasks = array_map(function($t) {
+					return [
+						'task_id'       => (int)($t['task_id'] ?? 0),
+						'task_title'    => $t['task_title'] ?? '',
+						'task_category' => $t['task_category'] ?? '-',
+						'task_deadline' => $t['task_deadline'] ?? '',
+						'task_status'   => 'overdue',
 					];
 				}, $tasks);
 
@@ -1261,13 +1380,18 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 
 
 		/*public function getMemberTaskSubmissions($memberId) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			$subs = $db->select("SELECT * FROM task_submission_tbl WHERE submitted_by = ?", [$memberId]);
 			return ['data' => $subs];
 		}*/
-		public function getMemberTaskSubmissions($memberId) 
+		public function getMemberTaskSubmissions($memberId, $filters = []) 
 {
 			$db = Database::getInstance(); // <-- FIXED
+
+			$status   = trim($filters['status']   ?? '');
+			$category = trim($filters['category'] ?? '');
+
+			$params = [$memberId, $memberId];
 
 			$sql = "
 				SELECT 
@@ -1275,12 +1399,13 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 					t.task_title,
 					c.task_category,
 					t.task_deadline,
+					t.task_status,
 					
 					s.task_submission_id,
 					s.check_status,
 					s.file_upload_id,
 					
-					f.file_name
+					COALESCE(f.original_filename, f.file_name) AS file_name
 
 				FROM task_tbl t
 				LEFT JOIN task_category_tbl c 
@@ -1289,19 +1414,40 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 					ON s.task_id = t.task_id AND s.submitted_by = ?
 				LEFT JOIN file_upload_tbl f 
 					ON f.file_upload_id = s.file_upload_id
-				
-				WHERE t.assigned_to IS NULL 
-				OR FIND_IN_SET(?, t.assigned_to)
+				WHERE t.assigned_to = ?
 			";
 
-			$rows = $db->select($sql, [$memberId, $memberId]);
+			// Apply status filter
+			if ($status !== '') {
+				if ($status === 'pending') {
+					// Pending = no submission yet, and task must still be active (not closed/cancelled)
+					$sql .= " AND s.task_submission_id IS NULL AND t.task_status NOT IN ('closed', 'cancelled')";
+				} elseif ($status === 'submitted') {
+					// Submitted but not yet reviewed (check_status stored as 'pending' in DB)
+					$sql .= " AND s.task_submission_id IS NOT NULL AND LOWER(s.check_status) = 'pending'";
+				} elseif ($status === 'approved') {
+					// Case-insensitive match — admin stores 'Approved' (capital A)
+					$sql .= " AND LOWER(s.check_status) = 'approved'";
+				} else {
+					$sql .= " AND LOWER(s.check_status) = ?";
+					$params[] = strtolower($status);
+				}
+			}
+
+			// Apply category filter (matches category_tag on uploaded file)
+			if ($category !== '') {
+				$sql .= " AND f.category_tag = ?";
+				$params[] = $category;
+			}
+
+			$rows = $db->select($sql, $params);
 
 			return ['data' => $rows];
 		}
 
 		public function getMemberTaskDetails($memberId, $taskId) {
-			$db = Database::getInstance()->getConnection();
-			$task = $db->selectOne("SELECT * FROM task_tbl WHERE task_id = ? AND assigned_to = ?", [$taskId, $memberId]);
+			$db = Database::getInstance();
+			$task = $db->selectOne("SELECT t.*, c.task_category FROM task_tbl t LEFT JOIN task_category_tbl c ON c.task_category_id = t.task_category_id WHERE t.task_id = ? AND t.assigned_to = ?", [$taskId, $memberId]);
 			return $task ? ['success' => true, 'data' => $task] : ['success' => false, 'msg' => 'Task not found'];
 		}
 
@@ -1335,7 +1481,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				}
 
 				// Notify the assigned member
-				$this->notifyMembersNewTask($taskId, $data['task_title'], $assignedTo);
+				$this->notifyMembersNewTask($taskId, $data['task_title'], $assignedTo, $data['task_description'] ?? '', $data['task_deadline'] ?? '');
 
 				return ["status" => "SUCCESS", "msg" => "Task created successfully", "task_id" => $taskId];
 			} catch (Exception $e) {
@@ -1348,6 +1494,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				$query = "SELECT t.*, tc.task_category, 
 						 COUNT(ts.task_submission_id) as submission_count,
 						 COUNT(CASE WHEN ts.check_status = 'approved' THEN 1 END) as approved_count,
+						 COUNT(CASE WHEN ts.check_status = 'rejected' THEN 1 END) as rejected_count,
 						 COUNT(CASE WHEN ts.check_status = 'pending' THEN 1 END) as pending_count,
 						 CONCAT(p.fname, ' ', p.lname) as assigned_member_name
 						 FROM task_tbl t 
@@ -1365,7 +1512,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		public function getTasksForMember($userId) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			try {
 				// Get user's position to check permissions
 				$userQuery = "SELECT u.position_id FROM user_tbl u WHERE u.user_id = :user_id";
@@ -1392,7 +1539,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 			}
 		}
 		public function submitMemberTaskFile($data) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 
 			// Validate
 			if (empty($data['task_id']) || empty($data['file_id'])) {
@@ -1405,21 +1552,21 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 
 			try {
 				// Validate file exists
-				$stmt = $db->prepare("SELECT file_upload_id FROM file_upload_tbl WHERE file_upload_id = ?");
+				$stmt = $db->getConnection()->prepare("SELECT file_upload_id FROM file_upload_tbl WHERE file_upload_id = ?");
 				$stmt->execute([$data['file_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'File does not exist.'];
 				}
 
 				// Validate task exists
-				$stmt = $db->prepare("SELECT task_id FROM task_tbl WHERE task_id = ?");
+				$stmt = $db->getConnection()->prepare("SELECT task_id FROM task_tbl WHERE task_id = ?");
 				$stmt->execute([$data['task_id']]);
 				if ($stmt->rowCount() == 0) {
 					return ['success' => false, 'msg' => 'Task does not exist.'];
 				}
 
 				// Prevent duplicate submission
-				$stmt = $db->prepare("SELECT task_submission_id 
+				$stmt = $db->getConnection()->prepare("SELECT task_submission_id 
 									FROM task_submission_tbl 
 									WHERE task_id = ? AND file_upload_id = ?");
 				$stmt->execute([$data['task_id'], $data['file_id']]);
@@ -1428,7 +1575,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				}
 
 				// Insert submission correctly (NOW WITH submitted_by)
-				$stmt = $db->prepare("
+				$stmt = $db->getConnection()->prepare("
 					INSERT INTO task_submission_tbl 
 						(task_id, file_upload_id, check_status, submitted_by)
 					VALUES 
@@ -1497,7 +1644,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		public function reviewSubmission($data) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			try {
 				// Validate required fields
 				if (empty($data['task_submission_id']) || empty($data['check_status'])) {
@@ -1542,18 +1689,18 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		public function getSubmissions($taskId = null) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			try {
-				$query = "SELECT ts.*, t.task_title, t.task_deadline,
-						 fu.file_name, fu.datetime_uploaded,
-						 p.fname, p.lname, u.user_name
-						 FROM task_submission_tbl ts
-						 JOIN task_tbl t ON ts.task_id = t.task_id
-						 JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
-						 JOIN user_tbl u ON fu.uploaded_by = u.user_id
-						 JOIN profile_tbl p ON u.profile_id = p.profile_id";
-				
-				$params = [];
+			$query = "SELECT ts.*, t.task_title, t.task_deadline,
+					t.task_status,
+					 COALESCE(NULLIF(fu.original_filename, ''), fu.file_name) AS file_name,
+					 fu.datetime_uploaded,
+					 p.fname, p.lname, u.user_name
+					 FROM task_submission_tbl ts
+					 JOIN task_tbl t ON ts.task_id = t.task_id
+					 JOIN file_upload_tbl fu ON ts.file_upload_id = fu.file_upload_id
+					 JOIN user_tbl u ON fu.uploaded_by = u.user_id
+					 JOIN profile_tbl p ON u.profile_id = p.profile_id";				$params = [];
 				if ($taskId) {
 					$query .= " WHERE ts.task_id = :task_id";
 					$params[':task_id'] = $taskId;
@@ -1568,7 +1715,7 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 		}
 
 		public function deleteTask($taskId, $reason) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			try {
 				// Get task data for deletion record
 				$taskData = $this->db->select(
@@ -1582,9 +1729,9 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 
 				// Save deletion record
 				$deleteRecord = new Delete([
-					'data_deleted' => json_encode($taskData[0]),
-					'reason_for_deletion' => $reason,
-					'table_origin' => 'task_tbl',
+					'data' => json_encode($taskData[0]),
+					'reason' => $reason,
+					'table' => 'task_tbl',
 					'datetime' => date('Y-m-d H:i:s')
 				]);
 				$deleteRecord->insert();
@@ -1603,8 +1750,9 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 			}
 		}
 
-		private function notifyMembersNewTask($taskId, $taskTitle, $assignedTo = null) {
-			$db = Database::getInstance()->getConnection();
+		private function notifyMembersNewTask($taskId, $taskTitle, $assignedTo = null, $description = '', $deadline = '') {
+			$db = Database::getInstance();
+			$deadline = $deadline ? date('M j, Y', strtotime($deadline)) : '';
 
 			if ($assignedTo) {
 				// Notify only the assigned user
@@ -1630,15 +1778,15 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
 				$notificationManager->createNotification([
 					'user_id' => $member['user_id'],
 					'type' => 'new_task',
-					'title' => 'New Task Assigned',
-					'message' => "New task '{$taskTitle}' has been assigned to you",
+					'title' => '📋 New Task Assigned',
+					'message' => "You have a new task: '{$taskTitle}'. {$description} 📅 Due: {$deadline}",
 					'related_id' => $taskId
 				]);
 			}
 		}
 
 		private function notifyAdvisersNewSubmission($taskId, $submitterId) {
-			$db = Database::getInstance()->getConnection();
+			$db = Database::getInstance();
 			// Get task title and submitter name
 			$data = $this->db->select(
 				"SELECT t.task_title, CONCAT(p.fname, ' ', p.lname) AS full_name
@@ -1833,24 +1981,23 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
     private function userCanAccessCategory($userId, $categoryId) {
         $db = Database::getInstance();
         
-        // Get user's position
-        $user = $db->selectOne("SELECT position_id FROM user_tbl WHERE user_id = ?", [$userId]);
+        // Get user's position and access restriction
+        $user = $db->selectOne("SELECT u.position_id, p.access_restriction FROM user_tbl u LEFT JOIN position_tbl p ON u.position_id = p.position_id WHERE u.user_id = ?", [$userId]);
         if (!$user) return false;
         
-        // Admin (position_id=3) always has full access
-        if ($user['position_id'] == 3) return true;
+        // Admin (position_id=3) or access_restriction >= 2 (advisers/subadmins) have full access
+        if ($user['position_id'] == 3 || $user['access_restriction'] >= 2) return true;
         
         // Check if position has permission for this category
         $permission = $db->selectOne("
-            SELECT permission_id 
-            FROM category_permissions_tbl 
+            SELECT file_permission_id 
+            FROM file_permission_tbl 
             WHERE position_id = ? AND category_id = ?
             LIMIT 1
         ", [$user['position_id'], $categoryId]);
         
         return $permission !== null;
     }
-
     // Download files with permission check
     public function downloadFile($fileId, $userId = null) {
         $db = Database::getInstance();
@@ -1911,7 +2058,8 @@ private function getOrCreateCategory($categoryName, $categorySlug) {
         $query = "
             SELECT 
                 fu.file_upload_id,
-                fu.file_name,
+                COALESCE(NULLIF(fu.original_filename, ''), fu.file_name) AS file_name,
+                fu.original_filename,
             fu.mime_type,
             fu.category_tag,
             fu.category_score,
@@ -2700,16 +2848,40 @@ class DashboardManager {
         $db = Database::getInstance();
         $stats = [];
         $stats['totalFiles'] = $db->selectOne("SELECT COUNT(*) as count FROM file_upload_tbl WHERE uploaded_by = ?", [$memberId])['count'] ?? 0;
-        $stats['activeTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_tbl WHERE assigned_to = ? AND task_deadline >= CURDATE()", [$memberId])['count'] ?? 0;
-        //$stats['activeTasks'] = $db->select("SELECT COUNT(*) as count FROM task_tbl WHERE task_deadline >= CURDATE()")['count'] ?? 0;
-		$stats['completedTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl WHERE submitted_by = ? AND check_status = 'approved'", [$memberId])['count'] ?? 0;
+
+        // Count pending tasks: same definition as the Pending Tasks table (CALL 9 + CALL 22).
+        // active status + no non-rejected submission already filed, regardless of deadline direction.
+        $stats['activeTasks'] = $db->selectOne("
+            SELECT COUNT(*) as count
+            FROM task_tbl AS t
+            LEFT JOIN task_submission_tbl AS s
+                ON s.task_id = t.task_id
+                AND s.submitted_by = ?
+                AND (s.check_status IS NULL OR LOWER(s.check_status) != 'rejected')
+            WHERE t.assigned_to = ?
+              AND t.task_status = 'active'
+              AND s.task_submission_id IS NULL
+        ", [$memberId, $memberId])['count'] ?? 0;
+
+        $stats['completedTasks'] = $db->selectOne("SELECT COUNT(*) as count FROM task_submission_tbl WHERE submitted_by = ? AND LOWER(check_status) = 'approved'", [$memberId])['count'] ?? 0;
         $stats['categoryCount'] = $db->selectOne("SELECT COUNT(DISTINCT category_tag) as count FROM file_upload_tbl WHERE uploaded_by = ? AND category_tag IS NOT NULL", [$memberId])['count'] ?? 0;
         return ['success' => true, 'data' => $stats];
     }
     public function getMemberRecentActivity($memberId) {
         $db = Database::getInstance();
-        $activities = $db->select("SELECT datetime_uploaded as date, file_name as action, category_tag as category, 'File Upload' as type FROM file_upload_tbl WHERE uploaded_by = ? ORDER BY datetime_uploaded DESC LIMIT 10", [$memberId]);
-        return ['success' => true, 'data' => $activities];
+        $activities = $db->select("
+            SELECT
+                datetime_uploaded                                    AS date,
+                'File Upload'                                        AS activity_type,
+                COALESCE(original_filename, file_name)               AS item_name,
+                category_tag                                         AS category,
+                'completed'                                          AS status
+            FROM file_upload_tbl
+            WHERE uploaded_by = ?
+            ORDER BY datetime_uploaded DESC
+            LIMIT 10
+        ", [$memberId]);
+        return ['status' => 'SUCCESS', 'data' => $activities ?: []];
     }
 }
 
