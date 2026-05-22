@@ -4,7 +4,7 @@ require_once("../resources/class.php");
 $embedMode = isset($_GET["embed"]);
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['position_id'] != 3) {
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] != 'admin') {
     header("Location: ../index.php");
     exit;
 }
