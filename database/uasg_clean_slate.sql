@@ -433,6 +433,7 @@ INSERT INTO `migrations_tbl` (`filename`) VALUES
 
 -- Default admin position and profile
 INSERT INTO `position_tbl` (`position_id`, `position`, `access_restriction`) VALUES
+(1, 'Student Government Member', 3),
 (2, 'President', 2),
 (3, 'Vice President', 2),
 (5, 'Senator', 1),
