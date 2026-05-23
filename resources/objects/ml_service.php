@@ -40,13 +40,13 @@ class MLClassificationService {
     private function findPython() {
         // Try common Python paths
         $possiblePaths = [
+            'python3',          // In PATH (Linux/Mac)
+            'python',           // In PATH
+            'py',               // Python Launcher (Windows)
             'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python314\\python.exe',
             'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\python.exe',
             'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
             'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python311\\python.exe',
-            'python',           // In PATH
-            'python3',          // In PATH (Linux/Mac)
-            'py',               // Python Launcher (Windows)
             'C:\\Python314\\python.exe',
             'C:\\Python313\\python.exe',
             'C:\\Python312\\python.exe',
