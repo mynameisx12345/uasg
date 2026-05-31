@@ -23,9 +23,9 @@
   .fe-list-row:hover { background:linear-gradient(135deg, rgba(123,18,40,0.02), rgba(200,155,46,0.02)); border-color:transparent; }
   .fe-list-icon { font-size:22px; margin-right:14px; width:32px; text-align:center; }
   .fe-list-name { flex:1; font-size:13px; color:#1e293b; font-weight:500; }
-  .fe-list-meta { font-size:11px; color:#94a3b8; width:120px; text-align:right; }
-  .fe-list-size { font-size:11px; color:#94a3b8; width:80px; text-align:right; margin-right:10px; }
-  .fe-list-actions { width:120px; text-align:right; display:flex; gap:2px; justify-content:flex-end; }
+  .fe-list-meta { font-size:11px; color:#94a3b8; width:120px; text-align:right; flex-shrink:0; margin-right:12px; }
+  .fe-list-size { font-size:11px; color:#94a3b8; width:80px; text-align:right; margin-right:12px; flex-shrink:0; }
+  .fe-list-actions { width:150px; text-align:right; display:flex; gap:2px; justify-content:flex-end; flex-shrink:0; }
   .fe-list-actions button { background:none; border:none; cursor:pointer; padding:6px 8px; border-radius:6px; font-size:14px; transition:background 0.15s; }
   .fe-list-actions button:hover { background:#f1f5f9; }
   .fe-empty { text-align:center; padding:60px 20px; color:#94a3b8; }
