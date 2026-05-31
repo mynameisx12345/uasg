@@ -523,6 +523,15 @@ if (!isset($_SESSION['user_id'])) {
           <label for="closeTaskReason">Reason *</label>
           <textarea id="closeTaskReason" name="reason" rows="3" placeholder="Enter reason for closing/cancelling this task..." required></textarea>
         </div>
+        <div class="form-group" id="closeTaskFilesGroup" style="display:none;">
+          <label>Signed Documents * <span style="font-weight:400;color:#64748b;font-size:11px;">(PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)</span></label>
+          <div id="closeTaskDropZone" style="border:2px dashed #e2e8f0;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;background:#fafbfc;">
+            <div style="font-size:28px;margin-bottom:6px;">📎</div>
+            <div style="font-size:13px;color:#64748b;">Drag & drop files here or <span style="color:#2563eb;font-weight:600;">browse</span></div>
+          </div>
+          <input type="file" id="closeTaskFiles" name="signed_documents[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none;">
+          <div id="closeTaskFileList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
         <div class="form-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:1.5rem;">
           <button type="button" class="btn-secondary" data-close style="padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;">Cancel</button>
           <button type="submit" id="confirmCloseTask" style="background:#f59e0b;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="fas fa-times-circle"></i> Cancel Task</button>
@@ -1177,6 +1186,9 @@ document.addEventListener('click', function(e) {
         $('#closeTaskWarning').css({background:'#d1fae5',border:'1px solid #bbf7d0',color:'#065f46'}).html('<i class="fas fa-info-circle"></i> This task will be marked as closed. Please provide a reason below.');
         $('#confirmCloseTask').attr('style','background:#28a745;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;').html('<i class="fas fa-check-circle"></i> Close Task');
         $('#closeTaskReason').val('');
+        $('#closeTaskFiles').val('');
+        $('#closeTaskFilesGroup').show();
+        signedFiles = []; $('#closeTaskFileList').html('');
         openModal('closeTaskModal');
     });
 
@@ -1191,19 +1203,71 @@ document.addEventListener('click', function(e) {
         $('#closeTaskWarning').css({background:'#fef3c7',border:'1px solid #fde68a',color:'#92400e'}).html('<i class="fas fa-exclamation-triangle"></i> This task will be cancelled. Please provide a reason below.');
         $('#confirmCloseTask').attr('style','background:#f59e0b;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;').html('<i class="fas fa-times-circle"></i> Cancel Task');
         $('#closeTaskReason').val('');
+        $('#closeTaskFiles').val('');
+        $('#closeTaskFilesGroup').hide();
+        signedFiles = []; $('#closeTaskFileList').html('');
         openModal('closeTaskModal');
     });
+
+    // Signed documents drag-and-drop
+    var signedFiles = [];
+    var dropZone = $('#closeTaskDropZone');
+    dropZone.on('click', function(){ $('#closeTaskFiles').click(); });
+    dropZone.on('dragover', function(e){ e.preventDefault(); $(this).css({borderColor:'#2563eb',background:'#eff6ff'}); });
+    dropZone.on('dragleave drop', function(e){ e.preventDefault(); $(this).css({borderColor:'#e2e8f0',background:'#fafbfc'}); });
+    dropZone.on('drop', function(e){ var dt=e.originalEvent.dataTransfer; if(dt&&dt.files.length) addSignedFiles(dt.files); });
+    $('#closeTaskFiles').on('change', function(){ if(this.files.length) addSignedFiles(this.files); this.value=''; });
+
+    function addSignedFiles(fileList){
+      var allowed = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png'];
+      for(var i=0;i<fileList.length;i++){
+        var ext=fileList[i].name.split('.').pop().toLowerCase();
+        if(allowed.indexOf(ext)===-1) continue;
+        signedFiles.push(fileList[i]);
+      }
+      renderSignedFiles();
+    }
+    function removeSignedFile(idx){ signedFiles.splice(idx,1); renderSignedFiles(); }
+    function renderSignedFiles(){
+      var html='';
+      signedFiles.forEach(function(f,i){
+        var size=f.size<1048576?(f.size/1024).toFixed(1)+' KB':(f.size/1048576).toFixed(1)+' MB';
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">';
+        html+='<span style="font-size:16px;">📄</span>';
+        html+='<span style="flex:1;font-size:12px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+f.name+'</span>';
+        html+='<span style="font-size:11px;color:#94a3b8;">'+size+'</span>';
+        html+='<button type="button" onclick="removeSignedFile('+i+')" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:14px;padding:2px 6px;">✕</button>';
+        html+='</div>';
+      });
+      $('#closeTaskFileList').html(html);
+    }
+    window.removeSignedFile = removeSignedFile;
 
     // Close/Cancel form submit
     $('#closeTaskForm').on('submit', function(e) {
         e.preventDefault();
         const action = $('#closeTaskAction').val();
-        $.post('ajax.php', {
-            CALL: 'close_cancel_task',
-            task_id: $('#closeTaskId').val(),
-            action: action,
-            reason: $('#closeTaskReason').val()
-        }, function(resp) {
+        if (action === 'close' && signedFiles.length === 0) {
+            showNotification('Please upload at least one signed document.', 'error'); return;
+        }
+        var formData = new FormData();
+        formData.append('CALL', 'close_cancel_task');
+        formData.append('task_id', $('#closeTaskId').val());
+        formData.append('action', action);
+        formData.append('reason', $('#closeTaskReason').val());
+        if (action === 'close') {
+            for (var i = 0; i < signedFiles.length; i++) {
+                formData.append('signed_documents[]', signedFiles[i]);
+            }
+        }
+        $.ajax({
+            url: 'ajax.php',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(resp) {
             if (resp.status === 'SUCCESS') {
                 const message = action === 'close' ? 'Task closed successfully' : 'Task cancelled successfully';
                 const title = action === 'close' ? 'Task Closed' : 'Task Cancelled';
@@ -1215,7 +1279,7 @@ document.addEventListener('click', function(e) {
             } else {
                 showNotification(resp.msg || 'Failed to update task', 'error', 'Update Failed');
             }
-        }, 'json');
+        }});
     });
 
     // Initialize
@@ -1436,6 +1500,9 @@ document.addEventListener('click', function(e) {
             $('#closeTaskAction').val('cancel');
             $('#closeTaskModalTitle').text('Cancel Task');
             $('#closeTaskReason').val('');
+            $('#closeTaskFiles').val('');
+            $('#closeTaskFilesGroup').hide();
+            signedFiles = []; $('#closeTaskFileList').html('');
             $('#confirmCloseTask').text('Cancel Task').removeClass('btn-primary').addClass('btn-warning');
             openModal('closeTaskModal');
             return;
@@ -1452,6 +1519,9 @@ document.addEventListener('click', function(e) {
             $('#closeTaskAction').val('close');
             $('#closeTaskModalTitle').text('Close Task');
             $('#closeTaskReason').val('');
+            $('#closeTaskFiles').val('');
+            $('#closeTaskFilesGroup').show();
+            signedFiles = []; $('#closeTaskFileList').html('');
             $('#confirmCloseTask').text('Close Task').removeClass('btn-warning').addClass('btn-primary');
             openModal('closeTaskModal');
             return;

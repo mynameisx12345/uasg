@@ -27,6 +27,8 @@ if ($allowOverride) {
     $_rolesBatch = $db->selectOne("SELECT setting_value FROM system_settings_tbl WHERE setting_key = 'override_roles_batch_upload'");
     $allowOverrideBatch = in_array($userType, json_decode($_rolesBatch['setting_value'] ?? '[]', true) ?: []);
 }
+$_settingView = $db->selectOne("SELECT setting_value FROM system_settings_tbl WHERE setting_key = 'file_view_validity_date'");
+$fileViewValidityDate = $_settingView['setting_value'] ?? '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -63,7 +65,7 @@ if ($allowOverride) {
         </div>
 
         <div class="fc-tab-content active" id="fc-browse">
-          <script>window.allowManualOverride = <?= $allowOverrideExplorer ? 'true' : 'false' ?>; window.allowManualOverrideBatch = <?= $allowOverrideBatch ? 'true' : 'false' ?>;</script>
+          <script>window.allowManualOverride = <?= $allowOverrideExplorer ? 'true' : 'false' ?>; window.allowManualOverrideBatch = <?= $allowOverrideBatch ? 'true' : 'false' ?>; window.fileViewValidityDate = '<?= $fileViewValidityDate ?>'; window.userType = '<?= $userType ?>';</script>
           <?php include("../resources/components/file-explorer.php"); ?>
         </div>
 
@@ -169,5 +171,25 @@ if ($allowOverride) {
     <div id="fePropsContent" style="padding:20px;"></div>
   </div>
 </div>
+
+<!-- File Viewer Modal (Full-screen) -->
+<div id="feViewerModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:10000;flex-direction:column;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:rgba(0,0,0,0.4);">
+    <span id="feViewerTitle" style="color:#fff;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;"></span>
+    <button onclick="$('#feViewerModal').hide().find('#feViewerBody').html('');" style="background:none;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0 8px;">&times;</button>
+  </div>
+  <div id="feViewerBody" style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:10px;"></div>
+</div>
+
+<!-- Subscription Message Modal -->
+<div id="feSubMsgModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:40px 30px;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+    <h3 style="margin:0 0 10px;font-size:18px;color:#1e293b;">Viewing Disabled</h3>
+    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;">File viewing is disabled due to incomplete subscription. Please contact your system administrator.</p>
+    <button onclick="$('#feSubMsgModal').hide();" style="padding:10px 28px;border:none;border-radius:8px;background:#7b1228;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">OK</button>
+  </div>
+</div>
+
 </body>
 </html>

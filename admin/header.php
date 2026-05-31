@@ -179,9 +179,9 @@ function closeMobileSidebar(){
   window.readNotif=function(id){
     $.post('ajax.php',{CALL:CALL_MARK,NOTIFICATION_ID:id},function(){
       fetchCount();
+      fetchList();
       var onTaskPage = window.location.pathname.indexOf('task-management.php') !== -1;
       if (onTaskPage) {
-        $('#notifList .notif-item[data-id="'+id+'"]').css('background','#fff').find('span:first').css('background','transparent');
         if(typeof tasksTable!=='undefined'&&tasksTable) tasksTable.ajax.reload();
         if(typeof submissionsTable!=='undefined'&&submissionsTable) submissionsTable.ajax.reload();
         if(typeof renderKanban==='function') renderKanban();

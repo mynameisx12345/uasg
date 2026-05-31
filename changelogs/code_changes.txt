@@ -509,3 +509,106 @@ Description: Category override dropdown conditional on window.allowManualOverrid
 Description: Changed manual override bullet to "Classifications are monitored — the administrator can view and monitor all category classifications and any manual changes made."
 
 ---
+
+---
+
+[PERMANENT] admin/task-management.php
+Description: Added "Signed Documents" file upload field to Close Task modal. Field is required when closing a task (hidden for cancel). Updated closeTaskBtn/cancelTaskBtn handlers to show/hide and toggle required. Changed form submit from $.post to $.ajax with FormData to support file uploads.
+
+---
+
+[PERMANENT] admin/ajax.php | close_cancel_task handler
+Description: Added signed documents upload handling when closing a task. Validates files are present for close action. Gets the category (category_id, category_tag) from the approved submission's file in file_upload_tbl (via task_submission_tbl). Uploads signed files to uploads/files/{category_slug}/ using the same category as the submitted file. Inserts records into file_upload_tbl with classification_method='manual'.
+
+---
+
+[PERMANENT] admin/ajax.php | file_explorer handlers (get_files, search, get_overridden)
+Description: Added f.is_signed_document to SELECT queries so the frontend can identify approved/signed files.
+
+---
+
+[PERMANENT] member/ajax.php | file_explorer handlers (get_files, search, get_overridden)
+Description: Added f.is_signed_document to SELECT queries.
+
+---
+
+[PERMANENT] subadmin/ajax.php | file_explorer handlers (get_files, search, get_overridden)
+Description: Added f.is_signed_document to SELECT queries.
+
+---
+
+[PERMANENT] resources/components/file-explorer.php
+Description: Added green "✓ Approved" badge next to file name in both grid and list views when is_signed_document = 1.
+
+---
+
+[PERMANENT] resources/components/file-explorer.php
+Description: Added "✓ Approved" filter button in toolbar. Toggles green active state. Calls get_approved action to show only signed/approved files. Reset on feGoHome.
+
+---
+
+[PERMANENT] admin/ajax.php, member/ajax.php, subadmin/ajax.php | file_explorer
+Description: Added get_approved action handler — returns files WHERE is_signed_document = 1.
+
+---
+
+[PERMANENT] admin/header.php | readNotif function
+Description: Fixed notification not marking as read when clicking from non-task pages. The redirect now happens inside the AJAX success callback so the mark-read completes before navigation. Also calls fetchList() to update dropdown UI on task page.
+
+---
+
+[PERMANENT] admin/index.php
+Description: Added session_start() at top. Was missing, causing $_SESSION['user_id'] to be empty in header.php notification bell — so notification count/list never loaded on the dashboard.
+
+---
+
+[PERMANENT] admin/file-center.php, member/file-center.php, subadmin/file-center.php
+Description: Added file_view_validity_date setting fetch and window.fileViewValidityDate JS variable. Added full-screen viewer modal (#feViewerModal) and subscription message modal (#feSubMsgModal) HTML.
+
+---
+
+[PERMANENT] resources/components/file-explorer.php
+Description: Added file viewer feature:
+- 👁️ View button in list actions, grid cards, and properties panel
+- feViewFile() function: checks validity date, shows subscription modal if expired
+- Renders: PDF (iframe), images (img), TXT (pre/fetch), DOCX (mammoth.js CDN), XLSX/XLS (SheetJS CDN), DOC (download fallback)
+- position:relative added to .fe-card for grid view button positioning
+
+---
+
+[PERMANENT] admin/ajax.php, member/ajax.php, subadmin/ajax.php | file_explorer
+Description: Added convert_docx action. Converts DOCX/DOC to PDF via LibreOffice headless (soffice --headless --convert-to pdf). Caches output in uploads/files/pdf_cache/. Returns pdf_url on success, 'libreoffice_not_found' error if LibreOffice not installed. Supports both Windows and Linux paths.
+
+---
+
+[PERMANENT] resources/components/file-explorer.php
+Description: Replaced mammoth.js DOCX rendering with server-side LibreOffice conversion. Both DOC and DOCX now call convert_docx backend and display resulting PDF in iframe. On libreoffice_not_found: admin sees download link to LibreOffice, other users see "contact your system administrator". Removed renderDocx function and mammoth.js CDN dependency.
+
+---
+
+[PERMANENT] admin/file-center.php, member/file-center.php, subadmin/file-center.php
+Description: Added window.userType variable to differentiate admin vs other users for LibreOffice error messaging.
+
+---
+
+[PERMANENT] admin/ajax.php | CALL 53 (tasks report)
+Description: Added t.task_status and SUM(CASE WHEN ts.check_status='approved' THEN 1 ELSE 0 END) as approved_count to the SELECT query so the frontend can derive correct kanban statuses.
+
+---
+
+[PERMANENT] admin/reports-page.php | Tasks Report status column
+Description: Fixed status rendering to match LOGIC_REFERENCE.md. Now shows: Closed, Cancelled, Approved, Awaiting Review, or Pending — derived from task_status + approved_count + submission_count. Removed incorrect overdue/active logic.
+
+---
+
+[LOCAL-ONLY] admin/ajax.php, member/ajax.php, subadmin/ajax.php | convert_docx
+Description: Fixed LibreOffice path detection. Now searches multiple common install paths:
+- Windows: C:\Program Files\LibreOffice, C:\Program Files (x86)\LibreOffice, D:\Program Files\LibreOffice
+- macOS: /Applications/LibreOffice.app/Contents/MacOS/soffice
+- Linux: uses `which soffice`
+If none found, returns libreoffice_not_found error immediately (no failed exec attempt).
+
+---
+
+[PERMANENT] admin/task-management.php | Close Task modal signed documents
+Description: Replaced plain file input with drag-and-drop upload zone. Features: drag & drop or click to browse, file list with name/size preview, remove (✕) button per file, file type validation (client-side), validation on submit (at least 1 file required for close). Uses signedFiles JS array instead of raw file input.

@@ -13,7 +13,7 @@
   .fe-breadcrumb a:hover { text-decoration:underline; }
   .fe-breadcrumb span { color:#94a3b8; }
   .fe-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:14px; }
-  .fe-card { background:#fff; border:1px solid #f1f5f9; border-radius:12px; padding:20px 14px; text-align:center; cursor:pointer; transition:all 0.2s; }
+  .fe-card { background:#fff; border:1px solid #f1f5f9; border-radius:12px; padding:20px 14px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
   .fe-card:hover { border-color:#7b1228; box-shadow:0 4px 16px rgba(123,18,40,0.08); transform:translateY(-3px); }
   .fe-card-icon { font-size:40px; margin-bottom:10px; }
   .fe-card-name { font-size:12px; color:#1e293b; word-break:break-word; line-height:1.4; font-weight:500; }
@@ -25,7 +25,7 @@
   .fe-list-name { flex:1; font-size:13px; color:#1e293b; font-weight:500; }
   .fe-list-meta { font-size:11px; color:#94a3b8; width:120px; text-align:right; }
   .fe-list-size { font-size:11px; color:#94a3b8; width:80px; text-align:right; margin-right:10px; }
-  .fe-list-actions { width:90px; text-align:right; display:flex; gap:2px; justify-content:flex-end; }
+  .fe-list-actions { width:120px; text-align:right; display:flex; gap:2px; justify-content:flex-end; }
   .fe-list-actions button { background:none; border:none; cursor:pointer; padding:6px 8px; border-radius:6px; font-size:14px; transition:background 0.15s; }
   .fe-list-actions button:hover { background:#f1f5f9; }
   .fe-empty { text-align:center; padding:60px 20px; color:#94a3b8; }
@@ -51,6 +51,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <button id="feUploadBtn" class="fe-btn fe-btn-upload">⬆️ Upload</button>
+    <button id="feApprovedFilter" class="fe-btn" style="background:#ecfdf5;color:#065f46;border:1px solid #bbf7d0;">✓ Approved</button>
     <button id="feOverriddenFilter" class="fe-btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;">✎ Overridden</button>
     <input type="text" id="feSearch" class="fe-search" placeholder="🔍 Search files...">
     <button id="feSmartSearchBtn" class="fe-btn fe-btn-smart">🧠 Smart Search</button>
@@ -87,6 +88,7 @@ $(function(){
   $('#feListView').click(function(){ feView='list'; $(this).addClass('active'); $('#feGridView').removeClass('active'); feRender(); });
 
   var feOverriddenActive = false;
+  var feApprovedActive = false;
 
   var feSearchTimer;
   $('#feSearch').on('input', function(){
@@ -96,7 +98,7 @@ $(function(){
     else if (q.length === 0) { if(feOverriddenActive) feFilterOverridden(); else { feCurrentFolder = null; feRender(); } }
   });
 
-  window.feGoHome = function(){ feCurrentFolder = null; feOverriddenActive = false; $('#feSearch').val(''); $('#feBreadcrumb').html('<a onclick="feGoHome()">📁 Home</a>'); $('#feOverriddenFilter').css({'background':'#fff3e0','color':'#e65100','border-color':'#ffe0b2'}); feLoadFolders(); };
+  window.feGoHome = function(){ feCurrentFolder = null; feOverriddenActive = false; feApprovedActive = false; $('#feSearch').val(''); $('#feBreadcrumb').html('<a onclick="feGoHome()">📁 Home</a>'); $('#feOverriddenFilter').css({'background':'#fff3e0','color':'#e65100','border-color':'#ffe0b2'}); $('#feApprovedFilter').css({'background':'#ecfdf5','color':'#065f46','border-color':'#bbf7d0'}); feLoadFolders(); };
   window.feOpenFolder = function(id, name){ feCurrentFolder = {id:id, name:name}; $('#feBreadcrumb').html('<a onclick="feGoHome()">📁 Home</a> <span>›</span> <span>📁 ' + name + '</span>'); feLoadFiles(id); };
   window.feDownloadFile = function(p, e, id){ if(e) e.stopPropagation(); if(id) window.open("ajax.php?CALL=download&file_id="+id,"_blank"); else window.open("../"+p,"_blank"); };
 
@@ -124,7 +126,7 @@ $(function(){
     }
     if(!window.allowManualOverride && f.is_overridden==1 && f.original_category_tag && f.original_category_tag!==f.category_tag) html += '<div class="fe-props-section"><div style="font-size:11px;color:#c89b2e;">⚠️ Previously overridden (original: '+(f.original_category_tag||'unknown')+')</div></div>';
     html += '<div class="fe-props-section" id="feNlpSection"><h4>🧠 Classification Analysis</h4><div style="text-align:center;padding:15px;color:#999;">Loading...</div></div>';
-    html += '<div style="text-align:center;margin-top:16px;"><button onclick="feDownloadFile(null,null,'+f.file_upload_id+')" style="padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#7b1228,#9c1530);color:#fff;font-weight:600;font-size:13px;">⬇️ Download</button></div>';
+    html += '<div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center;"><button onclick="feViewFile('+idx+');$(\'#fePropsModal\').hide();" style="padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-weight:600;font-size:13px;">👁️ View</button><button onclick="feDownloadFile(null,null,'+f.file_upload_id+')" style="padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,#7b1228,#9c1530);color:#fff;font-weight:600;font-size:13px;">⬇️ Download</button></div>';
     $('#fePropsContent').html(html); $('#fePropsModal').css('display','flex');
     $.post('ajax.php',{CALL:'get_nlp_analysis',file_id:f.file_upload_id},function(r){
       var h='<h4>🧠 Classification Analysis</h4>';
@@ -167,12 +169,13 @@ $(function(){
     var html='';
     if(feView==='grid'){
       html='<div class="fe-grid">';
-      files.forEach(function(f,i){ html+='<div class="fe-card" onclick="feShowProps('+i+')"><div class="fe-card-icon">'+feGetIcon(f.mime_type)+'</div><div class="fe-card-name">'+f.original_filename+'</div><div class="fe-card-meta">'+feFormatSize(f.file_size)+' • '+feFormatDate(f.datetime_uploaded)+'</div></div>'; });
+      files.forEach(function(f,i){ var ab=f.is_signed_document==1?'<div style="margin-top:4px;"><span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;">✓ Approved</span></div>':''; html+='<div class="fe-card" onclick="feShowProps('+i+')"><div style="position:absolute;top:8px;right:8px;"><button onclick="feViewFile('+i+',event)" title="View" style="background:rgba(0,0,0,0.05);border:none;border-radius:6px;padding:4px 6px;cursor:pointer;font-size:12px;">👁️</button></div><div class="fe-card-icon">'+feGetIcon(f.mime_type)+'</div><div class="fe-card-name">'+f.original_filename+ab+'</div><div class="fe-card-meta">'+feFormatSize(f.file_size)+' • '+feFormatDate(f.datetime_uploaded)+'</div></div>'; });
       html+='</div>';
     } else {
       html='<div class="fe-list">';
       files.forEach(function(f,i){
-        html+='<div class="fe-list-row" onclick="feShowProps('+i+')"><div class="fe-list-icon">'+feGetIcon(f.mime_type)+'</div><div class="fe-list-name">'+f.original_filename+(f.category_tag?' <span style="background:rgba(123,18,40,0.06);color:#7b1228;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:500;">'+f.category_tag+'</span>':'')+'</div><div class="fe-list-size">'+feFormatSize(f.file_size)+'</div><div class="fe-list-meta">'+feFormatDate(f.datetime_uploaded)+'</div><div class="fe-list-actions"><button onclick="feShowProps('+i+',event)" title="Properties">ℹ️</button><button onclick="feDownloadFile(null,event,'+f.file_upload_id+')" title="Download">⬇️</button><button onclick="feDeleteFile('+f.file_upload_id+',event)" title="Delete" style="color:#dc3545;">🗑️</button></div></div>';
+        var approvedBadge = f.is_signed_document==1 ? ' <span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;">✓ Approved</span>' : '';
+        html+='<div class="fe-list-row" onclick="feShowProps('+i+')"><div class="fe-list-icon">'+feGetIcon(f.mime_type)+'</div><div class="fe-list-name">'+f.original_filename+(f.category_tag?' <span style="background:rgba(123,18,40,0.06);color:#7b1228;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:500;">'+f.category_tag+'</span>':'')+approvedBadge+'</div><div class="fe-list-size">'+feFormatSize(f.file_size)+'</div><div class="fe-list-meta">'+feFormatDate(f.datetime_uploaded)+'</div><div class="fe-list-actions"><button onclick="feViewFile('+i+',event)" title="View">👁️</button><button onclick="feShowProps('+i+',event)" title="Properties">ℹ️</button><button onclick="feDownloadFile(null,event,'+f.file_upload_id+')" title="Download">⬇️</button><button onclick="feDeleteFile('+f.file_upload_id+',event)" title="Delete" style="color:#dc3545;">🗑️</button></div></div>';
       });
       html+='</div>';
     }
@@ -222,5 +225,89 @@ $(function(){
     else if(feOverriddenActive) { feFilterOverridden(); }
     else { feGoHome(); }
   });
+
+  $("#feApprovedFilter").click(function(){
+    feApprovedActive = !feApprovedActive;
+    if(feApprovedActive){
+      $(this).css({'background':'#065f46','color':'#fff','border-color':'#065f46'});
+    } else {
+      $(this).css({'background':'#ecfdf5','color':'#065f46','border-color':'#bbf7d0'});
+    }
+    var q = $('#feSearch').val().trim();
+    if(q.length >= 2) { feSearchFiles(q); }
+    else if(feApprovedActive) { feFilterApproved(); }
+    else { feGoHome(); }
+  });
+
+  function feFilterApproved(){
+    $('#feBreadcrumb').html('<a onclick="feGoHome()">📁 Home</a> <span>›</span> <span>✓ Approved Files</span>');
+    $.post('ajax.php',{CALL:'file_explorer',action:'get_approved'},function(r){ if(r.success){window.feFilesCache=r.files;feRenderFiles(r.files);} },'json');
+  }
+
+  // File Viewer
+  window.feViewFile = function(idx, e){
+    if(e) e.stopPropagation();
+    // Validity check
+    var vd = window.fileViewValidityDate;
+    if(vd){
+      var today = new Date(); today.setHours(0,0,0,0);
+      var valid = new Date(vd); valid.setHours(23,59,59,999);
+      if(today > valid){ $('#feSubMsgModal').css('display','flex'); return; }
+    }
+    var f = window.feFilesCache[idx]; if(!f) return;
+    var url = '../' + f.file_path;
+    var mime = (f.mime_type||'').toLowerCase();
+    var ext = f.original_filename.split('.').pop().toLowerCase();
+    $('#feViewerTitle').text(f.original_filename);
+    var body = $('#feViewerBody');
+    body.html('<div style="color:#fff;">Loading...</div>');
+    $('#feViewerModal').css('display','flex');
+
+    if(mime.includes('pdf') || ext==='pdf'){
+      body.html('<iframe src="'+url+'" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>');
+    } else if(mime.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].indexOf(ext)!==-1){
+      body.html('<img src="'+url+'" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;">');
+    } else if(ext==='txt'){
+      $.get(url,function(text){ body.html('<pre style="background:#fff;padding:20px;border-radius:8px;width:90%;max-height:100%;overflow:auto;font-size:13px;white-space:pre-wrap;">'+$('<span>').text(text).html()+'</pre>'); },'text');
+    } else if(ext==='docx'||ext==='doc'){
+      body.html('<div style="color:#fff;font-size:14px;">Converting document...</div>');
+      $.post('ajax.php',{CALL:'file_explorer',action:'convert_docx',file_id:f.file_upload_id},function(r){
+        if(r.success){
+          body.html('<iframe src="../'+r.pdf_url+'" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>');
+        } else if(r.error==='libreoffice_not_found'){
+          var msg = window.userType==='admin'
+            ? '<p style="font-size:14px;margin-bottom:16px;">LibreOffice is required to preview Word documents.</p><a href="https://www.libreoffice.org/download/download-libreoffice/" target="_blank" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:12px;">⬇️ Download LibreOffice</a><p style="font-size:12px;color:#94a3b8;">Install it on the server, then restart the application.</p>'
+            : '<p style="font-size:14px;margin-bottom:16px;">Document preview is currently unavailable.</p><p style="font-size:13px;color:#94a3b8;">Please contact your system administrator to enable this feature.</p>';
+          body.html('<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:16px;">📄</div>'+msg+'<div style="margin-top:16px;"><button onclick="feDownloadFile(null,null,'+f.file_upload_id+')" style="padding:10px 24px;border:none;border-radius:8px;background:#7b1228;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">⬇️ Download Instead</button></div></div>');
+        } else {
+          body.html('<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><p style="font-size:14px;">Failed to convert document.</p><button onclick="feDownloadFile(null,null,'+f.file_upload_id+')" style="margin-top:12px;padding:10px 24px;border:none;border-radius:8px;background:#7b1228;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">⬇️ Download Instead</button></div>');
+        }
+      },'json');
+    } else if(ext==='xlsx'||ext==='xls'){
+      if(typeof XLSX==='undefined'){
+        var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';s.onload=function(){renderXlsx(url,body);};document.head.appendChild(s);
+      } else { renderXlsx(url,body); }
+    } else {
+      body.html('<div style="text-align:center;color:#fff;"><div style="font-size:48px;margin-bottom:16px;">📄</div><p style="font-size:14px;margin-bottom:16px;">Preview not available for this file type.</p><button onclick="feDownloadFile(null,null,'+f.file_upload_id+')" style="padding:10px 24px;border:none;border-radius:8px;background:#7b1228;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">⬇️ Download Instead</button></div>');
+    }
+  };
+
+  function renderXlsx(url, body){
+    var xhr=new XMLHttpRequest(); xhr.open('GET',url,true); xhr.responseType='arraybuffer';
+    xhr.onload=function(){
+      var wb=XLSX.read(xhr.response,{type:'array'});
+      var html='<div style="background:#fff;padding:20px;border-radius:8px;width:95%;max-height:100%;overflow:auto;">';
+      wb.SheetNames.forEach(function(name){
+        var ws=wb.Sheets[name];
+        html+='<h4 style="margin:10px 0 6px;font-size:13px;color:#333;">'+name+'</h4>';
+        html+=XLSX.utils.sheet_to_html(ws,{editable:false});
+      });
+      html+='</div>';
+      body.html(html);
+      body.find('table').css({width:'100%','border-collapse':'collapse','font-size':'12px'});
+      body.find('td,th').css({border:'1px solid #e2e8f0',padding:'6px 8px'});
+    };
+    xhr.send();
+  }
 });
 </script>

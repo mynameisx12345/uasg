@@ -314,17 +314,14 @@ if (!isset($_SESSION['user_id'])) {
             {
                 data: null,
                 render: function(data, type, row) {
-                    const today = new Date();
-                    const deadline = new Date(row.task_deadline);
-                    const hasSubmissions = row.submission_count > 0;
-                    
-                    if (deadline < today && row.submission_count == 0) {
-                        return '<span class="status-badge status-overdue">Overdue</span>';
-                    } else if (hasSubmissions) {
-                        return '<span class="status-badge status-submitted">Active</span>';
-                    } else {
-                        return '<span class="status-badge status-pending">Pending</span>';
-                    }
+                    var status = row.task_status || 'active';
+                    if (status === 'closed') return '<span class="status-badge status-closed">Closed</span>';
+                    if (status === 'cancelled') return '<span class="status-badge status-cancelled">Cancelled</span>';
+                    var approvedCount = parseInt(row.approved_count) || 0;
+                    var submissionCount = parseInt(row.submission_count) || 0;
+                    if (approvedCount > 0) return '<span class="status-badge status-completed">Approved</span>';
+                    if (submissionCount > 0) return '<span class="status-badge status-submitted">Awaiting Review</span>';
+                    return '<span class="status-badge status-pending">Pending</span>';
                 }
             }
         ]

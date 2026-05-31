@@ -930,20 +930,61 @@ if($call == 1){
 		$result = ["success" => true, "folders" => $folders];
 	} elseif ($action === "get_files") {
 		$categoryId = intval($_POST["category_id"] ?? 0);
-		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.category_id = ? ORDER BY f.datetime_uploaded DESC", [$categoryId]);
+		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, f.is_signed_document, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.category_id = ? ORDER BY f.datetime_uploaded DESC", [$categoryId]);
 		$result = ["success" => true, "files" => $files];
 	} elseif ($action === "search") {
 		$query = "%" . ($_POST["query"] ?? "") . "%";
 		$overriddenOnly = ($_POST["overridden_only"] ?? "0") === "1";
 		$where = "f.original_filename LIKE ?";
 		if ($overriddenOnly) $where .= " AND f.is_overridden = 1";
-		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE $where ORDER BY f.datetime_uploaded DESC LIMIT 50", [$query]);
+		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, f.is_signed_document, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE $where ORDER BY f.datetime_uploaded DESC LIMIT 50", [$query]);
 		$result = ["success" => true, "files" => $files];
 	} elseif ($action === "get_overridden") {
-		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.is_overridden = 1 ORDER BY f.datetime_uploaded DESC");
+		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, f.is_signed_document, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.is_overridden = 1 ORDER BY f.datetime_uploaded DESC");
+		$result = ["success" => true, "files" => $files];
+	} elseif ($action === "get_approved") {
+		$files = $db->select("SELECT f.file_upload_id, f.original_filename, f.file_name, f.file_path, f.file_size, f.mime_type, f.category_tag, f.datetime_uploaded, f.is_overridden, f.original_category_tag, f.is_signed_document, u.user_name as uploaded_by FROM file_upload_tbl f LEFT JOIN user_tbl u ON f.uploaded_by = u.user_id WHERE f.is_signed_document = 1 ORDER BY f.datetime_uploaded DESC");
 		$result = ["success" => true, "files" => $files];
 	} elseif ($action === "delete_file") {
 		$result = ["success" => false, "error" => "Members cannot delete files"];
+	} elseif ($action === "convert_docx") {
+		$fileId = intval($_POST["file_id"] ?? 0);
+		if(!$fileId) { $result = ["success"=>false,"error"=>"Invalid file ID"]; }
+		else {
+			$file = $db->selectOne("SELECT file_path, original_filename FROM file_upload_tbl WHERE file_upload_id = ?", [$fileId]);
+			if(!$file) { $result = ["success"=>false,"error"=>"File not found"]; }
+			else {
+				$srcPath = realpath(__DIR__ . '/../' . $file['file_path']);
+				$cacheDir = __DIR__ . '/../uploads/files/pdf_cache/';
+				if(!is_dir($cacheDir)) mkdir($cacheDir, 0777, true);
+				$pdfName = pathinfo($file['file_path'], PATHINFO_FILENAME) . '.pdf';
+				$pdfPath = $cacheDir . $pdfName;
+				if(file_exists($pdfPath)) {
+					$result = ["success"=>true,"pdf_url"=>"uploads/files/pdf_cache/".$pdfName];
+				} else {
+					$soffice = '';
+					if (PHP_OS_FAMILY === 'Windows') {
+						$paths = [
+							'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+							'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+							'D:\\Program Files\\LibreOffice\\program\\soffice.exe',
+						];
+						foreach ($paths as $p) { if (file_exists($p)) { $soffice = '"'.$p.'"'; break; } }
+					} else {
+						if (file_exists('/Applications/LibreOffice.app/Contents/MacOS/soffice')) $soffice = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
+						else { $which = trim(shell_exec('which soffice 2>/dev/null') ?? ''); $soffice = $which ?: ''; }
+					}
+					if (!$soffice) { $result = ["success"=>false,"error"=>"libreoffice_not_found"]; echo json_encode($result); exit; }
+					$cmd = $soffice . ' --headless --convert-to pdf --outdir ' . escapeshellarg($cacheDir) . ' ' . escapeshellarg($srcPath) . ' 2>&1';
+					exec($cmd, $output, $returnCode);
+					if($returnCode === 0 && file_exists($pdfPath)) {
+						$result = ["success"=>true,"pdf_url"=>"uploads/files/pdf_cache/".$pdfName];
+					} else {
+						$result = ["success"=>false,"error"=>"libreoffice_not_found"];
+					}
+				}
+			}
+		}
 	} else {
 		$result = ["success" => false, "error" => "Invalid action"];
 	}

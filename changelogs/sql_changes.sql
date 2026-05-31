@@ -42,3 +42,20 @@ INSERT INTO system_settings_tbl (setting_key, setting_value) VALUES
 ('override_roles_file_explorer', '["subadmin","member"]'),
 ('override_roles_batch_upload', '["subadmin","member"]')
 ON DUPLICATE KEY UPDATE setting_key = setting_key;
+
+-- ============================================================
+-- UPDATE 5 — Close Task: Signed Documents Upload
+-- Date: 2026-05-31
+-- ============================================================
+
+-- Flag to identify signed documents uploaded when closing a task
+ALTER TABLE file_upload_tbl ADD COLUMN is_signed_document TINYINT(1) NOT NULL DEFAULT 0 AFTER original_category_tag;
+
+-- ============================================================
+-- UPDATE 6 — File Viewing Validity Date Setting
+-- Date: 2026-05-31
+-- ============================================================
+
+INSERT INTO system_settings_tbl (setting_key, setting_value) VALUES
+('file_view_validity_date', '2026-06-05')
+ON DUPLICATE KEY UPDATE setting_value = '2026-06-05';
